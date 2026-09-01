@@ -28,8 +28,6 @@ die() { printf '[entrypoint] ERROR: %s\n' "$*" >&2; exit 1; }
 : "${REQUIREMENTS_ALLOW_FROM:=127.0.0.1}"
 : "${APP_DEBUG:=false}"
 : "${AUTO_MIGRATE:=true}"
-: "${TRUSTED_PROXY_CIDR:=172.16.0.0/12}"
-: "${REQUIREMENTS_ALLOW_FROM:=127.0.0.1}"
 
 # APP_URL gives us both the scheme and the host the app should advertise.
 APP_SCHEME="${APP_URL%%://*}"
