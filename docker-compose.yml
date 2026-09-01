@@ -5,12 +5,11 @@
 #   docker compose logs -f web app follow
 #   docker compose down            stop (data survives in the named volumes)
 #
-# Three tiers, tuned for a 16 GB / 4 CPU host (tier M of the enterprise
+# Two services, tuned for a 16 GB / 4 CPU host (tier M of the enterprise
 # optimisation profile):
 #
-#   web  Apache event MPM - static files, MaxRequestWorkers 150, no PHP
-#   app  PHP-FPM          - pm.max_children 14, memory_limit 256M, OPcache 256M
-#   db   MariaDB          - innodb_buffer_pool_size 4G, max_connections 150
+#   app  nginx + PHP-FPM in one container - pm.max_children 14, OPcache 256M
+#   db   MariaDB - innodb_buffer_pool_size 4G (override with DB_BUFFER_POOL)
 #
 # Worst-case resident memory: 4G buffer pool + 14x256M PHP + 256M OPcache plus
 # overhead, comfortably inside 16 GB.
@@ -22,6 +21,11 @@ services:
   db:
     image: mariadb:11.4
     restart: unless-stopped
+    # Command-line flags beat the mounted cnf, so the buffer pool can be sized
+    # per host without editing the tier-M file: 4G suits the 16 GB production
+    # server; set DB_BUFFER_POOL smaller on a constrained dev machine.
+    command:
+      - --innodb-buffer-pool-size=${DB_BUFFER_POOL:-4G}
     environment:
       MARIADB_DATABASE: ${DB_NAME:-afcdc_dhis}
       MARIADB_USER: ${DB_USER:-afcdc}
@@ -43,7 +47,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      target: app
       args:
         # Stable per-deploy asset cache-buster. Without it the app falls back to
         # a per-minute value that defeats browser caching entirely.
@@ -63,40 +66,16 @@ services:
       APP_DEBUG: ${APP_DEBUG:-false}
       PHP_TIMEZONE: ${PHP_TIMEZONE:-Africa/Addis_Ababa}
       AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
-      # The FastCGI port is never published, so any host on the private compose
-      # network may connect. It is not reachable from outside.
-      FPM_ALLOWED_CLIENTS: ${FPM_ALLOWED_CLIENTS:-any}
-    volumes:
-      # Uploaded media and the render cache must outlive the container. The code
-      # is baked into the image, so a deploy is a rebuild, not a mount.
-      - media:/var/www/html/public/media
-      - cache:/var/www/html/public/cache
-    networks: [internal]
-
-  web:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      target: web
-      args:
-        BUILD_ID: ${BUILD_ID:-dev}
-    restart: unless-stopped
-    depends_on:
-      app:
-        condition: service_started
-    environment:
-      APP_URL: ${APP_URL:?APP_URL is required}
-      FPM_HOST: app
-      FPM_PORT: 9000
       TRUSTED_PROXY_CIDR: ${TRUSTED_PROXY_CIDR:-172.16.0.0/12}
       REQUIREMENTS_ALLOW_FROM: ${REQUIREMENTS_ALLOW_FROM:-127.0.0.1}
     ports:
       # Loopback only. The reverse proxy is the sole public entry point.
       - "127.0.0.1:${HTTP_PORT:-8081}:80"
     volumes:
-      # Apache serves uploaded media straight off disk without touching PHP, so
-      # it needs the same media volume the app writes to. Read-only here.
-      - media:/var/www/html/public/media:ro
+      # Uploaded media and the render cache must outlive the container. The code
+      # is baked into the image, so a deploy is a rebuild, not a mount.
+      - media:/var/www/html/public/media
+      - cache:/var/www/html/public/cache
     networks: [internal]
 
 volumes:

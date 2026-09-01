@@ -28,9 +28,8 @@ die() { printf '[entrypoint] ERROR: %s\n' "$*" >&2; exit 1; }
 : "${REQUIREMENTS_ALLOW_FROM:=127.0.0.1}"
 : "${APP_DEBUG:=false}"
 : "${AUTO_MIGRATE:=true}"
-# Which hosts may connect to the FastCGI port. "any" is correct on a private
-# compose network that publishes nothing; narrow it if the pool is exposed.
-: "${FPM_ALLOWED_CLIENTS:=any}"
+: "${TRUSTED_PROXY_CIDR:=172.16.0.0/12}"
+: "${REQUIREMENTS_ALLOW_FROM:=127.0.0.1}"
 
 # APP_URL gives us both the scheme and the host the app should advertise.
 APP_SCHEME="${APP_URL%%://*}"
@@ -48,7 +47,11 @@ render() {  # render <template> <destination> ; substitutes __NAME__ placeholder
         -e "s|__TRUSTED_PROXY_CIDR__|${TRUSTED_PROXY_CIDR}|g" \
         -e "s|__REQUIREMENTS_ALLOW_FROM__|${REQUIREMENTS_ALLOW_FROM}|g" \
         -e "s|__PHP_TIMEZONE__|${PHP_TIMEZONE}|g" \
-        -e "s|__FPM_ALLOWED_CLIENTS__|${FPM_ALLOWED_CLIENTS}|g" \
+        -e "s|__SERVER_NAME__|${APP_HOST}|g" \
+        -e "s|__TRUSTED_PROXY_CIDR__|${TRUSTED_PROXY_CIDR}|g" \
+        -e "s|__REQUIREMENTS_ALLOW_FROM__|${REQUIREMENTS_ALLOW_FROM}|g" \
+        -e "s|__FPM_HOST__|127.0.0.1|g" \
+        -e "s|__FPM_PORT__|9000|g" \
         "$src" > "$dst"
     # A leftover placeholder means a silently broken config; fail loudly instead.
     if grep -q '__[A-Z_]\+__' "$dst"; then
@@ -57,8 +60,10 @@ render() {  # render <template> <destination> ; substitutes __NAME__ placeholder
 }
 render /usr/local/etc/php/conf.d/zz-africacdc.ini.tpl \
        /usr/local/etc/php/conf.d/zz-africacdc.ini
-render /usr/local/etc/php-fpm.d/zz-www.conf.tpl \
-       /usr/local/etc/php-fpm.d/zz-www.conf
+cp /usr/local/etc/php-fpm.d/zz-www.conf.tpl /usr/local/etc/php-fpm.d/zz-www.conf
+render /etc/nginx/templates/nginx.conf.tpl      /etc/nginx/nginx.conf
+render /etc/nginx/templates/nginx-site.conf.tpl /etc/nginx/conf.d/default.conf
+nginx -t || die "nginx configuration is invalid"
 log "config rendered for ${APP_HOST} (${APP_SCHEME}, tz ${PHP_TIMEZONE})"
 
 # A plain-http deployment needs two things relaxed, and both are opt-in via
@@ -177,5 +182,16 @@ else
     log "AUTO_MIGRATE=false - skipping schema and seed"
 fi
 
+# PHP-FPM runs as a daemon inside this same container; nginx stays in the
+# foreground as PID 1. If FPM dies, /health.php starts answering 502 and the
+# container health check fails - the orchestrator restarts the whole container,
+# which is the recovery path a two-process container needs.
 log "starting PHP-FPM"
+php-fpm -D
+for i in 1 2 3 4 5 6 7 8 9 10; do
+    php -r 'exit(@fsockopen("127.0.0.1", 9000) ? 0 : 1);' && break
+    [ "$i" -eq 10 ] && die "PHP-FPM did not come up"
+    sleep 1
+done
+log "PHP-FPM up; starting nginx"
 exec "$@"

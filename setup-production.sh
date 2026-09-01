@@ -99,8 +99,8 @@ preflight() {
     ok "compose $("${COMPOSE[@]}" version --short 2>/dev/null || echo present)"
 
     for f in Dockerfile docker-compose.yml docker/entrypoint-app.sh docker/entrypoint-web.sh \
-             docker/apache-vhost.conf.tpl docker/php.ini.tpl \
-             docker/php-fpm-pool.conf docker/opcache.ini docker/apache-mpm.conf docker/mysqld-tuning.cnf \
+             docker/nginx.conf.tpl docker/nginx-site.conf.tpl docker/php.ini.tpl \
+             docker/php-fpm-pool.conf docker/opcache.ini docker/mysqld-tuning.cnf \
              db/for_upload/africacdc_dhis_schema.sql \
              db/for_upload/africacdc_dhis_seed.sql \
              db/for_upload/africacdc_dhis_tasks.sql; do

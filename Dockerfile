@@ -1,12 +1,9 @@
 # Africa CDC DHIS Performance Monitor
 #
-# Two images from one file, matching the reference enterprise architecture:
-# Apache event MPM serves static files and proxies PHP to a separate PHP-FPM
-# pool. Each container runs a single process, and the tuning knobs from the
-# 16 GB (tier M) profile map onto the tier that actually owns them.
-#
-#   docker build --target app -t afcdc-dhis-app .
-#   docker build --target web -t afcdc-dhis-web .
+# One application image: nginx and PHP-FPM in the same container, with FPM as
+# an internal implementation detail on 127.0.0.1 (nginx has no in-process PHP,
+# so FastCGI is how nginx runs PHP - but nothing outside this container ever
+# sees it). Tuning follows the 16 GB (tier M) enterprise profile.
 #
 # PHP 8.2 is deliberate: public/requirements.php requires >= 8.2.0, and
 # app/configuration/settings.php still calls error_reporting(E_ALL | E_STRICT),
@@ -62,6 +59,15 @@ RUN set -eux; \
     docker-php-ext-install -j"$(nproc)" \
         pdo_mysql mysqli gd mbstring soap xml zip exif opcache
 
+# nginx from Debian's repo, in the same layer as the client tools.
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends nginx curl; \
+    rm -rf /var/lib/apt/lists/*; \
+    rm -f /etc/nginx/sites-enabled/default
+
+COPY docker/nginx.conf.tpl      /etc/nginx/templates/nginx.conf.tpl
+COPY docker/nginx-site.conf.tpl /etc/nginx/templates/nginx-site.conf.tpl
 COPY docker/opcache.ini        /usr/local/etc/php/conf.d/10-opcache.ini
 COPY docker/php.ini.tpl        /usr/local/etc/php/conf.d/zz-africacdc.ini.tpl
 COPY docker/php-fpm-pool.conf  /usr/local/etc/php-fpm.d/zz-www.conf.tpl
@@ -79,62 +85,10 @@ ENV APP_BUILD_ID=${BUILD_ID}
 COPY docker/entrypoint-app.sh /usr/local/bin/entrypoint-app.sh
 RUN chmod +x /usr/local/bin/entrypoint-app.sh
 
-# cgi-fcgi lets the health check speak FastCGI directly, so the app container
-# reports its own health without depending on the web container.
-RUN set -eux; apt-get update; apt-get install -y --no-install-recommends libfcgi-bin; \
-    rm -rf /var/lib/apt/lists/*
 HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
-    CMD SCRIPT_NAME=/fpm-ping SCRIPT_FILENAME=/fpm-ping REQUEST_METHOD=GET \
-        cgi-fcgi -bind -connect 127.0.0.1:9000 || exit 1
-
-EXPOSE 9000
-ENTRYPOINT ["/usr/local/bin/entrypoint-app.sh"]
-CMD ["php-fpm", "-F"]
-
-# =============================================================================
-# Stage 3 - Apache event MPM (static files + FastCGI proxy). No PHP here.
-# =============================================================================
-FROM debian:bookworm-slim AS web
-
-# Debian's default mirrors are plain http. Some corporate networks refuse
-# outbound :80 while allowing :443, which fails the build with "Unable to
-# connect to deb.debian.org:80". Switch apt to https before the first update.
-# Handles both the classic sources.list and the deb822 .sources format.
-RUN set -eux; \
-    sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' \
-        /etc/apt/sources.list 2>/dev/null || true; \
-    if [ -d /etc/apt/sources.list.d ]; then \
-        find /etc/apt/sources.list.d -type f \( -name '*.list' -o -name '*.sources' \) \
-            -exec sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' {} +; \
-    fi; \
-    printf 'Acquire::Retries "10";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
-        > /etc/apt/apt.conf.d/99retries
-
-RUN set -eux; \
-    apt-get update; \
-    apt-get install -y --no-install-recommends apache2 curl ca-certificates; \
-    rm -rf /var/lib/apt/lists/*
-
-# event MPM is only safe because this tier runs no PHP at all.
-RUN set -eux; \
-    a2dismod -f mpm_prefork mpm_worker 2>/dev/null || true; \
-    a2enmod mpm_event proxy proxy_fcgi rewrite headers expires deflate remoteip setenvif
-
-COPY docker/apache-mpm.conf       /etc/apache2/conf-available/zz-mpm-tuning.conf
-RUN a2enconf zz-mpm-tuning
-COPY docker/apache-vhost.conf.tpl /etc/apache2/sites-available/000-default.conf.tpl
-
-# The web tier needs the document root only: static assets and the .htaccess
-# that front-controls everything else. Nothing under app/ is served.
-WORKDIR /var/www/html
-COPY --from=code --chown=www-data:www-data /src/public /var/www/html/public
-
-COPY docker/entrypoint-web.sh /usr/local/bin/entrypoint-web.sh
-RUN chmod +x /usr/local/bin/entrypoint-web.sh
-
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
     CMD curl -fsS -o /dev/null http://127.0.0.1/health.php || exit 1
 
 EXPOSE 80
-ENTRYPOINT ["/usr/local/bin/entrypoint-web.sh"]
-CMD ["apache2ctl", "-DFOREGROUND"]
+ENTRYPOINT ["/usr/local/bin/entrypoint-app.sh"]
+CMD ["nginx", "-g", "daemon off;"]
+
