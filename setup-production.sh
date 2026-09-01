@@ -88,6 +88,8 @@ find_docker() {
     fi
 }
 dc() { "${COMPOSE[@]}" -f "$COMPOSE_FILE" "$@"; }
+# True when the named compose service has a running container.
+svc_running() { dc ps --status running --services 2>/dev/null | grep -qx "$1"; }
 
 # ---------------------------------------------------------------------------
 # preflight
@@ -161,6 +163,15 @@ ensure_env() {
             http://*)  warn "APP_URL is http. The session cookie will not be marked Secure. Use https in production." ;;
             *) bad "APP_URL must start with http:// or https://"; problems=1 ;;
         esac
+        # The app emits root-relative URLs (/login, /css/...), so it cannot live
+        # under a path prefix: behind e.g. https://host/dashboard every asset
+        # and link would escape the prefix and 404. Only the host is used.
+        _path="${APP_URL#*://}"; _path="${_path#*/}"
+        if [ "$_path" != "${APP_URL#*://}" ] && [ -n "$_path" ]; then
+            warn "APP_URL carries a path (/${_path}) which will be IGNORED - the app must be"
+            warn "served at the root of its host. Point the proxy's server block for"
+            warn "$(printf '%s' "${APP_URL#*://}" | cut -d/ -f1) straight at this container."
+        fi
     fi
     for v in DB_PASSWORD DB_ROOT_PASSWORD; do
         local val="${!v:-}"
@@ -279,16 +290,23 @@ cmd_install() {
 
 cmd_deploy() {
     preflight; ensure_env
-    head_ "Backing up before deploying"
-    cmd_backup quiet
+    if svc_running db; then
+        head_ "Backing up before deploying"
+        cmd_backup quiet
+    else
+        head_ "Deploying"
+        warn "no running database - first deploy on this host, so there is nothing to back up"
+    fi
     build_and_start
     wait_healthy
-    ok "deployed"
+    maybe_create_admin
+    summary
 }
 
 cmd_backup() {
     find_docker
     load_env
+    svc_running db || die "the database container is not running - start the stack first: ./setup-production.sh"
     mkdir -p backups
     local out="backups/afcdc_dhis_$(date -u +%Y%m%d_%H%M%S).sql"
     dc exec -T db sh -c \
@@ -327,6 +345,7 @@ cmd_admin() {
     local email="${1:-}"
     [ -n "$email" ] || die "usage: ./setup-production.sh admin <email> [group-id]"
     find_docker
+    svc_running app || die "the app container is not running - start the stack first: ./setup-production.sh"
     dc exec app php /var/www/html/tools/create-admin.php "$email" "${2:-1}"
 }
 
