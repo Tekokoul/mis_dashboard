@@ -1,0 +1,62 @@
+{
+  "open_notification_case_title": {
+    "type": "varchar",
+    "title": "Case OPEN notification title"
+  },
+  "open_notification_case_text": {
+    "type": "varchar",
+    "title": "Case OPEN notification text"
+  },
+  "open_sms_case_text": {
+    "type": "varchar",
+    "title": "Case OPEN SMS text"
+  },
+  "rejected_notification_case_title": {
+    "type": "varchar",
+    "title": "Case REJECTED notification title"
+  },
+  "rejected_notification_case_text": {
+    "type": "varchar",
+    "title": "Case REJECTED notification text"
+  },
+  "rejected_sms_case_text": {
+    "type": "varchar",
+    "title": "Case REJECTED SMS text"
+  },
+  "closed_notification_case_title": {
+    "type": "varchar",
+    "title": "Case CLOSED notification title"
+  },
+  "closed_notification_case_text": {
+    "type": "varchar",
+    "title": "Case CLOSED notification text"
+  },
+  "closed_sms_case_text": {
+    "type": "varchar",
+    "title": "Case CLOSED SMS text"
+  },
+  "redirect_notification_title": {
+    "type": "varchar",
+    "title": "Redirect notification title"
+  },
+  "redirect_notification_text": {
+    "type": "varchar",
+    "title": "Redirect notification text"
+  },
+  "redirect_sms_text": {
+    "type": "varchar",
+    "title": "Redirect SMS text"
+  },
+  "action_notification_title": {
+    "type": "varchar",
+    "title": "Action taken notification title"
+  },
+  "action_notification_text": {
+    "type": "varchar",
+    "title": "Action taken notification text"
+  },
+  "action_sms_text": {
+    "type": "varchar",
+    "title": "Action taken SMS text"
+  }
+}

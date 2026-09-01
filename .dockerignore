@@ -1,0 +1,35 @@
+# Never build these into the image.
+
+# Quarantined legacy material: the previous tenant's database dump, the old
+# vendor logos and their outbound links. Shipping it would undo the rebrand.
+.removed-sadc-crystalengine/
+.backup-pre-afcdc/
+
+# Local development only.
+tools/dev/
+# Local DB credentials. The entrypoint generates this file from the
+# environment at container start, so it must never enter the build context:
+# a COPY would place it in an intermediate layer even though the Dockerfile
+# deletes it afterwards, and layers are readable with `docker history`.
+# NOTE: .dockerignore has no trailing-comment support - a comment on the same
+# line becomes part of the pattern and the rule silently never matches.
+app/configuration/settings.local.php
+.env
+.env.*
+!.env.example
+
+# Local database dumps, which may contain real data.
+backup_*.sql
+*.sql.gz
+
+# Host and editor noise.
+.DS_Store
+.git/
+.gitignore
+.claude/
+.claude-flow/
+node_modules/
+*.log
+
+# Docs are useful in the repo, not in a production image.
+COMMANDS.md

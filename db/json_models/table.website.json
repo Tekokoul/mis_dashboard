@@ -1,0 +1,68 @@
+{
+  "logo": {
+    "type": "image",
+    "title": "Logo"
+  },
+  "logo_inverted": {
+    "type": "image",
+    "title": "Logo inverted"
+  },
+  "facebook": {
+    "type": "varchar"
+  },
+  "instagram": {
+    "type": "varchar"
+  },
+  "google_analytics": {
+    "type": "varchar",
+    "title": "Google Analytics key"
+  },
+  "google_maps": {
+    "type": "varchar",
+    "title": "Google Maps key"
+  },
+  "favourite_icon": {
+    "type": "image",
+    "title": "Favourite Icon"
+  },
+  "facebook_image": {
+    "type": "image",
+    "title": "Default Facebook share image"
+  },
+  "business_name": {
+    "type": "varchar",
+    "title": "Business name"
+  },
+  "tagline": {
+    "type": "varchar",
+    "title": "Tag line"
+  },
+  "address": {
+    "type": "varchar",
+    "title": "Address"
+  },
+  "telephone_1": {
+    "type": "varchar",
+    "title": "Telephone 1"
+  },
+  "telephone_2": {
+    "type": "varchar",
+    "title": "Telephone 2"
+  },
+  "email": {
+    "type": "varchar",
+    "title": "E-mail"
+  },
+  "copyright": {
+    "type": "varchar",
+    "title": "Copyright"
+  },
+  "seo_title": {
+    "type": "varchar",
+    "title": "Website SEO title"
+  },
+  "seo_description": {
+    "type": "varchar",
+    "title": "Website SEO description"
+  }
+}

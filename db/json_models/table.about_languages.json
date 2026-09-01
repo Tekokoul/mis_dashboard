@@ -1,0 +1,26 @@
+{
+  "title": {
+    "type": "varchar",
+    "title": "Hero title"
+  },
+  "subtitle": {
+    "type": "varchar",
+    "title": "Hero subtitle"
+  },
+  "text": {
+    "type": "text",
+    "title": "Text"
+  },
+  "seo_title": {
+    "type": "varchar",
+    "title": "SEO title"
+  },
+  "tags": {
+    "type": "varchar",
+    "title": "SEO tags"
+  },
+  "description": {
+    "type": "varchar",
+    "title": "SEO description"
+  }
+}

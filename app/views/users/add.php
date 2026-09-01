@@ -1,0 +1,110 @@
+<?php
+$columns = 0;
+$columns += (isset($data['model']['common'])) ? 1 : 0;
+$columns += (isset($data['model']['languages'])) ? 1 : 0;
+$columns = ($columns==0) ? 1 : $columns;
+if(isset($_SESSION['user']['settings']['editing_columns'])){
+    $col_width = ($_SESSION['user']['settings']['editing_columns']==1) ? 12 : 12/$columns;
+} else {
+    $col_width = 12/$columns;
+}?>
+<header class="page-header page-header-left-inline-breadcrumb">
+    <h2 class="font-weight-bold text-6"><a href="<?=$this->L("users/list")?>" ><?= display($data['meta_name']); ?></a></h2>
+    <div class="right-wrapper">
+        <ol class="breadcrumbs">
+            <li><span>Add mode</span></li>
+            <li><span>New entry</span></li>
+        </ol>
+    </div>
+</header>
+<form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("users/add_update")?>" method="post">
+    <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
+    <div class="row mb-4">
+        <?php
+        if(isset($data['model']['common'])){
+            ?>
+            <div class="col col-lg-<?=$col_width;?> col-md-12">
+                <section class="card card-modern ">
+                    <div class="card-body">
+                        <div class="row">
+                            <div>
+                                <?php
+                                $html = "";
+                                foreach ($data['model']['common'] as $field=>$value) {
+                                    $prepopulated = $data['data'][$field] ?? "";
+                                    $html .= chooseElement($field, $value, $prepopulated);
+                                }
+                                print $html;
+                                ?>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+            <?php
+        }
+        if(isset($data['model']['languages'])){
+            ?>
+            <div class="col col-lg-<?=$col_width;?> col-md-12">
+                <div class="tabs">
+                    <ul class="nav nav-tabs nav-justified">
+                        <?php
+                        $first_active = "active";
+                        foreach ($this->R->languages as $language => $properties){
+                            ?>
+                            <li class="nav-item <?=$first_active;?>">
+                                <a class="nav-link" data-bs-target="#<?=$language;?>_tab" href="#<?=$language;?>_tab" data-bs-toggle="tab" class="text-center"><?=$properties['language'];?></a>
+                            </li>
+                            <?php
+                            $first_active = "";
+                        }
+                        ?>
+                    </ul>
+                    <div class="tab-content">
+                        <?php
+                        $first_active = "active";
+                        foreach ($data['model']['languages'] as $language => $properties){
+                            ?>
+                            <div id="<?=$language;?>_tab" class="tab-pane <?=$first_active;?>">
+                                <div class="row">
+                                    <div>
+                                        <?php
+                                        $html = "";
+                                        foreach ($properties as $field => $value) {
+                                            $prepopulated = $data['data']['languages'][$language][$field] ?? "";
+                                            $html .= chooseElement("languages[" . $language . "][" . $field . "]", $value, $prepopulated);
+                                        }
+                                        print $html;
+                                        ?>
+                                    </div>
+                                </div>
+                            </div>
+                            <?php
+                            $first_active = "";
+                        }
+                        ?>
+                    </div>
+                </div>
+            </div>
+            <?php
+        }
+        ?>
+    </div>
+    <div class="row action-buttons">
+        <!--                <div class="col-12 col-md-auto">-->
+        <!--                    <a href="#" class="delete-button btn btn-danger btn-px-4 py-3 d-flex align-items-center font-weight-semibold line-height-1">-->
+        <!--                        <i class="bx bx-trash text-4 me-2"></i> Delete Product-->
+        <!--                    </a>-->
+        <!---->
+        <!--                </div>-->
+
+        <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0 ms-auto">
+            <button type="submit" class="submit-button btn btn-primary btn-px-4 py-3 d-flex align-items-center font-weight-semibold line-height-1" data-loading-text="Loading...">
+                <i class="bx bx-save text-4 me-2"></i> Update
+            </button>
+        </div>
+        <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
+            <a href="<?=isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
+        </div>
+    </div>
+</form>

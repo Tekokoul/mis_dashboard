@@ -1,0 +1,51 @@
+{
+  "meta": {
+    "name": "Programmes",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "objective_id": {
+      "title": "Objective",
+      "type": "dropdown",
+      "values_from": "db",
+      "link_to_table": "pm_objectives_tbl",
+      "link_to_field": "abbr,name",
+      "order_by": "`name` asc",
+      "where_clause": "",
+      "appear_in_list": 1,
+      "list_width": 15
+    },
+    "name": {
+      "type": "varchar",
+      "appear_in_list": 1,
+      "list_width": 50,
+      "search_field": true,
+      "order_field": "ASC"
+    },
+    "abbr": {
+      "title": "Abbreviation",
+      "type": "varchar",
+      "search_field": true,
+      "appear_in_list": 0,
+      "list_width": 10
+    },
+    "description": {
+      "no_editor": true
+    },
+    "active": {
+      "type": "dropdown",
+      "appear_in_list": 4,
+      "list_width": 10,
+      "values_from": "values_list",
+      "values_list": {
+        "1": "Yes",
+        "0": "No"
+      }
+    }
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "pm_projects_percentages": {
+    "progress_file":"pm_progress_percentages",
+    "include_fields": true,
+    "has_value": true,
+    "field": "increment",
+    "value": "increment",
+    "load_extra": false
+  },
+  "pm_projects_dates": {
+    "progress_file": "pm_progress_dates",
+    "include_fields": true,
+    "has_value": false,
+    "load_extra": false
+  },
+  "pm_projects_milestones": {
+    "progress_file": "pm_progress_milestones",
+    "include_fields": true,
+    "has_value": true,
+    "field": "values",
+    "value": "milestones",
+    "load_extra": false
+  },
+  "pm_projects_tasks": {
+    "progress_file": "pm_progress_tasks",
+    "include_fields": false,
+    "has_value": false,
+    "load_extra": true,
+    "js": "pm_progress_tasks.js"
+  }
+}

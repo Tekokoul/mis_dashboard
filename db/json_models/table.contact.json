@@ -1,0 +1,18 @@
+{
+  "contact_email": {
+    "type": "varchar",
+    "title": "Contact E-mail"
+  },
+  "email_subject": {
+    "type": "varchar",
+    "title": "E-mail Subject"
+  },
+  "company_email": {
+    "type": "varchar",
+    "title": "Company E-mail"
+  },
+  "company_name": {
+    "type": "varchar",
+    "title": "Company Name"
+  }
+}

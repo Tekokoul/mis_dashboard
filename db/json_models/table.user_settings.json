@@ -1,0 +1,50 @@
+{
+  "table_rows": {
+    "type": "dropdown",
+    "title": "Results per page",
+    "values_from" : "values_list",
+    "values_list": {
+      "50": "50 (Default)",
+      "100": "100",
+      "150": "150"
+    }
+  },
+  "editing_columns": {
+    "type": "dropdown",
+    "title": "Columns in edit mode",
+    "values_from" : "values_list",
+    "values_list": {
+      "1": "One column",
+      "2": "Two Columns (Default)"
+    }
+  },
+  "update_redirect": {
+    "type": "dropdown",
+    "title": "Update returns to",
+    "values_from" : "values_list",
+    "values_list": {
+      "db_edit": "Edit page (Default)",
+      "db_list": "List page"
+    }
+  },
+  "notification_area": {
+    "type": "dropdown",
+    "title": "Notifications area",
+    "values_from" : "values_list",
+    "values_list": {
+      "stack-topleft": "Top Left",
+      "stack-topright": "Top Right",
+      "stack-bottomleft": "Bottom Left (Default)",
+      "stack-bottomright": "Bottom Right"
+    }
+  },
+  "eshop_id": {
+    "type": "dropdown",
+    "title": "Prefered id for e-shop products",
+    "values_from" : "values_list",
+    "values_list": {
+      "sku": "SKU",
+      "ean": "EAN (Barcode)"
+    }
+  }
+}

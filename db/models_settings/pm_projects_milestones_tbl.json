@@ -1,0 +1,35 @@
+{
+  "meta": {
+    "name": "Projects Milestones",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "project_id": {
+      "hidden": true
+    },
+    "milestones": {
+      "title": "Milestones",
+      "type": "list",
+      "elements": {
+        "name": {
+          "type": "varchar",
+          "title": "Name"
+        },
+        "percentage": {
+          "type": "increment",
+          "start": 1,
+          "end": 100,
+          "increment": 1,
+          "value": "%",
+          "value_position": "after",
+          "title": "Percentage"
+        }
+      }
+    }
+  }
+}

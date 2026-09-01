@@ -1,0 +1,69 @@
+{
+  "meta": {
+    "name": "System Users",
+    "actions": [
+    ],
+    "filters": [
+      {
+        "title": "Group",
+        "key": "`group`",
+        "type": "dropdown",
+        "values_from": "db",
+        "link_to_table": "core_groups_tbl",
+        "link_to_field": "name",
+        "order_by": "`id` asc",
+        "where_clause": "",
+        "add_zero_value": true
+      }
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "username": {
+      "appear_in_list": 0,
+      "order_field": "ASC",
+      "search_field": true,
+      "list_width": 20
+    },
+    "sn": {
+      "title": "Surname",
+      "appear_in_list": 1,
+      "order_field": "ASC",
+      "search_field": true,
+      "list_width": 20
+    },
+    "password": {
+      "type": "password"
+    },
+    "givenname": {
+      "title": "Firstname",
+      "appear_in_list": 2,
+      "order_field": "ASC",
+      "search_field": true,
+      "list_width": 20
+    },
+    "active": {
+      "type": "dropdown",
+      "appear_in_list": 4,
+      "list_width": 10,
+      "values_from": "values_list",
+      "values_list": {
+        "1": "Yes",
+        "0": "No"
+      }
+    },
+    "group": {
+      "type": "dropdown",
+      "values_from": "db",
+      "link_to_table": "core_groups_tbl",
+      "link_to_field": "name",
+      "order_by": "`name` asc",
+      "where_clause": "",
+      "appear_in_list": 3,
+      "list_width": 15
+    }
+  }
+}

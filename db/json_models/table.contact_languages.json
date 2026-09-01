@@ -1,0 +1,30 @@
+{
+  "contact_form_name": {
+    "type": "varchar",
+    "title": "contact_form_name"
+  },
+  "contact_form_phone": {
+    "type": "varchar",
+    "title": "contact_form_phone"
+  },
+  "contact_form_subject": {
+    "type": "varchar",
+    "title": "contact_form_subject"
+  },
+  "contact_form_message": {
+    "type": "varchar",
+    "title": "contact_form_subject"
+  },
+  "contact_form_button": {
+    "type": "varchar",
+    "title": "contact_form_button"
+  },
+  "telephone": {
+    "type": "varchar",
+    "title": "telephone"
+  },
+  "telephone": {
+    "type": "varchar",
+    "title": "telephone"
+  }
+}

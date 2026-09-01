@@ -1,0 +1,25 @@
+{
+  "meta": {
+    "name": "Projects Percentages",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "project_id": {
+      "hidden": true
+    },
+    "increment": {
+      "type": "increment",
+      "start": 0,
+      "end": 10,
+      "increment": 1,
+      "value": "%",
+      "value_position": "after",
+      "title": "Increment"
+    }
+  }
+}

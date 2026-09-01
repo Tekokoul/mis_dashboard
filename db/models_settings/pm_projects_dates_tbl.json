@@ -1,0 +1,22 @@
+{
+  "meta": {
+    "name": "Projects Dates",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "project_id": {
+      "hidden": true
+    },
+    "start_date": {
+      "title": "Start Date"
+    },
+    "end_date": {
+      "title": "End Date"
+    }
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "meta": {
+    "name": "Pillars",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "name": {
+      "type": "varchar",
+      "appear_in_list": 1,
+      "list_width": 65,
+      "search_field": true,
+      "order_field": "ASC"
+    },
+    "abbr": {
+      "title": "Abbreviation",
+      "type": "varchar",
+      "search_field": true,
+      "appear_in_list": 0,
+      "list_width": 10
+    },
+    "description": {
+      "no_editor": true
+    },
+    "active": {
+      "type": "dropdown",
+      "appear_in_list": 4,
+      "list_width": 10,
+      "values_from": "values_list",
+      "values_list": {
+        "1": "Yes",
+        "0": "No"
+      }
+    }
+  }
+}

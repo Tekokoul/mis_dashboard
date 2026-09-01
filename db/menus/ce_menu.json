@@ -1,0 +1,115 @@
+[
+  {
+    "title": "Dashboard",
+    "type": "link",
+    "link": "dashboard",
+    "icon": "bxs-dashboard",
+    "active_for": "1,2,3,4,5"
+  },
+  {
+    "title": "Graphs",
+    "type": "label",
+    "active_for": "1,2,3,4,5"
+  },
+  {
+    "title": "Overview",
+    "type": "link",
+    "link": "projects_graphs/overview",
+    "icon": "bx-line-chart",
+    "active_for": "1,2,3,4,5"
+  },
+  {
+    "title": "Per Project",
+    "type": "link",
+    "link": "projects_graphs/projects",
+    "icon": "bx-columns",
+    "active_for": "1,2,3,4,5"
+  },
+  {
+    "title": "Content",
+    "type": "label",
+    "active_for": "1,2,4,5"
+  },
+  {
+    "title": "Pillars",
+    "type": "link",
+    "link": "core/db_list/pm_pillars",
+    "icon": "bx-columns",
+    "active_for": "1,2"
+  },
+  {
+    "title": "Objectives",
+    "type": "link",
+    "link": "core/db_list/pm_objectives",
+    "icon": "bx-category",
+    "active_for": "1,2"
+  },
+  {
+    "title": "Programmes",
+    "type": "link",
+    "link": "core/db_list/pm_programmes",
+    "icon": "bxs-category",
+    "active_for": "1,2"
+  },
+  {
+    "title": "Projects / Interventions",
+    "type": "link",
+    "link": "projects/list",
+    "icon": "bx-cube",
+    "active_for": "1,2"
+  },
+  {
+    "title": "Progress",
+    "type": "link",
+    "link": "projects/progress_list",
+    "icon": "bx-bar-chart",
+    "active_for": "1,2,3"
+  },
+  {
+    "title": "Administrative",
+    "type": "label",
+    "active_for": "1"
+  },
+  {
+    "title": "Manage users",
+    "type": "link",
+    "link": "users/list",
+    "icon": "bx-user",
+    "active_for": "1"
+  },
+  {
+    "title": "Configure JSON files",
+    "type": "link",
+    "link": "admin/configure_json",
+    "icon": "bxs-file-json",
+    "active_for": "1"
+  },
+  {
+    "title": "Configuration",
+    "type": "link",
+    "link": "admin/configuration",
+    "icon": "bx-cog",
+    "active_for": "1"
+  },
+  {
+    "title": "Deploy / git pull",
+    "type": "link",
+    "link": "ngine/deploy",
+    "icon": "bx-git-pull-request",
+    "active_for": "1"
+  },
+  {
+    "title": "Tools",
+    "label": "Tools",
+    "type": "parent",
+    "icon": "bx-dots-horizontal",
+    "active_for": "1",
+    "nodes": [
+      {
+        "title": "Export Keys",
+        "link": "tools/export_keys",
+        "active_for": "1"
+      }
+    ]
+  }
+]

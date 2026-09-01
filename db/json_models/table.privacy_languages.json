@@ -1,0 +1,22 @@
+{
+  "privacy_policy_title": {
+    "type": "varchar",
+    "title": "Privacy policy title"
+  },
+  "privacy_policy_subtitle": {
+    "type": "varchar",
+    "title": "Privacy policy subtitle"
+  },
+  "privacy_policy_text": {
+    "type": "text",
+    "title": "Privacy policy content"
+  },
+  "seo_title": {
+    "type": "varchar",
+    "title": "SEO Title"
+  },
+  "description": {
+    "type": "varchar",
+    "title": "SEO description"
+  }
+}

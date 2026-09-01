@@ -1,0 +1,41 @@
+{
+  "meta": {
+    "name": "Multiple KPIs",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "project_id": {
+      "hidden": true
+    },
+    "name": {
+      "type": "varchar",
+      "title": "Name",
+      "appear_in_list": 1,
+      "list_width": 50
+    },
+    "tasks": {
+      "hidden": true,
+      "no_update": true
+    },
+    "description": {
+      "title": "Description",
+      "type": "text",
+      "no_editor": true
+    },
+    "applies_to": {
+      "title": "Applies To",
+      "type": "dropdown",
+      "multiselect": true,
+      "values_from": "db",
+      "link_to_table": "pm_members_tbl",
+      "link_to_field": "name",
+      "order_by": "`name` asc",
+      "where_clause": ""
+    }
+  }
+}

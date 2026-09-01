@@ -1,0 +1,39 @@
+# ---------------------------------------------------------------------------
+# Secrets — never commit
+# ---------------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+app/configuration/settings.local.php
+
+# ---------------------------------------------------------------------------
+# Quarantined legacy material.
+# Contains the previous tenant's full database dump — real staff names and
+# password hashes — plus the old vendor logos and outbound links. Kept locally
+# as the undo for the rebrand; must never be published or deployed.
+# ---------------------------------------------------------------------------
+.removed-sadc-crystalengine/
+.backup-pre-afcdc/
+
+# ---------------------------------------------------------------------------
+# Runtime and local state
+# ---------------------------------------------------------------------------
+backups/
+backup_*.sql
+*.sql.gz
+public/cache/*
+!public/cache/.gitkeep
+public/media/*
+!public/media/logo/
+logs/
+*.log
+
+# ---------------------------------------------------------------------------
+# Tooling noise
+# ---------------------------------------------------------------------------
+.DS_Store
+.claude/
+.claude-flow/
+node_modules/
+.idea/
+.vscode/

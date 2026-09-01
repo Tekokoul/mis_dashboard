@@ -1,0 +1,42 @@
+{
+  "login": {
+    "controller": "system",
+    "action": "login"
+  },
+  "recover-password": {
+    "controller": "system",
+    "action": "recover_password"
+  },
+  "dashboard": {
+    "controller": "system",
+    "action": "dashboard"
+  },
+  "articles": {
+    "controller": "crud",
+    "action": "list"
+  },
+  "category": {
+    "controller": "products",
+    "action": "list"
+  },
+  "product": {
+    "controller": "products",
+    "action": "view"
+  },
+  "quickview": {
+    "controller": "products",
+    "action": "quickview"
+  },
+  "about-us": {
+    "controller": "about",
+    "action": "index"
+  },
+  "terms-and-conditions": {
+    "controller": "terms",
+    "action": "index"
+  },
+  "checkout": {
+    "controller": "orders",
+    "action": "checkout"
+  }
+}

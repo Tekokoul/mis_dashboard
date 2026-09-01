@@ -1,0 +1,45 @@
+{
+  "meta": {
+    "name": "Member States",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "name": {
+      "type": "varchar",
+      "appear_in_list": 0,
+      "list_width": 35,
+      "search_field": true,
+      "order_field": "ASC"
+    },
+    "description": {
+      "no_editor": true
+    },
+    "account": {
+      "title": "Account",
+      "type": "dropdown",
+      "values_from": "db",
+      "link_to_table": "core_users_tbl",
+      "link_to_field": "givenname,sn,username",
+      "order_by": "`username` asc",
+      "add_zero_value": true,
+      "where_clause": "",
+      "appear_in_list": 1,
+      "list_width": 40
+    },
+    "active": {
+      "type": "dropdown",
+      "appear_in_list": 2,
+      "list_width": 10,
+      "values_from": "values_list",
+      "values_list": {
+        "1": "Yes",
+        "0": "No"
+      }
+    }
+  }
+}

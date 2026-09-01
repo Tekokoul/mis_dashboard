@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "name": "Progress Percentages",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "project_id": {
+      "type": "int",
+      "hidden": true
+    },
+    "value": {
+      "type": "increment",
+      "start": 0,
+      "end": 100,
+      "increment": 1,
+      "value": "%",
+      "value_position": "after",
+      "title": "Percentage"
+    },
+    "comment": {
+      "type": "text",
+      "no_editor": true
+    },
+    "progress_date": {
+      "type": "datetime",
+      "title": "Date"
+    }
+  }
+}

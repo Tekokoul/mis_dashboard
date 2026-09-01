@@ -1,0 +1,54 @@
+{
+  "case_redirect_title": {
+    "type": "varchar",
+    "title": "Case redirect title"
+  },
+  "case_redirect_preview_text": {
+    "type": "varchar",
+    "title": "Case redirect preview text"
+  },
+  "case_redirect_text": {
+    "type": "text",
+    "title": "Case redirect text",
+    "no_editor": true
+  },
+  "registration_title": {
+    "type": "varchar",
+    "title": "Registration title"
+  },
+  "registration_preview_text": {
+    "type": "varchar",
+    "title": "Registration preview text"
+  },
+  "registration_text": {
+    "type": "text",
+    "title": "Registration text",
+    "no_editor": true
+  },
+  "reset_title": {
+    "type": "varchar",
+    "title": "Reset title"
+  },
+  "reset_preview_text": {
+    "type": "varchar",
+    "title": "Reset preview text"
+  },
+  "reset_text": {
+    "type": "text",
+    "title": "Reset password text",
+    "no_editor": true
+  },
+  "order_title": {
+    "type": "varchar",
+    "title": "Order title"
+  },
+  "order_preview_text": {
+    "type": "varchar",
+    "title": "Order preview text"
+  },
+  "order_text": {
+    "type": "text",
+    "title": "Order text",
+    "no_editor": true
+  }
+}

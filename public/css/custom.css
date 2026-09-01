@@ -1,0 +1,437 @@
+/* Add here all your CSS customizations */
+.card-padding-10 {
+    padding: 10px !important;
+}
+
+.iframe-container {
+    overflow: hidden;
+    /* 16:9 aspect ratio */
+    padding-top: 50%;
+    position: relative;
+}
+
+.iframe-container iframe {
+    border: 0;
+    height: 100%;
+    left: 0;
+    position: absolute;
+    top: 0;
+    width: 100%;
+}
+
+.select2-selection--multiple{
+    overflow: auto !important;
+    height: auto !important;
+    padding-bottom: 5px !important;
+}
+
+.CodeMirror {
+    height: 70vh;
+    width: 100%;
+}
+
+@media only screen and (max-width: 767px) {
+    .userbox .name,
+    .userbox .role {
+        max-width: 100% !important;
+    }
+}
+
+@media (min-height: 800px) and (min-width: 992px) {
+    .action-buttons-fixed {
+        padding-bottom: 0px;
+    }
+
+    .action-buttons-fixed .action-buttons {
+        padding: 15px 35px;
+    }
+}
+
+html.modern.fixed .page-header {
+    top: 63px;
+}
+
+.ui-datepicker {
+    z-index: 20000;
+}
+
+/* ==========================================================================
+   AFRICA CDC THEME
+   Loads after skin_africacdc.css, so this is the override layer.
+
+   The skin file is machine-generated (tools/make_skin_africacdc.py) and only
+   re-hues what the Porto generator emitted. Everything here is the part a
+   generator cannot reach: type, the brand tokens, the overview page's
+   information design, focus states, and the status vocabulary.
+
+   Palette authority: AfCDC Communication Style Guide (African Union colours).
+   ========================================================================== */
+
+:root {
+    /* --- brand ---------------------------------------------------------- */
+    --au-green-deep:  #1A5632;   /* AU Corporate Green - primary. 8.67:1 on white */
+    --au-green:       #348F41;   /* AU Green - 4.08:1 on white.
+                                    NOT for body text on white, and never a
+                                    ground for white text. Accent fills only. */
+    --au-red:         #9F2241;   /* AU Red - 7.56:1 on white */
+    --au-gold:        #B4A269;   /* AU Gold - 2.53:1 on white. Rules, fills and
+                                    borders only; never text on a light ground. */
+    --au-grey:        #58595B;   /* AU Grey - body copy */
+
+    /* --- neutrals, biased a few degrees toward the green so they read as
+           chosen rather than inherited mid-grey ---------------------------- */
+    --afcdc-ink:      #1D211E;
+    --afcdc-ink-soft: #5A615C;
+    --afcdc-rule:     #E2E6E3;
+    --afcdc-surface:  #FFFFFF;
+    --afcdc-canvas:   #F5F7F5;
+
+    /* --- status ---------------------------------------------------------
+       Validated with the dataviz palette checker. Green and red measure
+       delta-E 1.6 under deuteranopia and green against gold 7.5 under
+       protanopia: these three are NOT distinguishable by colour alone.
+       Every status chip below therefore carries an icon and a text label,
+       and progress magnitude is left as a single hue. Do not add a
+       colour-only status indicator. -------------------------------------- */
+    --afcdc-good:     #2E7D3C;
+    --afcdc-warning:  #B4842A;
+    --afcdc-critical: #B02E4E;
+    --afcdc-idle:     #8A918C;
+}
+
+/* --- Typography ---------------------------------------------------------
+   The style guide specifies Univers for graphics and Arial for web HTML
+   text. Open Sans stays in the stack as the metric-compatible fallback the
+   Porto theme was tuned against. To revert to Open Sans, delete this rule. */
+/* modern.css:6 sets this as `html.modern body`, so the selector has to carry the
+   same class to win on cascade order rather than lose on specificity. */
+html.modern body,
+html .nav-main,
+html .card-title,
+html .page-header h2 {
+    font-family: Arial, "Helvetica Neue", "Open Sans", Helvetica, sans-serif;
+}
+
+/* Figures line up in columns everywhere they appear. */
+html .progress-bar,
+html .gauge-chart label,
+html .afcdc-figure,
+html td.text-end,
+html .afcdc-deliverable__meta {
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Page header --------------------------------------------------------
+   61 views hand-write this header; restyling it here reaches all of them. */
+html .page-header h2 {
+    color: var(--afcdc-ink);
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+}
+
+/* --- The gold accent ----------------------------------------------------
+   The guide puts gold and green at roughly 60% of the palette against 15%
+   white and 15% red. In a dense admin UI that budget is spent almost
+   entirely on green; gold earns exactly one job - the rule that closes a
+   card header - so it stays an accent instead of decoration. */
+html .card > .card-header {
+    border-bottom: 1px solid var(--afcdc-rule);
+    box-shadow: inset 0 -3px 0 -1px var(--au-gold);
+}
+
+/* --- Overview: the two lenses ------------------------------------------
+   Internal and External are peers, so they get equal columns and a shared
+   baseline. The lens name is the heading; the gauge is the summary figure. */
+html .afcdc-lens {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    height: 100%;
+}
+
+html .afcdc-lens__label {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    color: var(--afcdc-ink-soft);
+}
+
+html .afcdc-lens__name {
+    font-size: 1.125rem;
+    font-weight: 700;
+    line-height: 1.3;
+    color: var(--au-green-deep);
+    text-wrap: balance;
+    margin: 0;
+}
+
+/* A deliverable row: WBS rail, title, then its figures. */
+html .afcdc-deliverable {
+    display: grid;
+    grid-template-columns: 2.75rem 1fr;
+    gap: 0 0.75rem;
+    align-items: baseline;
+    padding: 0.7rem 0;
+    border-top: 1px solid var(--afcdc-rule);
+    text-align: left;
+}
+
+html .afcdc-deliverable__wbs {
+    font-size: 0.8125rem;
+    font-weight: 700;
+    color: var(--au-green-deep);
+    font-variant-numeric: tabular-nums;
+}
+
+html .afcdc-deliverable__name {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--afcdc-ink);
+    line-height: 1.35;
+}
+
+html .afcdc-deliverable__meta {
+    grid-column: 2;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1rem;
+    margin-top: 0.2rem;
+    font-size: 0.75rem;
+    color: var(--afcdc-ink-soft);
+}
+
+/* A deliverable the annual workplan does not fund yet. Marked in text as
+   well as tone, because tone alone is not an encoding. */
+html .afcdc-deliverable--unfunded .afcdc-deliverable__name {
+    color: var(--afcdc-ink-soft);
+}
+
+/* --- Status vocabulary --------------------------------------------------
+   Colour is the third encoder here, never the first. The icon and the label
+   carry the meaning; see the delta-E note in the token block above. */
+html .afcdc-status {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.1rem 0.5rem 0.1rem 0.4rem;
+    border-radius: 2px;
+    border-left: 3px solid currentColor;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: var(--afcdc-canvas);
+    white-space: nowrap;
+}
+html .afcdc-status > i { font-size: 0.875em; }
+html .afcdc-status--good     { color: var(--afcdc-good); }
+html .afcdc-status--warning  { color: var(--afcdc-warning); }
+html .afcdc-status--critical { color: var(--afcdc-critical); }
+html .afcdc-status--idle     { color: var(--afcdc-idle); }
+
+/* --- Progress ------------------------------------------------------------
+   Progress is a magnitude, so it stays one hue. The track is tinted rather
+   than grey so a 0% bar still reads as an empty measure, not a broken one. */
+html .progress {
+    background-color: #E8EDE9;
+    border-radius: 2px;
+}
+html .progress-bar {
+    border-radius: 2px 0 0 2px;
+}
+/* A zero-length bar renders no label, so the value goes beside the track. */
+html .afcdc-progress-zero {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--afcdc-ink-soft);
+    font-variant-numeric: tabular-nums;
+}
+
+/* --- Gauges --------------------------------------------------------------
+   gauge.js paints the arc with graph_color (_PROJECT_COLOR). These are the
+   surrounding bits it does not draw. */
+/* Do NOT set width/height on canvas.gaugeBasic. gauge.js owns both the
+   attributes and the inline style: it scales the attributes by devicePixelRatio
+   and writes the CSS box back itself (vendor/gauge/gauge.js:216-221), then
+   re-reads clientWidth/clientHeight at :468. Any CSS box here is read back as
+   the new backing size - a max-width/height:auto pair grew the page from
+   1,385px to 6,290px and broke it sideways; a fixed px pair measured as 0 wide
+   and the arc stopped drawing. Size the gauge by the canvas attributes in
+   app/views/projects_graphs/overview.php instead. */
+html .gauge-chart {
+    margin-block: -0.25rem -0.5rem;
+}
+
+html .gauge-chart label {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--au-green-deep);
+    line-height: 1.1;
+}
+html .gauge-chart strong a {
+    color: var(--afcdc-ink);
+}
+html .gauge-chart strong a:hover {
+    color: var(--au-green-deep);
+}
+
+/* --- Footnote -----------------------------------------------------------
+   Used to say plainly what is measured data and what is not. */
+html .afcdc-note {
+    font-size: 0.75rem;
+    line-height: 1.55;
+    color: var(--afcdc-ink-soft);
+    border-left: 3px solid var(--au-gold);
+    padding-left: 0.75rem;
+    max-width: 78ch;
+}
+
+/* --- Focus --------------------------------------------------------------
+   Porto's focus states are faint. Keyboard users get a real ring. */
+html a:focus-visible,
+html button:focus-visible,
+html .btn:focus-visible,
+html .nav-main a:focus-visible,
+html [tabindex]:focus-visible {
+    outline: 2px solid var(--au-green);
+    outline-offset: 2px;
+    border-radius: 2px;
+}
+
+/* --- Wide content -------------------------------------------------------
+   Tables and chart canvases scroll inside themselves; the page body never
+   scrolls sideways. */
+html .card-body > .table-responsive,
+html .afcdc-scroll {
+    overflow-x: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    html *,
+    html *::before,
+    html *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
+
+/* --- Pagination ---------------------------------------------------------
+   Inherited defect, not a new one: the Porto skin paints the current page's
+   background with the brand colour but never sets its text colour, so the
+   number keeps the list's default #444. Measured 1.12:1 against the AU green
+   - the current page was effectively invisible. The same bug was present in
+   the legacy build (grey on #134B99); the green just made it obvious.
+   White on #1A5632 measures 8.67:1. */
+html .pagination .page-item.active .page-link,
+html .pagination .page-item.active .page-link:hover,
+html .pagination .page-item.active .page-link:focus,
+html .pagination > .active > a,
+html .pagination > .active > span,
+html .pagination > .active > a:hover,
+html .pagination > .active > span:hover {
+    color: #FFFFFF !important;
+    font-weight: 700;
+}
+
+/* Disabled arrows were rendering at full strength, identical to live ones. */
+html .pagination .page-item.disabled .page-link {
+    color: var(--afcdc-idle) !important;
+    opacity: 1;                 /* Porto dims the whole box; tint the ink instead */
+    cursor: default;
+}
+
+/* Give the clickable pages a hover state - previously there was none. */
+html .pagination .page-item:not(.active):not(.disabled) .page-link:hover {
+    background-color: #E8EDE9;
+    color: var(--au-green-deep) !important;
+}
+
+/* --- AWP Activities table -----------------------------------------------
+   A long flat list of 55 rows, so it needs a row counter, filters in one row
+   above the table, and columns that stay legible when the activity text is
+   long. */
+html .afcdc-count {
+    display: inline-block;
+    margin-left: 0.6rem;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--afcdc-ink-soft);
+    vertical-align: middle;
+}
+
+html .afcdc-filters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 0.75rem 1rem;
+    padding-bottom: 1rem;
+    margin-bottom: 0.5rem;
+    border-bottom: 1px solid var(--afcdc-rule);
+}
+html .afcdc-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    min-width: 12rem;
+}
+html .afcdc-filter > span {
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--afcdc-ink-soft);
+}
+
+/* The row counter is an index, not a measure: keep it quiet and narrow. */
+html .afcdc-col-num {
+    width: 3rem;
+    text-align: right;
+    color: var(--afcdc-ink-soft);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+
+html .afcdc-table td { vertical-align: top; }
+html .afcdc-table th {
+    font-size: 0.6875rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--afcdc-ink-soft);
+    white-space: nowrap;
+}
+html .afcdc-awp {
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+    color: var(--afcdc-ink-soft);
+}
+html .afcdc-lens-tag {
+    display: inline-block;
+    padding: 0.05rem 0.4rem;
+    border-radius: 2px;
+    border-left: 3px solid var(--au-green-deep);
+    background: var(--afcdc-canvas);
+    font-size: 0.6875rem;
+    font-weight: 700;
+    white-space: nowrap;
+    color: var(--afcdc-ink);
+}
+
+/* DataTables' own chrome, aligned with the rest of the page. */
+html #datatable-activities_wrapper .dataTables_filter input {
+    border: 1px solid var(--afcdc-rule);
+    border-radius: 2px;
+    padding: 0.25rem 0.5rem;
+    margin-left: 0;
+}
+html #datatable-activities_wrapper .dataTables_info,
+html #datatable-activities_wrapper .dataTables_length label,
+html #datatable-activities_wrapper .dataTables_filter label {
+    font-size: 0.8125rem;
+    color: var(--afcdc-ink-soft);
+}

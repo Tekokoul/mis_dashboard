@@ -1,0 +1,9 @@
+{
+    "require": {
+        "phpmailer/phpmailer": "^6.2",
+        "kreait/firebase-php": "^6.9",
+        "google/apiclient": "^2.12.1",
+        "phpoffice/phpspreadsheet": "^1.29",
+        "ctwillie/expo-server-sdk-php": "^2.1"
+    }
+}

@@ -1,0 +1,755 @@
+{
+ "deliverables": [
+  {
+   "wbs": "1.1",
+   "lens": "internal",
+   "name": "Connect the RCCs as one organisation",
+   "desc": "One network, one operating platform.",
+   "start": "2026-08-03",
+   "finish": "2026-12-18",
+   "days": 100,
+   "budget": 672000,
+   "pct": 0,
+   "status": "Not started",
+   "activities": [
+    {
+     "awp": "4.2.4.06.01",
+     "task": "Procurement of Microsoft 365 Licence, 400E5, 100E1, Copilot, Visio",
+     "ind": "T4 SCM.13.2-16",
+     "qtr": "Q1",
+     "start": "2026-01-01",
+     "finish": "2026-03-31",
+     "budget": 504000,
+     "note": "The common operating platform for the whole organisation."
+    },
+    {
+     "awp": "4.2.4.06.03",
+     "task": "Fibre Internet at HQ, 2 fibre, 1 air fibre, simcards, phone line",
+     "ind": "T4 SCM.13.2-16",
+     "qtr": "Q1",
+     "start": "2026-01-01",
+     "finish": "2026-03-31",
+     "budget": 103000,
+     "note": "Core connectivity — the ‘one network’ component."
+    },
+    {
+     "awp": "4.2.4.06.06",
+     "task": "Purchase of a Network Health Monitoring/Security tool software",
+     "ind": "T4 SCM.13.2-16",
+     "qtr": "Q1",
+     "start": "2026-01-01",
+     "finish": "2026-03-31",
+     "budget": 55000,
+     "note": "Tooling for the Network Operations Centre."
+    },
+    {
+     "awp": "4.2.4.06.09",
+     "task": "Purchase of Toolkits for Network expansion",
+     "ind": "T4 SCM.13.2-16",
+     "qtr": "Q2",
+     "start": "2026-04-01",
+     "finish": "2026-06-30",
+     "budget": 10000,
+     "note": "Network expansion to connect sites."
+    },
+    {
+     "awp": "4.2.4.06.11",
+     "task": "Provide operational support, security patches, and maintenance for internal communication systems including email servers, dashboards, and enterprise messaging platforms",
+     "ind": "T4 MIS.13.2-6",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Keeps the shared operating platform running."
+    },
+    {
+     "awp": "4.2.4.06.25",
+     "task": "Establish comprehensive Endpoint Management Operating Model",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "One managed device estate across HQ and the RCCs."
+    },
+    {
+     "awp": "4.2.4.06.26",
+     "task": "Deploy and operationalize Endpoint Management infrastructure",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "One managed device estate across HQ and the RCCs."
+    },
+    {
+     "awp": "4.2.4.06.27",
+     "task": "Establish Endpoint Management performance monitoring and governance",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "One managed device estate across HQ and the RCCs."
+    },
+    {
+     "awp": "4.2.4.06.28",
+     "task": "Develop consolidated IT Service Management Operating Model",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "A single service desk across the organisation."
+    },
+    {
+     "awp": "4.2.4.06.29",
+     "task": "Operationalize IT Service Management & IT Asset Governance processes",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "A single service desk across the organisation."
+    },
+    {
+     "awp": "4.2.4.06.30",
+     "task": "Mature IT Service Management and establish continuous improvement",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "A single service desk across the organisation."
+    },
+    {
+     "awp": "4.2.4.06.46",
+     "task": "Implement network upgrades and proper segmentation to eliminate single points of failure",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Network architecture."
+    },
+    {
+     "awp": "4.2.4.06.47",
+     "task": "Strengthen redundancy across core network components",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Network architecture."
+    },
+    {
+     "awp": "4.2.4.06.48",
+     "task": "Establish a Network Operations Centre (NOC) for proactive monitoring and incident response",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Network operations."
+    }
+   ]
+  },
+  {
+   "wbs": "1.2",
+   "lens": "internal",
+   "name": "Data Centre operating 24/7/365",
+   "desc": "Always-on continental infrastructure.",
+   "start": "2026-08-03",
+   "finish": "2026-12-18",
+   "days": 100,
+   "budget": 125000,
+   "pct": 0,
+   "status": "Not started",
+   "activities": [
+    {
+     "awp": "4.2.4.06.02",
+     "task": "Procurement of Microsoft Azure",
+     "ind": "T4 SCM.13.2-16",
+     "qtr": "Q1",
+     "start": "2026-01-01",
+     "finish": "2026-03-31",
+     "budget": 125000,
+     "note": "Hosting substrate for always-on continental infrastructure."
+    },
+    {
+     "awp": "4.2.4.06.12",
+     "task": "Establish automated cloud-based backup systems with geographic redundancy and implement failover mechanisms to ensure 99.9% uptime for critical Africa CDC systems",
+     "ind": "T4 MIS.13.2-6",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Uptime and failover — the 24/7/365 commitment."
+    },
+    {
+     "awp": "4.2.4.06.22",
+     "task": "Africa CDC — Cloud Operating Model Operationalization",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Operating model underpinning always-on infrastructure."
+    },
+    {
+     "awp": "4.2.4.06.23",
+     "task": "Enforcing standardized governance, security, and cost management controls across Azure workloads",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Governance of the hosting platform."
+    },
+    {
+     "awp": "4.2.4.06.24",
+     "task": "Institutionalize Cloud Operating Model as standard operating framework",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Operating model underpinning always-on infrastructure."
+    },
+    {
+     "awp": "4.2.4.06.34",
+     "task": "Ensure stable, secure, and resilient IT infrastructure supporting business operations",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Indicator tracks continental data centre infrastructure."
+    },
+    {
+     "awp": "4.2.4.06.39",
+     "task": "Establish service management and preventive maintenance frameworks",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Preventive maintenance of the data centre estate."
+    },
+    {
+     "awp": "4.2.4.06.50",
+     "task": "Enhance disaster recovery and business continuity mechanisms",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Continuity of the always-on estate."
+    },
+    {
+     "awp": "4.2.4.06.55",
+     "task": "Enhance backup, recovery, and redundancy systems",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Resilience of the always-on estate."
+    }
+   ]
+  },
+  {
+   "wbs": "1.3",
+   "lens": "internal",
+   "name": "Cyber security & data sovereignty",
+   "desc": "ISO/IEC 27001 certified.",
+   "start": "2026-08-03",
+   "finish": "2026-11-20",
+   "days": 80,
+   "budget": 0,
+   "pct": 0,
+   "status": "Not started",
+   "activities": [
+    {
+     "awp": "4.2.4.06.13",
+     "task": "Deploy role-based access control (RBAC) systems with multi-factor authentication (MFA) and implement automated account lifecycle management for staff onboarding and offboarding",
+     "ind": "T4 MIS.13.2-6",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Access control — an ISO/IEC 27001 control area."
+    },
+    {
+     "awp": "4.2.4.06.14",
+     "task": "Execute comprehensive data migration plan to transition all critical institutional data from personal accounts to secure institutional cloud environments with data validation and integrity checks",
+     "ind": "T4 MIS.13.2-6",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Moving data under institutional control — data sovereignty."
+    },
+    {
+     "awp": "4.2.4.06.15",
+     "task": "Develop and maintain centralized technical documentation repository with version control for all institutional systems, APIs, and infrastructure components",
+     "ind": "T4 MIS.13.2-6",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Documented information — an ISO/IEC 27001 requirement."
+    },
+    {
+     "awp": "4.2.4.06.35",
+     "task": "Achieve ISO/IEC 27001 certification for information security",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": "2026-11-20",
+     "finish": "2026-11-20",
+     "budget": null,
+     "note": "The certification named in the deliverable."
+    },
+    {
+     "awp": "4.2.4.06.36",
+     "task": "Successfully complete independent IT Audit with all high/medium risks remediated",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Assurance over the security posture."
+    },
+    {
+     "awp": "4.2.4.06.37",
+     "task": "Remediate all identified high- and medium-risk audit findings",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Assurance over the security posture."
+    },
+    {
+     "awp": "4.2.4.06.38",
+     "task": "Implement structured operational procedures and documentation",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": "2026-08-13",
+     "finish": "2026-08-13",
+     "budget": null,
+     "note": "ISMS documentation — due 13 Aug per the ISO plan."
+    },
+    {
+     "awp": "4.2.4.06.41",
+     "task": "Conduct periodic vulnerability assessments and penetration testing",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Security testing."
+    },
+    {
+     "awp": "4.2.4.06.42",
+     "task": "Operationalize a Security Operations Centre (SOC) for centralized security oversight",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Security operations."
+    },
+    {
+     "awp": "4.2.4.06.43",
+     "task": "Implement and optimize a SIEM (Security Information and Event Management) tool for real-time threat detection, correlation, and incident management",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Security operations tooling."
+    },
+    {
+     "awp": "4.2.4.06.44",
+     "task": "Develop and formalize security policies, procedures, and control frameworks",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "ISMS policy set."
+    },
+    {
+     "awp": "4.2.4.06.45",
+     "task": "Strengthen logical and physical access controls",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "ISO/IEC 27001 control area."
+    },
+    {
+     "awp": "4.2.4.06.49",
+     "task": "Strengthen endpoint, network, and perimeter security controls",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Security controls."
+    },
+    {
+     "awp": "4.2.4.06.51",
+     "task": "Establish incident response procedures aligned with SOC operations",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Security operations."
+    },
+    {
+     "awp": "4.2.4.06.52",
+     "task": "Conduct risk assessments, gap analysis, and control effectiveness reviews",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "ISO/IEC 27001 risk process."
+    },
+    {
+     "awp": "4.2.4.06.53",
+     "task": "Implement corrective and preventive actions to address identified compliance gaps",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "ISO/IEC 27001 corrective action."
+    },
+    {
+     "awp": "4.2.4.06.54",
+     "task": "Establish continuous risk monitoring and reporting mechanisms",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "ISO/IEC 27001 monitoring."
+    }
+   ]
+  },
+  {
+   "wbs": "1.4",
+   "lens": "internal",
+   "name": "ERP live across enterprise operations",
+   "desc": "Finance, Grants, HR, Procurement, Supply Chain (Dynamics 365; re-baselined 1 Jul 2026).",
+   "start": "2026-08-03",
+   "finish": "2026-12-15",
+   "days": 97,
+   "budget": 1000,
+   "pct": 0,
+   "status": "Not started",
+   "activities": [
+    {
+     "awp": "4.2.4.06.05",
+     "task": "Procurement of Dynamics 365 for integrated digital solution for all Africa CDC business processes",
+     "ind": "T3 MIS.13.2-2",
+     "qtr": "Q3",
+     "start": "2026-07-01",
+     "finish": "2026-09-30",
+     "budget": 1000,
+     "note": "Dynamics 365 is the ERP platform named in the mid-year review."
+    },
+    {
+     "awp": "4.2.4.06.18",
+     "task": "Design, develop, and deploy comprehensive Fleet Management System with GPS tracking, maintenance scheduling, fuel monitoring, and driver assignment capabilities",
+     "ind": "T3 MIS.13.2-2",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Asset and supply chain operations within the ERP scope."
+    },
+    {
+     "awp": "4.2.4.06.20",
+     "task": "Complete development and deployment of Financial Management Module with real-time SAP integration, automated budget tracking, and cross-platform mobile application for field operations",
+     "ind": "T3 MIS.13.2-2",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Finance — named in the ERP deliverable."
+    },
+    {
+     "awp": "4.2.4.06.21",
+     "task": "Automate business processes for asset management, and partnership data synchronization with real-time updates and exception handling",
+     "ind": "T3 MIS.13.2-2",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Enterprise business process automation within the ERP scope."
+    }
+   ]
+  },
+  {
+   "wbs": "1.5",
+   "lens": "internal",
+   "name": "Capacity building & AI",
+   "desc": "KnowBe4 awareness; AI skills across the workforce.",
+   "start": "2026-08-03",
+   "finish": "2027-01-22",
+   "days": 125,
+   "budget": 74000,
+   "pct": 0,
+   "status": "Not started",
+   "activities": [
+    {
+     "awp": "3.2.1.01.01",
+     "task": "Training workshops for 10 Africa CDC/RCC analysts on dashboard design, data storytelling, and policy use.",
+     "ind": "T3 SDI.2.5-4",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Workforce skills development."
+    },
+    {
+     "awp": "4.2.4.06.04",
+     "task": "DHIS team capacity building: DHIS2 server and advanced systems administration, Azure cloud computing, Website design, system security, project management, etc training",
+     "ind": "T3 SDI.2.5-4",
+     "qtr": "Q3",
+     "start": "2026-07-01",
+     "finish": "2026-09-30",
+     "budget": 55000,
+     "note": "Direct capacity building."
+    },
+    {
+     "awp": "4.2.4.06.07",
+     "task": "DHIS team capacity building: Attend international seminars, conferences, etc",
+     "ind": "T4 PR&A.13.1-35",
+     "qtr": "Q3",
+     "start": "2026-07-01",
+     "finish": "2026-09-30",
+     "budget": 19000,
+     "note": "Direct capacity building."
+    },
+    {
+     "awp": "4.2.4.06.16",
+     "task": "Design, develop, and deploy Africa CDC Training Accreditation Platform with course catalog, accreditation workflow, certificate generation, and reporting modules",
+     "ind": "T3 MIS.13.2-2",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Platform through which workforce training is delivered."
+    },
+    {
+     "awp": "4.2.4.06.31",
+     "task": "Establish AI & Advanced Analytics Capability governance and framework",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "AI capability — named in the deliverable."
+    },
+    {
+     "awp": "4.2.4.06.32",
+     "task": "Formalize and institutionalize AI capability within DHIS",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "AI capability — named in the deliverable."
+    },
+    {
+     "awp": "4.2.4.06.33",
+     "task": "Implement and operationalize AI flagship use cases",
+     "ind": "T4 MIS.13.2-5",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "AI capability — named in the deliverable."
+    },
+    {
+     "awp": "4.2.4.06.40",
+     "task": "Conduct regular cybersecurity awareness and training programs for staff",
+     "ind": "T3 MIS.13.2-3",
+     "qtr": null,
+     "start": "2026-09-25",
+     "finish": "2026-09-25",
+     "budget": null,
+     "note": "KnowBe4 awareness — named in the deliverable; ISO plan dates it 25 Sep."
+    }
+   ]
+  },
+  {
+   "wbs": "2.1",
+   "lens": "external",
+   "name": "Sovereign cloud infrastructure As a Service",
+   "desc": "Continental, country-owned hosting for health data.  — NO AWP ACTIVITY",
+   "start": "2026-08-03",
+   "finish": "2027-01-15",
+   "days": 120,
+   "budget": 0,
+   "pct": 0,
+   "status": "Not started",
+   "activities": []
+  },
+  {
+   "wbs": "2.2",
+   "lens": "external",
+   "name": "Interoperability layer: Member States ↔ Africa CDC",
+   "desc": "Common standards for data exchange.",
+   "start": "2026-08-03",
+   "finish": "2027-01-22",
+   "days": 125,
+   "budget": 0,
+   "pct": 0,
+   "status": "Not started",
+   "activities": [
+    {
+     "awp": "3.2.1.01.03",
+     "task": "Organize a high-level launch/dissemination event (side of ICPHC/AHTS) for the flagship report.",
+     "ind": "T3 PIC.11.1-4",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Member State convening — matches the AHTS/CPHIA consultation track."
+    },
+    {
+     "awp": "3.2.2.01.01",
+     "task": "Organize Partner Investment Dialogue using ADHOPT data (co-convened at AHTS 2026/CPHIA) to mobilize resources and dissemination event for annual report (webinar or conference side-event, AHTS 2026/CPHIA 2026).",
+     "ind": "T3 PIC.11.1-4",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Partner and Member State convening built on ADHOPT data exchange."
+    },
+    {
+     "awp": "3.2.2.01.04",
+     "task": "Conduct annual country updates cycles for Africa Digital Health Observatory (ADHOPT): training sessions with RCC focal points, MS data validation workshops and produce knowledge outputs: annual State of Digital Health in Africa report + 2 thematic briefs.",
+     "ind": "T3 DHIS.7.1-2",
+     "qtr": null,
+     "start": null,
+     "finish": null,
+     "budget": null,
+     "note": "Member State ↔ Africa CDC data collection and validation."
+    }
+   ]
+  },
+  {
+   "wbs": "2.3",
+   "lens": "external",
+   "name": "Digital healthcare toolkit — As a Service",
+   "desc": "Connectivity and digital tools for primary health care.  — NO AWP ACTIVITY",
+   "start": "2026-08-03",
+   "finish": "2027-01-15",
+   "days": 120,
+   "budget": 0,
+   "pct": 0,
+   "status": "Not started",
+   "activities": []
+  },
+  {
+   "wbs": "2.4",
+   "lens": "external",
+   "name": "Continental Data Governance Framework",
+   "desc": "Scope marked TBD on the source slide — pending scoping.  — NO AWP ACTIVITY",
+   "start": "2026-09-01",
+   "finish": "2027-01-29",
+   "days": 109,
+   "budget": 0,
+   "pct": 0,
+   "status": "Not started",
+   "activities": []
+  },
+  {
+   "wbs": "2.5",
+   "lens": "external",
+   "name": "Outbreak Digital Response in 48 hours",
+   "desc": "Alignment with EPR/RRT: toolkit + Member States & Partners coordination.  — NO AWP ACTIVITY",
+   "start": "2026-08-03",
+   "finish": "2027-01-22",
+   "days": 125,
+   "budget": 0,
+   "pct": 0,
+   "status": "Not started",
+   "activities": []
+  }
+ ],
+ "line_items": [
+  {
+   "wbs": "1.1",
+   "cat": "Software & licences",
+   "desc": "4.2.4.06.01  Procurement of Microsoft 365 Licence, 400E5, 100E1, Copilot, Visio",
+   "budget": 504000,
+   "note": "AWP FY2026 · Q1"
+  },
+  {
+   "wbs": "1.2",
+   "cat": "Cloud & hosting",
+   "desc": "4.2.4.06.02  Procurement of Microsoft Azure",
+   "budget": 125000,
+   "note": "AWP FY2026 · Q1"
+  },
+  {
+   "wbs": "1.1",
+   "cat": "Connectivity",
+   "desc": "4.2.4.06.03  Fibre Internet at HQ, 2 fibre, 1 air fibre, simcards, phone line",
+   "budget": 103000,
+   "note": "AWP FY2026 · Q1"
+  },
+  {
+   "wbs": "1.5",
+   "cat": "Training",
+   "desc": "4.2.4.06.04  DHIS team capacity building: DHIS2 server and advanced systems administration, Azure cloud computing, Website design, system security, project management, etc training",
+   "budget": 55000,
+   "note": "AWP FY2026 · Q3"
+  },
+  {
+   "wbs": "1.4",
+   "cat": "Software & licences",
+   "desc": "4.2.4.06.05  Procurement of Dynamics 365 for integrated digital solution for all Africa CDC business processes",
+   "budget": 1000,
+   "note": "AWP FY2026 · Q3"
+  },
+  {
+   "wbs": "1.1",
+   "cat": "Software & licences",
+   "desc": "4.2.4.06.06  Purchase of a Network Health Monitoring/Security tool software",
+   "budget": 55000,
+   "note": "AWP FY2026 · Q1"
+  },
+  {
+   "wbs": "1.5",
+   "cat": "Training",
+   "desc": "4.2.4.06.07  DHIS team capacity building: Attend international seminars, conferences, etc",
+   "budget": 19000,
+   "note": "AWP FY2026 · Q3"
+  },
+  {
+   "wbs": "(not mapped to a deliverable)",
+   "cat": "Software & licences",
+   "desc": "4.2.4.06.08  Procurement of Zoom Enterprise Plan Subscription for large meetings",
+   "budget": 60000,
+   "note": "AWP FY2026 · Q1"
+  },
+  {
+   "wbs": "1.1",
+   "cat": "Equipment",
+   "desc": "4.2.4.06.09  Purchase of Toolkits for Network expansion",
+   "budget": 10000,
+   "note": "AWP FY2026 · Q2"
+  }
+ ]
+}

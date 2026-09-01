@@ -1,0 +1,162 @@
+{
+  "image": {
+    "type": "image",
+    "title": "Image"
+  },
+  "title": {
+    "type": "varchar",
+    "title": "Title"
+  },
+  "summary": {
+    "type": "varchar",
+    "title": "Summary"
+  },
+  "content": {
+    "type": "text",
+    "title": "Content"
+  },
+  "all_package_title": {
+    "type": "varchar",
+    "title": "All package title"
+  },
+  "package_title_1": {
+    "type": "varchar",
+    "title": "Package 1 Title"
+  },
+  "package_sign_1": {
+    "type": "varchar",
+    "title": "Package 1 Sign"
+  },
+  "package_price_1": {
+    "type": "varchar",
+    "title": "Package 1 Price"
+  },
+  "package_explanation_1": {
+    "type": "varchar",
+    "title": "Package 1 Explanation"
+  },
+  "package_bullets_1": {
+    "type": "text",
+    "title": "Package 1 Bullet points"
+  },
+  "package_title_2": {
+    "type": "varchar",
+    "title": "Package 2 Title"
+  },
+  "package_sign_2": {
+    "type": "varchar",
+    "title": "Package 2 Sign"
+  },
+  "package_price_2": {
+    "type": "varchar",
+    "title": "Package 2 Price"
+  },
+  "package_explanation_2": {
+    "type": "varchar",
+    "title": "Package 2 Explanation"
+  },
+  "package_bullets_2": {
+    "type": "text",
+    "title": "Package 2 Bullet points"
+  },
+  "package_title_3": {
+    "type": "varchar",
+    "title": "Package 3 Title"
+  },
+  "package_sign_3": {
+    "type": "varchar",
+    "title": "Package 3 Sign"
+  },
+  "package_price_3": {
+    "type": "varchar",
+    "title": "Package 3 Price"
+  },
+  "package_explanation_3": {
+    "type": "varchar",
+    "title": "Package 3 Explanation"
+  },
+  "package_bullets_3": {
+    "type": "text",
+    "title": "Package 3 Bullet points"
+  },
+  "offering_title_1": {
+    "type": "varchar",
+    "title": "Offering 1 Title"
+  },
+  "offering_icon_1": {
+    "type": "varchar",
+    "title": "Offering 1 Icon"
+  },
+  "offering_text_1": {
+    "type": "varchar",
+    "title": "Offering 1 Text"
+  },
+  "offering_title_2": {
+    "type": "varchar",
+    "title": "Offering 2 Title"
+  },
+  "offering_icon_2": {
+    "type": "varchar",
+    "title": "Offering 2 Icon"
+  },
+  "offering_text_2": {
+    "type": "varchar",
+    "title": "Offering 2 Text"
+  },
+  "offering_title_3": {
+    "type": "varchar",
+    "title": "Offering 3 Title"
+  },
+  "offering_icon_3": {
+    "type": "varchar",
+    "title": "Offering 3 Icon"
+  },
+  "offering_text_3": {
+    "type": "varchar",
+    "title": "Offering 3 Text"
+  },
+  "offering_title_4": {
+    "type": "varchar",
+    "title": "Offering 4 Title"
+  },
+  "offering_icon_4": {
+    "type": "varchar",
+    "title": "Offering 4 Icon"
+  },
+  "offering_text_4": {
+    "type": "varchar",
+    "title": "Offering 4 Text"
+  },
+  "offering_title_5": {
+    "type": "varchar",
+    "title": "Offering 5 Title"
+  },
+  "offering_icon_5": {
+    "type": "varchar",
+    "title": "Offering 5 Icon"
+  },
+  "offering_text_5": {
+    "type": "varchar",
+    "title": "Offering 5 Text"
+  },
+  "offering_title_6": {
+    "type": "varchar",
+    "title": "Offering 6 Title"
+  },
+  "offering_icon_6": {
+    "type": "varchar",
+    "title": "Offering 6 Icon"
+  },
+  "offering_text_6": {
+    "type": "varchar",
+    "title": "Offering 6 Text"
+  },
+  "seo_title": {
+    "type": "varchar",
+    "title": "SEO Title"
+  },
+  "seo_description": {
+    "type": "varchar",
+    "title": "SEO description"
+  }
+}

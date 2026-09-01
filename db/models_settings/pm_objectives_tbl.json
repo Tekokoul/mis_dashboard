@@ -1,0 +1,54 @@
+{
+  "meta": {
+    "name": "Objectives",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "pillar_id": {
+      "title": "Pillar",
+      "type": "dropdown",
+      "values_from": "db",
+      "link_to_table": "pm_pillars_tbl",
+      "link_to_field": "name",
+      "order_by": "`name` asc",
+      "where_clause": "",
+      "appear_in_list": 1,
+      "list_width": 35
+    },
+    "name": {
+      "type": "varchar",
+      "appear_in_list": 2,
+      "list_width": 30,
+      "search_field": true,
+      "order_field": "ASC"
+    },
+    "abbr": {
+      "title": "Abbreviation",
+      "type": "varchar",
+      "appear_in_list": 0,
+      "search_field": true,
+      "list_width": 10
+    },
+    "description": {
+      "no_editor": true
+    },
+    "outcomes": {
+      "no_editor": true
+    },
+    "active": {
+      "type": "dropdown",
+      "appear_in_list": 4,
+      "list_width": 10,
+      "values_from": "values_list",
+      "values_list": {
+        "1": "Yes",
+        "0": "No"
+      }
+    }
+  }
+}

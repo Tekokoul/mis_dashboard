@@ -1,0 +1,21 @@
+{
+  "meta": {
+    "name": "Progress Dates",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "project_id": {
+      "type": "int",
+      "hidden": true
+    },
+    "comment": {
+      "type": "text",
+      "no_editor": true
+    }
+  }
+}

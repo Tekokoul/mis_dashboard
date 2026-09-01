@@ -1,0 +1,95 @@
+{
+  "logo": {
+    "type": "image",
+    "title": "Logo"
+  },
+  "business_name": {
+    "type": "varchar",
+    "title": "Website name"
+  },
+  "tagline": {
+    "type": "varchar",
+    "title": "Tag line"
+  },
+  "google_analytics": {
+    "type": "varchar",
+    "title": "Google Analytics key"
+  },
+  "google_maps": {
+    "type": "varchar",
+    "title": "Google Maps key"
+  },
+  "favourite_icon": {
+    "type": "image",
+    "title": "Favourite Icon"
+  },
+  "facebook_image": {
+    "type": "image",
+    "title": "Default Facebook share image"
+  },
+  "footer_line_1": {
+    "type": "varchar",
+    "title": "Footer line 1"
+  },
+  "footer_line_2": {
+    "type": "varchar",
+    "title": "Footer line 2"
+  },
+  "address": {
+    "type": "varchar",
+    "title": "Address"
+  },
+  "telephone_1": {
+    "type": "varchar",
+    "title": "Telephone"
+  },
+  "email": {
+    "type": "varchar",
+    "title": "E-mail"
+  },
+  "facebook_1": {
+    "type": "varchar",
+    "title": "Facebook 1"
+  },
+  "facebook_2": {
+    "type": "varchar",
+    "title": "Facebook 2"
+  },
+  "instagram": {
+    "type": "varchar"
+  },
+  "twitter": {
+    "type": "varchar"
+  },
+  "website": {
+    "type": "varchar"
+  },
+  "tiktok": {
+    "type": "varchar",
+    "title": "TikTok"
+  },
+  "newsletter_title": {
+    "type": "varchar",
+    "title": "Newsletter Title"
+  },
+  "newsletter_text": {
+    "type": "varchar",
+    "title": "Newsletter Text"
+  },
+  "newsletter_button": {
+    "type": "varchar",
+    "title": "Newsletter Button"
+  },
+  "copyright": {
+    "type": "varchar",
+    "title": "Copyright"
+  },
+  "seo_title": {
+    "type": "varchar",
+    "title": "Website SEO title"
+  },
+  "seo_description": {
+    "type": "varchar",
+    "title": "Website SEO description"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "el": {
+    "language": "Greek",
+    "lang": "el",
+    "langid": 1,
+    "icon": "/images/icons/flags/el.png"
+  },
+  "en": {
+    "language": "English",
+    "lang": "en",
+    "langid": 2,
+    "icon": "/images/icons/flags/en.png"
+  }
+}

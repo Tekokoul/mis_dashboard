@@ -1,0 +1,34 @@
+{
+  "host": {
+    "type": "varchar",
+    "title": "Host"
+  },
+  "port": {
+    "type": "varchar",
+    "title": "Port"
+  },
+  "smtp_secure": {
+    "type": "varchar",
+    "title": "Security type"
+  },
+  "username": {
+    "type": "varchar",
+    "title": "Username"
+  },
+  "from_name": {
+    "type": "varchar",
+    "title": "From name"
+  },
+  "from_email": {
+    "type": "varchar",
+    "title": "From email"
+  },
+  "bcc_email": {
+    "type": "varchar",
+    "title": "BCC email"
+  },
+  "logo": {
+    "type": "image",
+    "title": "Email logo"
+  }
+}

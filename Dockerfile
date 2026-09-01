@@ -1,0 +1,140 @@
+# Africa CDC DHIS Performance Monitor
+#
+# Two images from one file, matching the reference enterprise architecture:
+# Apache event MPM serves static files and proxies PHP to a separate PHP-FPM
+# pool. Each container runs a single process, and the tuning knobs from the
+# 16 GB (tier M) profile map onto the tier that actually owns them.
+#
+#   docker build --target app -t afcdc-dhis-app .
+#   docker build --target web -t afcdc-dhis-web .
+#
+# PHP 8.2 is deliberate: public/requirements.php requires >= 8.2.0, and
+# app/configuration/settings.php still calls error_reporting(E_ALL | E_STRICT),
+# which emits a deprecation on every request from 8.4 onwards.
+
+# =============================================================================
+# Stage 1 - the application tree, shared by both runtime images
+# =============================================================================
+FROM debian:bookworm-slim AS code
+WORKDIR /src
+COPY . /src
+# settings.local.php is generated at container start from the environment. It is
+# excluded by .dockerignore too; this is the belt to that braces, because a copy
+# of it in any layer is a credential leak that `docker history` can read.
+RUN rm -f /src/app/configuration/settings.local.php \
+ && rm -rf /src/tools/dev /src/.git \
+ && mkdir -p /src/public/cache /src/public/media /src/logs
+
+# =============================================================================
+# Stage 2 - PHP-FPM (executes all PHP)
+# =============================================================================
+FROM php:8.2-fpm AS app
+
+# Debian's default mirrors are plain http. Some corporate networks refuse
+# outbound :80 while allowing :443, which fails the build with "Unable to
+# connect to deb.debian.org:80". Switch apt to https before the first update.
+# Handles both the classic sources.list and the deb822 .sources format.
+RUN set -eux; \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' \
+        /etc/apt/sources.list 2>/dev/null || true; \
+    if [ -d /etc/apt/sources.list.d ]; then \
+        find /etc/apt/sources.list.d -type f \( -name '*.list' -o -name '*.sources' \) \
+            -exec sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' {} +; \
+    fi; \
+    printf 'Acquire::Retries "10";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
+        > /etc/apt/apt.conf.d/99retries
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends \
+        libpng-dev libjpeg62-turbo-dev libfreetype6-dev libwebp-dev \
+        libxml2-dev libzip-dev libonig-dev \
+        mariadb-client; \
+    rm -rf /var/lib/apt/lists/*
+
+# pdo_mysql : app/db.class.php connects via PDO
+# gd        : public/ngine_resize.php and the image helpers
+# mbstring  : mb_* throughout the app
+# soap, xml : the integration classes
+# zip, exif, opcache : checked by public/requirements.php
+RUN set -eux; \
+    docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp; \
+    docker-php-ext-install -j"$(nproc)" \
+        pdo_mysql mysqli gd mbstring soap xml zip exif opcache
+
+COPY docker/opcache.ini        /usr/local/etc/php/conf.d/10-opcache.ini
+COPY docker/php.ini.tpl        /usr/local/etc/php/conf.d/zz-africacdc.ini.tpl
+COPY docker/php-fpm-pool.conf  /usr/local/etc/php-fpm.d/zz-www.conf.tpl
+# The base image ships a www.conf that would fight ours.
+RUN rm -f /usr/local/etc/php-fpm.d/www.conf.default /usr/local/etc/php-fpm.d/www.conf
+
+WORKDIR /var/www/html
+COPY --from=code --chown=www-data:www-data /src /var/www/html
+RUN chown -R www-data:www-data public/cache public/media logs \
+ && chmod -R 755 public/cache public/media logs
+
+ARG BUILD_ID=dev
+ENV APP_BUILD_ID=${BUILD_ID}
+
+COPY docker/entrypoint-app.sh /usr/local/bin/entrypoint-app.sh
+RUN chmod +x /usr/local/bin/entrypoint-app.sh
+
+# cgi-fcgi lets the health check speak FastCGI directly, so the app container
+# reports its own health without depending on the web container.
+RUN set -eux; apt-get update; apt-get install -y --no-install-recommends libfcgi-bin; \
+    rm -rf /var/lib/apt/lists/*
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+    CMD SCRIPT_NAME=/fpm-ping SCRIPT_FILENAME=/fpm-ping REQUEST_METHOD=GET \
+        cgi-fcgi -bind -connect 127.0.0.1:9000 || exit 1
+
+EXPOSE 9000
+ENTRYPOINT ["/usr/local/bin/entrypoint-app.sh"]
+CMD ["php-fpm", "-F"]
+
+# =============================================================================
+# Stage 3 - Apache event MPM (static files + FastCGI proxy). No PHP here.
+# =============================================================================
+FROM debian:bookworm-slim AS web
+
+# Debian's default mirrors are plain http. Some corporate networks refuse
+# outbound :80 while allowing :443, which fails the build with "Unable to
+# connect to deb.debian.org:80". Switch apt to https before the first update.
+# Handles both the classic sources.list and the deb822 .sources format.
+RUN set -eux; \
+    sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' \
+        /etc/apt/sources.list 2>/dev/null || true; \
+    if [ -d /etc/apt/sources.list.d ]; then \
+        find /etc/apt/sources.list.d -type f \( -name '*.list' -o -name '*.sources' \) \
+            -exec sed -i 's|http://deb.debian.org|https://deb.debian.org|g; s|http://security.debian.org|https://security.debian.org|g' {} +; \
+    fi; \
+    printf 'Acquire::Retries "10";\nAcquire::http::Timeout "30";\nAcquire::https::Timeout "30";\n' \
+        > /etc/apt/apt.conf.d/99retries
+
+RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends apache2 curl ca-certificates; \
+    rm -rf /var/lib/apt/lists/*
+
+# event MPM is only safe because this tier runs no PHP at all.
+RUN set -eux; \
+    a2dismod -f mpm_prefork mpm_worker 2>/dev/null || true; \
+    a2enmod mpm_event proxy proxy_fcgi rewrite headers expires deflate remoteip setenvif
+
+COPY docker/apache-mpm.conf       /etc/apache2/conf-available/zz-mpm-tuning.conf
+RUN a2enconf zz-mpm-tuning
+COPY docker/apache-vhost.conf.tpl /etc/apache2/sites-available/000-default.conf.tpl
+
+# The web tier needs the document root only: static assets and the .htaccess
+# that front-controls everything else. Nothing under app/ is served.
+WORKDIR /var/www/html
+COPY --from=code --chown=www-data:www-data /src/public /var/www/html/public
+
+COPY docker/entrypoint-web.sh /usr/local/bin/entrypoint-web.sh
+RUN chmod +x /usr/local/bin/entrypoint-web.sh
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+    CMD curl -fsS -o /dev/null http://127.0.0.1/health.php || exit 1
+
+EXPOSE 80
+ENTRYPOINT ["/usr/local/bin/entrypoint-web.sh"]
+CMD ["apache2ctl", "-DFOREGROUND"]

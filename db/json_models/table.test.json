@@ -1,0 +1,74 @@
+{
+  "text": {
+    "type": "varchar",
+    "title": "One line text"
+  },
+  "date": {
+    "type": "date",
+    "title": "Date"
+  },
+  "datetime": {
+    "type": "datetime",
+    "title": "Date/Time"
+  },
+  "datetime2": {
+    "type": "datetime",
+    "title": "Date/Time"
+  },
+  "image": {
+    "type": "image",
+    "title": "Image"
+  },
+  "file": {
+    "type": "file",
+    "title": "File"
+  },
+  "dropdown_list": {
+    "type": "dropdown",
+    "title": "Dropdown - list values",
+    "values_from" : "values_list",
+    "values_list": {
+      "1": "True",
+      "0": "False"
+    }
+  },
+  "dropdown_db": {
+    "type": "dropdown",
+    "title": "Dropdown - DB values",
+    "values_from": "db",
+    "link_to_table": "core_users_tbl",
+    "link_to_field": "givenname,sn",
+    "limit": 50,
+    "order_by": "id desc",
+    "add_zero_value": true,
+    "where_clause": "and category in (1)"
+  },
+  "list": {
+    "type": "list",
+    "title": "List of elements",
+    "elements": {
+      "text_1": {
+        "type": "varchar",
+        "title": "Text 1"
+      },
+      "text_2": {
+        "type": "varchar",
+        "title": "Text 2"
+      }
+    }
+  },
+  "textarea_1": {
+    "type": "text",
+    "no_editor": true,
+    "title": "TextArea - w/o Editor"
+  },
+  "textarea_2": {
+    "type": "text",
+    "title": "TextArea - w/ Editor"
+  },
+  "textarea_3": {
+    "type": "mediumtext",
+    "no_editor": true,
+    "title": "TextArea - MediumText"
+  }
+}

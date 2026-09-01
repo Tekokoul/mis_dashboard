@@ -1,0 +1,261 @@
+# Commands
+
+Every command for the Africa CDC DHIS Performance Monitor, in one place.
+
+All paths are relative to this folder, so start with:
+
+```bash
+cd "/Users/theodorekoulolias/Desktop/MIS dahsboard"
+```
+
+Homebrew tools are called by full path (`/opt/homebrew/bin/...`) because they are
+not on the default `PATH` in every shell.
+
+---
+
+## Run it
+
+| What | Command |
+|---|---|
+| Start (also starts MariaDB) | `./tools/dev/start.sh` |
+| Stop the web server | `./tools/dev/start.sh stop` |
+| Open it | http://127.0.0.1:8791/login |
+| Server log | `tail -f /tmp/phpserver.log` |
+| Database log | `tail -f /tmp/mariadb.log` |
+
+Sign in with `kouloliast@africacdc.org` once you have set a password (below), or
+the throwaway `afcdc.local` / `afcdc-local`.
+
+---
+
+## Accounts
+
+Set or change a password. Prompts twice with the typing hidden; the value never
+becomes a command-line argument, so it cannot leak through `ps` or shell history:
+
+```bash
+./tools/dev/set-password.sh kouloliast@africacdc.org
+```
+
+Add another account (locked until a password is set):
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "INSERT INTO core_users_tbl (username,password,givenname,sn,active,\`group\`) VALUES ('someone@africacdc.org','LOCKED-await-password-choice','First','Last',1,1);"
+```
+
+List accounts and whether each has a usable password:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT id, username, givenname, sn, \`group\`, active, IF(password REGEXP '^[0-9a-f]{32}$','set','LOCKED') AS password FROM core_users_tbl ORDER BY id;"
+```
+
+Groups: `1` System Administrators · `2` Executive · `3` Power · `4` Custom ·
+`5` Member State.
+
+Remove the throwaway test account when you no longer need it:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "DELETE FROM core_users_tbl WHERE username='afcdc.local';"
+```
+
+---
+
+## The theme
+
+`public/css/skin_africacdc.css` is **generated — never hand-edit it.** Change the
+palette in `tools/make_skin_africacdc.py` (the `SLOTS` table) and regenerate:
+
+```bash
+/usr/bin/python3 tools/make_skin_africacdc.py
+```
+
+Hand-written overrides go in `public/css/custom.css`, which loads last.
+
+Check the generated file still matches the source structure — this should print
+`True`, meaning only colours differ:
+
+```bash
+/usr/bin/python3 -c "import re;s=lambda L:[re.sub(r'#[0-9a-fA-F]{3,6}\b','#X',re.sub(r'rgba?\([^)]*\)','rgb(X)',l)) for l in L];a=open('tools/skin-source.css').read().splitlines();b=open('public/css/skin_africacdc.css').read().splitlines()[10:2530];print(s(a)==s(b))"
+```
+
+---
+
+## The data
+
+Back up before anything (do this first, every time):
+
+```bash
+/opt/homebrew/bin/mariadb-dump afcdc_dhis > "backup_$(date +%Y%m%d_%H%M).sql"
+```
+
+Load the Africa CDC content. **Replaces** the legacy hierarchy. Two files, in
+this order — the first creates the 10 deliverables and 55 activities, the second
+makes those activities tickable:
+
+```bash
+/opt/homebrew/bin/mariadb --default-character-set=utf8mb4 afcdc_dhis < db/for_upload/africacdc_dhis_seed.sql
+```
+
+```bash
+/opt/homebrew/bin/mariadb --default-character-set=utf8mb4 afcdc_dhis < db/for_upload/africacdc_dhis_tasks.sql
+```
+
+Restore a backup:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis < backup_YYYYMMDD_HHMM.sql
+```
+
+Rebuild the database from scratch. Three files, in order — schema, content,
+tickable tasks. None of them contains any legacy tenant data:
+
+```bash
+/opt/homebrew/bin/mariadb -e "DROP DATABASE IF EXISTS afcdc_dhis; CREATE DATABASE afcdc_dhis CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" && for f in schema seed tasks; do /opt/homebrew/bin/mariadb --default-character-set=utf8mb4 afcdc_dhis < "db/for_upload/africacdc_dhis_$f.sql" >/dev/null; done && echo rebuilt
+```
+
+### Checks worth running after any data change
+
+What is loaded:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT (SELECT COUNT(*) FROM pm_pillars_tbl) AS lenses, (SELECT COUNT(*) FROM pm_objectives_tbl) AS deliverables, (SELECT COUNT(*) FROM pm_programmes_tbl) AS workstreams, (SELECT COUNT(*) FROM pm_projects_tbl) AS activities, (SELECT COUNT(*) FROM pm_projects_tasks_tbl) AS tickable_tasks, (SELECT COUNT(*) FROM pm_progress_tasks_tbl) AS progress_records;"
+```
+
+The ten deliverables as the dashboard orders them:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT l.abbr AS lens, o.abbr AS wbs, o.name AS deliverable, (SELECT COUNT(*) FROM pm_projects_tbl p WHERE p.objective_id=o.id AND p.pillar_id=l.id) AS activities FROM pm_pillars_tbl l JOIN pm_objectives_tbl o ON o.pillar_id=l.id ORDER BY l.position, o.position, o.id;"
+```
+
+**The parentage invariant — run this after any hierarchy edit.** `pm_projects_tbl`
+stores `pillar_id`, `objective_id` and `programme_id` redundantly and the overview
+filters on two of them at once, so a mismatch makes rows vanish with no error and
+the gauge silently reads 0.00%. Every number below must be `0`:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT 'pillar_id disagrees with objective' AS problem, COUNT(*) AS rows_affected FROM pm_projects_tbl p JOIN pm_objectives_tbl o ON o.id=p.objective_id WHERE p.pillar_id<>o.pillar_id UNION ALL SELECT 'objective_id disagrees with programme', COUNT(*) FROM pm_projects_tbl p JOIN pm_programmes_tbl g ON g.id=p.programme_id WHERE p.objective_id<>g.objective_id UNION ALL SELECT 'activity with a dangling objective', COUNT(*) FROM pm_projects_tbl p LEFT JOIN pm_objectives_tbl o ON o.id=p.objective_id WHERE o.id IS NULL;"
+```
+
+Open a SQL prompt:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis
+```
+
+---
+
+## Recording delivery
+
+In the app: sidebar → **Progress** → open an activity → click the KPI →
+set **Result** to `Finished` → **Update**. Percentages recompute immediately.
+
+Who is allowed to record it — `account` is a comma-separated list of user ids:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT id, name, account FROM pm_members_tbl;"
+```
+
+Let every active administrator record delivery:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "UPDATE pm_members_tbl SET account = (SELECT GROUP_CONCAT(id ORDER BY id) FROM core_users_tbl WHERE \`group\`=1 AND active=1) WHERE id=1;"
+```
+
+What has been recorded so far:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT p.abbr AS awp_code, p.name AS activity, g.result, g.progress_date, g.actual_budget FROM pm_progress_tasks_tbl g JOIN pm_projects_tbl p ON p.id=g.project_id ORDER BY g.progress_date DESC;"
+```
+
+Clear all recorded progress and start again:
+
+```bash
+/opt/homebrew/bin/mariadb afcdc_dhis -e "DELETE FROM pm_progress_tasks_tbl;"
+```
+
+---
+
+## Before you commit or deploy
+
+Lint every PHP file — must report `0 failing`:
+
+```bash
+n=0; b=0; while IFS= read -r f; do n=$((n+1)); /opt/homebrew/bin/php -l "$f" >/dev/null 2>&1 || { b=$((b+1)); echo "FAIL $f"; }; done < <(find app -name '*.php'); echo "$n files, $b failing"
+```
+
+Check the JS, the JSON and the CSS brace balance:
+
+```bash
+node --check public/js/members_graphs.js && node --check public/js/page_projects_graphs_projects.js && /usr/bin/python3 -c "import json;[json.load(open(f)) for f in ['db/menus/ce_menu.json']];print('json ok')" && /usr/bin/python3 -c "t=open('public/css/custom.css').read();print('css braces ok' if t.count('{')==t.count('}') else 'CSS BRACE MISMATCH')"
+```
+
+Confirm no local database credentials are about to ship:
+
+```bash
+grep -rn "afcdc_local_dev\|afcdc_dhis" app/ public/css public/js db/menus db/models_settings 2>/dev/null | grep -v "settings.local.php" || echo "clean"
+```
+
+`app/configuration/settings.local.php` holds the local credentials and is
+git-ignored. **Never put them in `settings.php`.**
+
+---
+
+## Deploying to the server
+
+1. Back up the production database first (`mariadb-dump`, as above).
+2. Copy across: `public/css/skin_africacdc.css`, `public/css/custom.css`,
+   `public/js/members_graphs.js`, `public/js/page_projects_graphs_projects.js`,
+   `public/media/logo/africacdc_*`, the changed files under `app/`, and
+   `db/menus/ce_menu.json`.
+3. Load the seed **before or with** the code — it adds the `position` column that
+   the new ordering depends on, and the overview will error without it.
+4. Do **not** copy any of these:
+   - `tools/dev/` — development only
+   - `app/configuration/settings.local.php` — local credentials
+   - `.removed-sadc-crystalengine/` — quarantined legacy assets, still containing
+     the old logos, the previous tenant's database dump and vendor links
+   - `.backup-pre-afcdc/` — pre-rebrand copies of every edited file
+
+   Both quarantine folders sit above the docroot so they are not web-reachable,
+   but nothing stops a naive `rsync -a` from shipping them. They are listed in
+   `.gitignore`; if you deploy by copying, exclude them explicitly:
+
+   ```
+   rsync -a --exclude='.removed-sadc-crystalengine' --exclude='.backup-pre-afcdc' \
+            --exclude='tools/dev' --exclude='settings.local.php' ./ user@host:/path/
+   ```
+
+Undo: every file changed during the rebrand has its original in
+`.backup-pre-afcdc/`. There is no git repository here, so that folder is the
+only undo — keep it.
+
+---
+
+## Checking the rebrand held
+
+Nothing in any rendered page should name the previous tenant or the underlying
+vendor. One deliberate exception: an attribution line in the Credits card on
+`/system/about`.
+
+```bash
+grep -rniI "sadc\|crystalengine\|crystalweb\|crwb\|starfan\|brainregain" app/ public/ db/ tools/ *.md --exclude-dir=vendor 2>/dev/null || echo clean
+```
+
+---
+
+## Known gaps
+
+- **`pm_members_tbl` now holds one entity, "Africa CDC — DHIS (HQ)".** The 16
+  legacy member states were removed and the "Per RCC / Member State" page dropped
+  from the menu, because under HQ-only reporting it has nothing to rank. The
+  controller and view still exist if per-RCC reporting is wanted later.
+- Deliverable dates, budgets and the $872k have nowhere to live — the schema has
+  no columns for them. Actual spend per activity now does
+  (`pm_progress_tasks_tbl.actual_budget`).
+- AWP line `4.2.4.06.08` (Zoom, $60,000) is not mapped to any deliverable in the
+  source workbook, so it is not seeded.
+- Passwords are `MD5(MD5(password))`, unsalted — `app/models/core.php:479`.
+  Worth replacing with `password_hash()`/`password_verify()`.
+- Four external-lens deliverables (2.1, 2.3, 2.4, 2.5) have no AWP activity
+  behind them, so they have nothing to tick and will read 0% indefinitely. That
+  is the source data, not a bug.

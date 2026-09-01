@@ -1,0 +1,32 @@
+{
+  "meta": {
+    "name": "Progress Milestones",
+    "actions": [
+    ]
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "project_id": {
+      "type": "int",
+      "hidden": true
+    },
+    "value": {
+      "type": "dropdown",
+      "title": "Milestone",
+      "values_from": "json",
+      "option_field": "name",
+      "add_zero_value": true
+    },
+    "comment": {
+      "type": "text",
+      "no_editor": true
+    },
+    "progress_date": {
+      "type": "datetime",
+      "title": "Date"
+    }
+  }
+}

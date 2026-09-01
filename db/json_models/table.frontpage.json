@@ -1,0 +1,86 @@
+{
+  "hero_image_1": {
+    "type": "image",
+    "title": "Hero Image 1"
+  },
+  "hero_title_1_1" : {
+    "type": "varchar",
+    "title": "Hero title 1"
+  },
+  "hero_title_2_1" : {
+    "type": "varchar",
+    "title": "Hero title 2"
+  },
+  "cta_1" : {
+    "type": "varchar",
+    "title": "Call-to-action 1"
+  },
+  "hero_image_2": {
+    "type": "image",
+    "title": "Hero Image 2"
+  },
+  "hero_title_1_2" : {
+    "type": "varchar",
+    "title": "Hero title 1"
+  },
+  "hero_title_2_2" : {
+    "type": "varchar",
+    "title": "Hero title 2"
+  },
+  "cta_2" : {
+    "type": "varchar",
+    "title": "Call-to-action 2"
+  },
+  "hero_image_3": {
+    "type": "image",
+    "title": "Hero Image 3"
+  },
+  "hero_title_1_3" : {
+    "type": "varchar",
+    "title": "Hero title 1"
+  },
+  "hero_title_2_3" : {
+    "type": "varchar",
+    "title": "Hero title 2"
+  },
+  "cta_3" : {
+    "type": "varchar",
+    "title": "Call-to-action 3"
+  },
+  "about_title" : {
+    "type": "varchar",
+    "title": "About title"
+  },
+  "about_summary" : {
+    "type": "varchar",
+    "title": "About summary"
+  },
+  "about_text" : {
+    "type": "varchar",
+    "title": "About text"
+  },
+  "cta_image": {
+    "type": "image",
+    "title": "Call-to-action image"
+  },
+  "cta_title" : {
+    "type": "varchar",
+    "title": "Call-to-action title"
+  },
+  "cta_text" : {
+    "type": "varchar",
+    "title": "Call-to-action text"
+  },
+  "cta_button_text" : {
+    "type": "varchar",
+    "title": "Call-to-action button text"
+  },
+  "seo_title": {
+    "type": "varchar",
+    "title": "SEO title"
+  },
+  "seo_description": {
+    "type": "varchar",
+    "title": "SEO description"
+  }
+}

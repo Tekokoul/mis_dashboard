@@ -1,0 +1,34 @@
+{
+  "cookies_title": {
+    "type": "varchar",
+    "title": "Cookies title"
+  },
+  "cookies_subtitle": {
+    "type": "varchar",
+    "title": "Cookies subtitle"
+  },
+  "cookies_text": {
+    "type": "text",
+    "title": "Cookies content"
+  },
+  "cookies_bannder_head": {
+    "type": "text",
+    "title": "Cookies Pop Up Header"
+  },
+  "cookies_bannder_text": {
+    "type": "text",
+    "title": "Cookies Pop Up text"
+  },
+  "cookies_bannder_button": {
+    "type": "text",
+    "title": "Cookies Pop Up button text"
+  },
+  "seo_title": {
+    "type": "varchar",
+    "title": "SEO Title"
+  },
+  "description": {
+    "type": "varchar",
+    "title": "SEO description"
+  }
+}

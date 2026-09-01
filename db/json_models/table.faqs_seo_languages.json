@@ -1,0 +1,10 @@
+{
+  "seo_title": {
+    "type": "varchar",
+    "title": "SEO title"
+  },
+  "description": {
+    "type": "varchar",
+    "title": "SEO description"
+  }
+}
