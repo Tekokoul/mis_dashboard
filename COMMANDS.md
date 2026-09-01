@@ -259,3 +259,29 @@ grep -rniI "sadc\|crystalengine\|crystalweb\|crwb\|starfan\|brainregain" app/ pu
 - Four external-lens deliverables (2.1, 2.3, 2.4, 2.5) have no AWP activity
   behind them, so they have nothing to tick and will read 0% indefinitely. That
   is the source data, not a bug.
+
+---
+
+## Docker (production)
+
+One file drives everything — see `setup-production.sh --help`:
+
+```bash
+./setup-production.sh            # first install: checks, .env, build, start, health
+```
+
+```bash
+./setup-production.sh admin kouloliast@africacdc.org   # create/re-password an account
+```
+
+```bash
+./setup-production.sh deploy     # after a code change: backup, rebuild, restart
+```
+
+```bash
+./setup-production.sh backup     # timestamped dump into ./backups/
+```
+
+The app listens on **127.0.0.1:8081** (HTTP_PORT in `.env`). TLS is the reverse
+proxy's job; forward `X-Forwarded-Proto` and `X-Forwarded-For`. On machines with
+less than 16 GB set `DB_BUFFER_POOL=512M` in `.env` (tier-M default is 4G).
