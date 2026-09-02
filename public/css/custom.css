@@ -435,3 +435,10 @@ html #datatable-activities_wrapper .dataTables_filter label {
     font-size: 0.8125rem;
     color: var(--afcdc-ink-soft);
 }
+
+/* --- Breakdown charts on the overview ------------------------------------
+   Morris needs an explicit container height for horizontal bars. Tall = the
+   ten deliverables; default = the workstreams. */
+html .afcdc-chart { height: 300px; }
+html .afcdc-chart--tall { height: 430px; }
+html .afcdc-chart svg { max-width: 100%; }

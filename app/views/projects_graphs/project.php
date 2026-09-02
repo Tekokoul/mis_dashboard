@@ -46,8 +46,8 @@ foreach ($members as $member){
             }
             ?><hr>
             <strong>KPIs:</strong><br><?=$data['project']['kpi']?><hr>
-            <strong>Estimated Budget:</strong><br>BWP <?=(display_price($data['project']['estimated_budget'],2,".",",")??'N/A');?><hr>
-            <strong>Actual Budget:</strong><br>BWP <?=(display_price($actual_budget,2,".",",")??'N/A');?><hr>
+            <strong>Estimated Budget:</strong><br>USD <?=(display_price($data['project']['estimated_budget'],2,".",",")??'N/A');?><hr>
+            <strong>Actual Budget:</strong><br>USD <?=(display_price($actual_budget,2,".",",")??'N/A');?><hr>
             <strong>Notes:</strong><br><?=$data['project']['notes']?></p>
         </div>
     </div>
