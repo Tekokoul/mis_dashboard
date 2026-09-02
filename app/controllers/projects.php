@@ -43,7 +43,9 @@ class projectsController extends coreController{
             foreach ($data['meta_filters'] as $filter){
                 if(array_key_exists($filter['key'], $this->query)) {
                     if ($this->query[$filter['key']] != '%') {
-                        $filters[] = "AND ".$filter['key']."='".($this->query[$filter['key']] ?? "")."'";
+                        // Key is a model-defined column; the VALUE is raw
+                        // request input, so it travels as a bound value.
+                        $filters[] = ['sql' => "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
                     }
                 }
                 $data['filter_data'][$filter['key']] = $this->query[$filter['key']] ?? "";
@@ -283,7 +285,9 @@ class projectsController extends coreController{
             foreach ($data['meta_filters'] as $filter){
                 if(array_key_exists($filter['key'], $this->query)) {
                     if ($this->query[$filter['key']] != '%') {
-                        $filters[] = "AND ".$filter['key']."='".($this->query[$filter['key']] ?? "")."'";
+                        // Key is a model-defined column; the VALUE is raw
+                        // request input, so it travels as a bound value.
+                        $filters[] = ['sql' => "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
                     }
                 }
                 $data['filter_data'][$filter['key']] = $this->query[$filter['key']] ?? "";
@@ -306,18 +310,34 @@ class projectsController extends coreController{
             } else {
                 $query_tasks = 'NULL';
             }
-            $count_query = "select count(*) as total from " . $this->model->get_table_name($model['model_name'])." where id in (".$query_tasks.")";
-            $data['count'] = $this->DB->MQ($count_query, "one")['total'];
-            $query = "select * from ".$this->model->get_table_name($model['model_name'])." where id in (".$query_tasks.") ";
-            if($data['search']!=""){
-                $query .= "AND ((name like '%".$data['search']."%') OR (description like '%".$data['search']."%')) ";
-            }
-            if(count($filters)>0){
-                $query .= implode(" OR ", $filters);
-            }
-            $query .= " limit " . $items_per_page . " offset " . (($page - 1) * $items_per_page);
+            // One WHERE clause, built once, used by BOTH the count and the page
+            // of rows. Previously the count ignored the search and the filter,
+            // so a search for "cloud" still reported "Total of 55 entries" and
+            // offered a page 2 that was empty.
+            $where  = " where id in (".$query_tasks.") ";
+            $params = [];
 
-            $data['data'] = $this->DB->MQ($query, "all");
+            // $data['search'] is FILTER_UNSAFE_RAW - raw user input. Bound.
+            if($data['search']!=""){
+                $where .= "AND ((name like ?) OR (description like ?)) ";
+                $params[] = "%".$data['search']."%";
+                $params[] = "%".$data['search']."%";
+            }
+            // Each $filters entry already begins with "AND", so the old
+            // implode(" OR ", ...) produced "AND a=? OR AND b=?" - a syntax
+            // error the moment a second filter existed. Concatenate instead.
+            if(count($filters)>0){
+                $where .= implode(" ", array_column($filters, 'sql'))." ";
+                foreach($filters as $f){ $params[] = $f['value']; }
+            }
+
+            $count_query = "select count(*) as total from ".$this->model->get_table_name($model['model_name']).$where;
+            $data['count'] = $this->DB->MQ($count_query, "one", $params)['total'];
+
+            $query = "select * from ".$this->model->get_table_name($model['model_name']).$where
+                   . " limit " . (int)$items_per_page . " offset " . (((int)$page - 1) * (int)$items_per_page);
+
+            $data['data'] = $this->DB->MQ($query, "all", $params);
 
             $data['items'] = $items_per_page;
             $data['page'] = $page;
@@ -654,18 +674,31 @@ class projectsController extends coreController{
         $actual_budget = (isset($validated['actual_budget']) && $validated['actual_budget'] !== '')
             ? (float)$validated['actual_budget']
             : null;
-        $actual_budget_sql = ($actual_budget === null) ? "NULL" : (string)$actual_budget;
 
-        $query = "SELECT * FROM `pm_progress_tasks_tbl` WHERE `member_id` = ".$validated['member_id']." AND	`project_id` = ".$validated['project_id']." AND `task_id` = ".$validated['task_id'];
-        $result = $this->DB->MQ($query, "one");
+        // progress_date and comment are FILTER_UNSAFE_RAW, i.e. raw request
+        // input, and db_esc() is only addslashes(). Bind everything instead.
+        // $actual_budget is already a float or null from the block above.
+        $keys = [(int)$validated['member_id'], (int)$validated['project_id'], (int)$validated['task_id']];
+
+        $query  = "SELECT * FROM `pm_progress_tasks_tbl` WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?";
+        $result = $this->DB->MQ($query, "one", $keys);
+
         if(is_set($result)){
-            $query = "UPDATE `pm_progress_tasks_tbl` SET `result` = ".db_esc($validated['result']).", `progress_date` = '".$validated['progress_date']."', `actual_budget` = ".$actual_budget_sql.", `comment` = '".db_esc($validated['comment'])."' 
-            WHERE `member_id` = ".$validated['member_id']." AND	`project_id` = ".$validated['project_id']." AND `task_id` = ".$validated['task_id'];
-            $executed = $this->DB->MQ($query);
+            $query = "UPDATE `pm_progress_tasks_tbl`
+                         SET `result` = ?, `progress_date` = ?, `actual_budget` = ?, `comment` = ?
+                       WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?";
+            $executed = $this->DB->MQ($query, false, array_merge(
+                [(int)$validated['result'], $validated['progress_date'], $actual_budget, $validated['comment']],
+                $keys
+            ));
         } else {
-            $query = "INSERT INTO `pm_progress_tasks_tbl` ( `member_id`, `project_id`, `result`, `task_id`, `progress_date`, `comment`, `actual_budget`) VALUES 
-            ( ".$validated['member_id'].", ".$validated['project_id'].", ".db_esc($validated['result']).", ".$validated['task_id'].", '".$validated['progress_date']."', '".db_esc($validated['comment'])."', ".$actual_budget_sql." )";
-            $executed = $this->DB->MQ($query);
+            $query = "INSERT INTO `pm_progress_tasks_tbl`
+                        (`member_id`, `project_id`, `result`, `task_id`, `progress_date`, `comment`, `actual_budget`)
+                      VALUES (?, ?, ?, ?, ?, ?, ?)";
+            $executed = $this->DB->MQ($query, false, [
+                (int)$validated['member_id'], (int)$validated['project_id'], (int)$validated['result'],
+                (int)$validated['task_id'], $validated['progress_date'], $validated['comment'], $actual_budget,
+            ]);
         }
 
         if (!$executed) {

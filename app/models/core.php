@@ -150,19 +150,38 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             $where_string[] = "AND language_id = " . $this->lang_id;
         }
 
+        // Bound values for this query, in placeholder order: the search term
+        // first (it appears earlier in the WHERE), then any filter values.
+        $params = [];
+        // The search term is raw user input (FILTER_UNSAFE_RAW in every caller),
+        // so it is bound, never interpolated. The field NAMES come from the
+        // model settings, not from the request, so they stay as identifiers.
         if ($search != "") {
             $all_fields = array_merge($model['model']['common'] ?? [], $model['model']['languages'][$this->lang] ?? []);
             $search_fields = $this->array_with_value("search_field", $all_fields);
             $search_clause = [];
             foreach ($search_fields as $search_field=>$values){
-                $search_clause[] = "`".$search_field."` like '%".$search."%'";
+                $search_clause[] = "`".$search_field."` like ?";
+                $params[] = "%".$search."%";
             }
-            $where_string[] = "AND (".implode(" OR ",$search_clause).")";
+            if (count($search_clause) > 0) {
+                $where_string[] = "AND (".implode(" OR ",$search_clause).")";
+            }
         }
 
+        // A filter is either a bound pair ['sql' => "... = ?", 'value' => x] or,
+        // for callers not yet converted, a literal SQL string. The pair form is
+        // the safe one: filter VALUES come from the query string.
         if(is_set($filterby)){
             foreach ($filterby as $filter){
-                $where_string[] = $filter;
+                if (is_array($filter) && isset($filter['sql'])) {
+                    $where_string[] = $filter['sql'];
+                    if (array_key_exists('value', $filter)) {
+                        $params[] = $filter['value'];
+                    }
+                } else {
+                    $where_string[] = $filter;
+                }
             }
         }
 
@@ -180,12 +199,14 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             }
             $query_clauses .= implode(",", $order_string);
         }
-        $result['count'] = $this->DB->MQ($count_query.$query_clauses, "one")['total'];
+        $result['count'] = $this->DB->MQ($count_query.$query_clauses, "one", $params)['total'];
 
-        // include the limits
-        $query_limits = " limit " . $items_per_page . " offset " . (($page - 1) * $items_per_page);
+        // include the limits. Cast rather than bind: MySQL will not accept a
+        // placeholder in LIMIT/OFFSET while emulation is off, and both values
+        // are integers we control.
+        $query_limits = " limit " . (int)$items_per_page . " offset " . (((int)$page - 1) * (int)$items_per_page);
 
-        $result['data'] = $this->DB->MQ($query.$query_clauses.$query_limits, "all");
+        $result['data'] = $this->DB->MQ($query.$query_clauses.$query_limits, "all", $params);
         $result['page'] = $page;
         $result['items'] = $items_per_page;
         return $result;
@@ -370,11 +391,23 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                     }
                 }
             } else {
+                // A password input never renders with the current value in it,
+                // so an edit that changes anything else submits password="".
+                // Writing NULL here wiped the hash and locked the account out
+                // permanently - the "admin accounts stopped working" bug. An
+                // empty password means "leave it as it is".
+                if (($properties['type'] ?? '') == "password") {
+                    continue;
+                }
                 $query_elements[] = "`".$field."` = NULL";
             }
         }
-        $query .= implode(",", $query_elements)." where id='".$id."'";
-        $answer['common'] = $this->DB->MQ($query);
+        if (count($query_elements) === 0) {
+            $answer['common'] = true;   // nothing to change
+        } else {
+            $query .= implode(",", $query_elements)." where id = ?";
+            $answer['common'] = $this->DB->MQ($query, false, [$id]);
+        }
 
         if($this->has_languages_table($table_name)){
             foreach ($this->R->languages as $language=>$language_properties){

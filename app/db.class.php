@@ -36,7 +36,13 @@ class DB extends \PDO {
     }
 
     //TODO add DB_LOGGING functionality
-    function MQ($query, $fetch = false) {
+    //
+    // $params: when non-empty, the query MUST use ? placeholders and the values
+    // are bound rather than interpolated. Binding is the only safe way to put
+    // user input into SQL; it is correct even with ATTR_EMULATE_PREPARES on
+    // (PDO quotes each bound value itself). Existing callers pass no $params
+    // and are unchanged.
+    function MQ($query, $fetch = false, $params = []) {
         try {
 //        $query_id = md5($query);
 //        $this->REDIS = new Redis();
@@ -49,7 +55,7 @@ class DB extends \PDO {
                 debug($query);
             }
             $stmt = $this->DB_SERVER->prepare($query);
-            $result = $stmt->execute();
+            $result = empty($params) ? $stmt->execute() : $stmt->execute(array_values($params));
             switch ($fetch) {
                 case "all":
                     $result = $stmt->fetchAll(PDO::FETCH_ASSOC);

@@ -27,21 +27,27 @@ class usersController extends protectedController {
 
         $this->checkCSRF($validated['csrf']);
 
-        $query = "SELECT *, core_users_tbl.id as user_id FROM core_users_tbl 
-WHERE username = '".$validated['username']."' AND password='".md5(md5($validated['password']))."'";
+        // Bound parameters. username is attacker-controlled and reaches this
+        // query BEFORE any authentication; FILTER_SANITIZE_EMAIL is an input
+        // filter, not an escaping mechanism, so it must never be interpolated.
+        $query = "SELECT *, core_users_tbl.id as user_id FROM core_users_tbl
+WHERE username = ? AND password = ?";
 
-        $user = $this->DB->MQ($query, "one");
+        $user = $this->DB->MQ($query, "one", [
+            $validated['username'],
+            md5(md5($validated['password'])),
+        ]);
 
         if (is_set($user)){
             if($user['active']){
                 $this->setUser($user);
-                $query = "select * from core_groups_tbl where id=".$user['group'];
-                $_SESSION['user']['group'] = $this->DB->MQ($query, "one");
+                $query = "select * from core_groups_tbl where id = ?";
+                $_SESSION['user']['group'] = $this->DB->MQ($query, "one", [(int)$user['group']]);
 
                 if(file_exists(_USERS_SETTINGS_PATH."user_".$_SESSION['user']['id'].".json")){
                     $_SESSION['user']['settings'] = readJSONFile(_USERS_SETTINGS_PATH."user_".$_SESSION['user']['id'].".json");
                 }
-                $this->DB->MQ("INSERT INTO `core_users_logs_tbl` ( `core_users_id`, `action`, `log_date`) VALUES ( '".$user['id']."', 'login', '".date("Y-m-d H:i:s")."' );");
+                $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'login', ?)", false, [(int)$user['id'], date("Y-m-d H:i:s")]);
 
                 redirect($this->L("dashboard"));
             } else {
@@ -53,7 +59,7 @@ WHERE username = '".$validated['username']."' AND password='".md5(md5($validated
     }
 
     public function logout(){
-        $this->DB->MQ("INSERT INTO `core_users_logs_tbl` ( `core_users_id`, `action`, `log_date`) VALUES ( '".$_SESSION['user']['id']."', 'logout', '".date("Y-m-d H:i:s")."' );");
+        $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'logout', ?)", false, [(int)($_SESSION['user']['id'] ?? 0), date("Y-m-d H:i:s")]);
         unset($_SESSION['user']);
         session_start();
         session_destroy();
@@ -87,7 +93,9 @@ WHERE username = '".$validated['username']."' AND password='".md5(md5($validated
             foreach ($data['meta_filters'] as $filter){
                 if(array_key_exists($filter['key'], $this->query)) {
                     if ($this->query[$filter['key']] != '%') {
-                        $filters[] = "AND ".$filter['key']."='".($this->query[$filter['key']] ?? "")."'";
+                        // Key is a model-defined column; the VALUE is raw
+                        // request input, so it travels as a bound value.
+                        $filters[] = ['sql' => "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
                     }
                 }
                 $data['filter_data'][$filter['key']] = $this->query[$filter['key']] ?? "";
@@ -207,7 +215,7 @@ and '".date("Y-m-d H:i:s")."' and core_users_id=".$_SESSION['user']['id']." orde
         ];
         $validated = $this->sanitize($this->query, $rules);
         if($validated['password']!=""){
-            $query = "update core_users_tbl set password='".$this->model->create_password($validated['password'])."' where id=".$_SESSION['user']['id'];
+            $query = "update core_users_tbl set password = ? where id = ?";
             $this->DB->MQ($query);
         }
         redirect($this->L("users/profile"));
