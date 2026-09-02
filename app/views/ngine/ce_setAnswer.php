@@ -30,7 +30,7 @@ $isfault   = ($code >= 400);
     <meta name="robots" content="noindex, nofollow">
     <title><?=$code." ".$status;?> | <?=$product;?></title>
     <link href="<?=$favicon;?>" rel="shortcut icon" type="image/png"/>
-    <style type="text/css">
+    <style nonce="<?= csp_nonce(); ?>">
         body {
             margin: 0;
             background-color: #EEF0F1;

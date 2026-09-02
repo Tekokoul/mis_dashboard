@@ -36,7 +36,7 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
     <link rel="stylesheet" href="/css/<?=$skin;?>" />
     <link rel="stylesheet" href="/css/custom.css?v=<?=_CURRENT_COMMIT?>">
     <script src="/vendor/modernizr/modernizr.js"></script>
-<style>
+<style nonce="<?= csp_nonce(); ?>">
     .login-bg {
         background-image: url('<?=$bg;?>');
         background-position: center;

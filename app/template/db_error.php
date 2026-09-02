@@ -27,7 +27,7 @@ $copyright = defined("_WHITELABEL_COPYRIGHT") ? _WHITELABEL_COPYRIGHT : "An enti
     <meta name="robots" content="noindex, nofollow">
     <title>Database unavailable | <?=$product;?></title>
     <link href="<?=$favicon;?>" rel="shortcut icon" type="image/png"/>
-    <style type="text/css">
+    <style nonce="<?= csp_nonce(); ?>">
         body {
             margin: 0;
             background-color: #EEF0F1;
