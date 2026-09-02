@@ -18,6 +18,10 @@ tinymce.init({
     media_live_embeds: true
 });
 
+// The delegated handlers for [data-afcdc-autosubmit], .afcdc-print and the
+// repeater links live in /js/custom.js, which every page loads (this file
+// is only on edit pages).
+
 $(function(){
     $('[data-plugin-datetimepicker]').datetimepicker({
         dateFormat: 'yy-mm-dd',

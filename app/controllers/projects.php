@@ -45,7 +45,7 @@ class projectsController extends coreController{
                     if ($this->query[$filter['key']] != '%') {
                         // Key is a model-defined column; the VALUE is raw
                         // request input, so it travels as a bound value.
-                        $filters[] = ['sql' => "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
+                        $filters[] = ['sql' => $filter['sql'] ?? "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
                     }
                 }
                 $data['filter_data'][$filter['key']] = $this->query[$filter['key']] ?? "";
@@ -290,7 +290,7 @@ class projectsController extends coreController{
                     if ($this->query[$filter['key']] != '%') {
                         // Key is a model-defined column; the VALUE is raw
                         // request input, so it travels as a bound value.
-                        $filters[] = ['sql' => "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
+                        $filters[] = ['sql' => $filter['sql'] ?? "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
                     }
                 }
                 $data['filter_data'][$filter['key']] = $this->query[$filter['key']] ?? "";

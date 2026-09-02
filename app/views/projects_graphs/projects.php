@@ -98,6 +98,6 @@ $esc = static function ($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'U
     </div>
 </div>
 
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var graph_color = '<?= _PROJECT_COLOR; ?>';
 </script>

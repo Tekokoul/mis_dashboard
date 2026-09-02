@@ -9,7 +9,7 @@
              the script at the foot of the page attaches it to forms and AJAX. */ ?>
     <meta name="csrf-token" content="<?= htmlspecialchars((string)($_SESSION['token'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="icon" href="<?= (defined("_WHITELABEL") && _WHITELABEL) ? _WHITELABEL_LOGO_FAVICON : "/media/logo/africacdc_favicon.png"; ?>">
-    <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,600,700,800|Shadows+Into+Light" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="/vendor/fonts/open-sans.css">
     <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.css" />
     <link rel="stylesheet" href="/vendor/animate/animate.compat.css">
     <link rel="stylesheet" href="/vendor/font-awesome/css/all.min.css" />
@@ -52,7 +52,7 @@ $checkoutPage = 0;
 include $viewPath;
 include "template_footer.php";
 ?>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var lang = "<?=$this->lang;?>";
     var langid = "<?=$this->langid;?>";
     var lang_prefix = "<?= (_MULTILINGUAL) ? "/".$this->lang : "";?>" ;
@@ -65,7 +65,7 @@ include "template_footer.php";
     var notificationclass = '<?=$notification_position;?>';
 </script>
 <script src="/vendor/jquery/jquery.js"></script>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     // CSRF. The server refuses any POST without the session token
     // (vanillaController::enforceCSRF). One place attaches it everywhere:
     // a hidden field on every POST form - including forms loaded later into
@@ -129,7 +129,7 @@ if(file_exists(_PUBLIC_PATH.$jsfile)){
     <?php
     if(isset($this->R->CE_Notification)&&_DEBUG_MODE){
         ?>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     $(function() {
         new PNotify(
             {

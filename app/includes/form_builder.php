@@ -1,6 +1,11 @@
 <?php
 function chooseElement($name, $field, $data=[]){
     $html = "";
+    // A definition with no type never matched a branch below and rendered
+    // nothing; keep that, minus the "Undefined array key" warning per check.
+    if (!isset($field['type'])) {
+        return $html;
+    }
     if($field['type']=="varchar") {
         $html .= createText($name, $field, $data);
     }
@@ -374,7 +379,7 @@ function createFile($name, $field, $data) {
 function createListRow($name, $field, $data, $number){
     $html = '<tr id="element_'.$number.'" class="element_row"><td>';
     $html .= '<section class="card"><header class="card-header card-padding-10"><div class="card-actions">
-<a href="javascript:void(0);" class="deleteElement" data-id="'.$number.'"><i class="fa fa-times"></i></a></div></header><div class="card-body">';
+<a href="#" class="deleteElement" data-id="'.$number.'"><i class="fa fa-times"></i></a></div></header><div class="card-body">';
     foreach ($field['elements'] as $list_field => $value) {
         $prepopulated = $data[$list_field] ?? "";
         $html .= chooseElement($name . "[".$number."][" . $list_field . "]", $value, $prepopulated);
@@ -388,7 +393,7 @@ function createImageListRow($name, $field, $data, $number){
 
     $html = '<tr id="element_'.$number.'" class="element_row"><td>';
     $html .= '<section class="card"><header class="card-header card-padding-10"><div class="card-actions">
-<a href="javascript:void(0);" class="deleteElement" data-id="'.$number.'"><i class="fa fa-times"></i></a></div></header><div class="card-body">';
+<a href="#" class="deleteElement" data-id="'.$number.'"><i class="fa fa-times"></i></a></div></header><div class="card-body">';
     foreach ($field as $list_field => $value) {
         $prepopulated = $data ?? "";
         $html .= createImage($name . "[]", ['title' => $value], $prepopulated);
@@ -406,7 +411,7 @@ function createImageList($name, $field, $data) {
     $html = "";
     $node_nr = 0;
     $html .= '<div class="col-lg-12"><section class="card"><header class="card-header"><div class="card-actions">
-<a href="javascript:void(0);" id="addElement" data-id="'.$node_nr.'"><i class="fa fa-plus"></i></a></div><h2 class="card-title">'.$label.'</h2></header>
+<a href="#" id="addElement" data-id="'.$node_nr.'"><i class="fa fa-plus"></i></a></div><h2 class="card-title">'.$label.'</h2></header>
         <div class="card-body"><table class="table table-responsive-md table-striped mb-0" id="elementstable"><tbody>';
     if(is_set($data)){
         foreach ($data as $node) {
@@ -428,7 +433,7 @@ function createList($name, $field, $data) {
     $html = "";
     $node_nr = 0;
     $html .= '<div class="col-lg-12"><section class="card"><header class="card-header"><div class="card-actions">
-<a href="javascript:void(0);" id="addElement" data-id="'.$node_nr.'"><i class="fa fa-plus"></i></a></div><h2 class="card-title">'.$label.'</h2></header>
+<a href="#" id="addElement" data-id="'.$node_nr.'"><i class="fa fa-plus"></i></a></div><h2 class="card-title">'.$label.'</h2></header>
         <div class="card-body"><table class="table table-responsive-md table-striped mb-0" id="elementstable"><tbody>';
     if(is_set($data)){
         foreach ($data as $node) {
@@ -450,7 +455,7 @@ function createJSON($name, $field, $data) {
     $html = "";
     $node_nr = 0;
     $html .= '<div class="col-lg-12"><section class="card"><header class="card-header"><div class="card-actions">
-<a href="javascript:void(0);" id="addElement" data-id="'.$node_nr.'"><i class="fa fa-plus"></i></a></div><h2 class="card-title">'.$label.'</h2></header>
+<a href="#" id="addElement" data-id="'.$node_nr.'"><i class="fa fa-plus"></i></a></div><h2 class="card-title">'.$label.'</h2></header>
         <div class="card-body"><table class="table table-responsive-md table-striped mb-0" id="elementstable"><tbody>';
     $keys = array_keys($field['elements']);
     foreach ($keys as $key){

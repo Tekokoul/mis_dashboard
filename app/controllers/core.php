@@ -83,7 +83,9 @@ class coreController extends protectedController{
                     if ($this->query[$filter['key']] != '%') {
                         // Key is a model-defined column; the VALUE is raw
                         // request input, so it travels as a bound value.
-                        $filters[] = ['sql' => "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
+                        // A filter may bring its own clause (Programmes filter by pillar
+                        // through their objective); the VALUE is always bound.
+                        $filters[] = ['sql' => $filter['sql'] ?? "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
                     }
                 }
                 $data['filter_data'][$filter['key']] = $this->query[$filter['key']] ?? "";

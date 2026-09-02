@@ -291,6 +291,16 @@ function pct($value){
     return number_format((float)$value, 2, '.', '');
 }
 
+// The per-request CSP nonce. nginx generates it ($request_id), sends it in
+// the Content-Security-Policy header and hands the same value to PHP as
+// CSP_NONCE; every inline script tag carries nonce=(this value) so the
+// policy can drop 'unsafe-inline'. Empty outside nginx (the dev server),
+// where no CSP is sent either. (Never write a PHP close tag in a comment:
+// the first version of this note did, and PHP ended the file right there.)
+function csp_nonce(){
+    return htmlspecialchars((string)($_SERVER['CSP_NONCE'] ?? ''), ENT_QUOTES, 'UTF-8');
+}
+
 function display_weight($text = "", $in="kg"){
     $answer = "N/A";
     if($in=="kg"){

@@ -19,7 +19,7 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=(float)$data['objective']['progress']?>" role="img" aria-label="<?= display($data['objective']['name']); ?>: <?= pct($data['objective']['progress']); ?> percent complete"></canvas>
             <label class="gaugeBasicTextfield"><?=pct($data['objective']['progress']);?>%</label>
         </div>
-        <p class="afcdc-deliverable__meta mb-3"><?php $t = (int)($data['objective']['totals'] ?? 0); $c = (int)($data['objective']['completed'] ?? 0); echo $t > 0 ? "$c of $t activities delivered" : 'Nothing to measure yet'; ?></p>
+        <?php $t = (int)($data['objective']['totals'] ?? 0); $c = (int)($data['objective']['completed'] ?? 0); if ($t > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= $c; ?> of <?= $t; ?> activities delivered</p><?php endif; ?>
         <div>
             <p><strong>Description:</strong><br><?=nl2br(display($data['objective']['description']))?><hr>
             <strong>Outcomes:</strong><br><?=nl2br(display($data['objective']['outcomes']))?></p>
@@ -48,6 +48,6 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
         ?>
     </div>
 </div>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var graph_color = '<?=_PROJECT_COLOR;?>';
 </script>

@@ -115,7 +115,7 @@ if(isset($data['selected_report'])&&($data['selected_report']!="select")) {
 }
 ?>
 
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     document.getElementById('report_file').onchange = function() {
         window.location = '<?=$this->L("reports/lists?report=");?>' + this.value;
     };

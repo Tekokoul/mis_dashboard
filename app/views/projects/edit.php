@@ -76,7 +76,7 @@ $col_width = 12/$columns;
     </div>
 </form>
 
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var project_id = <?=$data['data']['id'];?>;
     var project_type = '<?=$data['data']['type'];?>';
 </script>

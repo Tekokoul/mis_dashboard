@@ -87,7 +87,7 @@ $col_width = 12/$columns;
     </div>
 </form>
 
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var project_id = <?=(int)$data['data']['id'];?>;
     var project_type = <?=json_encode((string)($data['data']['type'] ?? ''), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP);?>;
     // The "Delivery recorded" strip: focus is what gets it announced on a

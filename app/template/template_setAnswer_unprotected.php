@@ -9,7 +9,7 @@ $icon = ($code>=400) ? "fa-exclamation-circle" :"fa-info-circle";
     <meta name="author" content="<?=_AUTHOR?>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="<?= (defined("_WHITELABEL") && _WHITELABEL) ? _WHITELABEL_LOGO_FAVICON : "/media/logo/africacdc_favicon.png"; ?>">
-    <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800|Shadows+Into+Light" rel="stylesheet" type="text/css">
+    <link rel="stylesheet" href="/vendor/fonts/open-sans.css">
     <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.css" />
     <link rel="stylesheet" href="/vendor/animate/animate.compat.css">
     <link rel="stylesheet" href="/vendor/font-awesome/css/all.min.css" />

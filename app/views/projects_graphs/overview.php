@@ -16,7 +16,7 @@ $latest = $data['latest_delivery'] ?? null;
     <div class="right-wrapper">
         <ol class="breadcrumbs">
             <li><span><?php if ($latest): ?>Latest recorded delivery: <time datetime="<?= date(DATE_ATOM, strtotime($latest)); ?>"><?= date('j M Y', strtotime($latest)); ?></time><?php else: ?>No deliveries recorded yet<?php endif; ?></span></li>
-            <li><a href="#" class="afcdc-print" role="button" onclick="window.print(); return false;"><i class="bx bx-printer" aria-hidden="true"></i> Print or save as PDF</a></li>
+            <li><a href="#" class="afcdc-print" role="button"><i class="bx bx-printer" aria-hidden="true"></i> Print or save as PDF</a></li>
         </ol>
     </div>
 </header>
@@ -72,7 +72,7 @@ $latest = $data['latest_delivery'] ?? null;
                                 role="img"
                                 aria-label="<?= $lensName; ?>: <?= pct($lensPct); ?> percent complete, <?= $lensDone; ?> of <?= $lensAll; ?> activities delivered"></canvas>
                         <label class="gaugeBasicTextfield"><?= pct($lensPct); ?>%</label>
-                        <span class="afcdc-progress-zero d-block"><?= $lensAll > 0 ? "$lensDone of $lensAll activities delivered" : 'Nothing to measure yet'; ?></span>
+                        <?php if ($lensAll > 0): ?><span class="afcdc-progress-zero d-block"><?= $lensDone; ?> of <?= $lensAll; ?> activities delivered</span><?php endif; ?>
                     </div>
 
                     <div>
@@ -99,15 +99,16 @@ $latest = $data['latest_delivery'] ?? null;
                                 <div class="progress progress-lg progress-squared w-100">
                                     <div class="progress-bar" role="progressbar"
                                          aria-valuenow="<?= $objPct; ?>" aria-valuemin="0" aria-valuemax="100"
-                                         aria-valuetext="<?= $objAll === 0 ? 'Nothing to measure yet' : $objDone.' of '.$objAll.' activities delivered'; ?>"
+                                         aria-valuetext="<?= $objAll === 0 ? '0 activities' : $objDone.' of '.$objAll.' activities delivered'; ?>"
                                          style="width: <?= $objPct; ?>%;">
                                         <?php if ($objPct >= 12): ?><?= pct($objPct); ?>%<?php endif; ?>
                                     </div>
                                 </div>
                                 <span class="afcdc-progress-zero">
-                                    <?php if ($objAll > 0 && $objPct < 12): ?><?= pct($objPct); ?>% · <?php endif; ?>
-                                    <?php if ($objAll > 0): ?><?= $objDone; ?> of <?= $objAll; ?> activities delivered <?php endif; ?>
-                                    <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span>
+                                    <?php if ($objPct < 12): ?><?= pct($objPct); ?>%<?php endif; ?>
+                                    <?php if ($objAll > 0): ?> · <?= $objDone; ?> of <?= $objAll; ?> activities delivered<?php endif; ?>
+                                    <?php // A status word only when there is movement to report; an idle row is just its number. ?>
+                                    <?php if ($st === 'active' || $st === 'good'): ?> <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span><?php endif; ?>
                                 </span>
                             </div>
                         </div>
@@ -132,11 +133,11 @@ $latest = $data['latest_delivery'] ?? null;
             RCC or Member State it applies to — today every activity is reported once, centrally, by DHIS HQ, so one
             record per activity. Staff record a delivery under <strong>Progress</strong> in the sidebar, on the
             activity's page, with <strong>Record delivery</strong>; every gauge recalculates on the next load.
-            A deliverable marked <em>Nothing to measure yet</em> has no Annual Workplan activity under it — it has not stalled.
+            A deliverable with no activity count beside it has no Annual Workplan activity under it yet.
         </p>
     </div>
 </div>
 
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var graph_color = '<?= _PROJECT_COLOR; ?>';
 </script>

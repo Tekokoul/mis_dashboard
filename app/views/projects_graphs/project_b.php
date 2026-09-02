@@ -54,6 +54,6 @@ if($data['project']['totals']>0){
         ?>
     </div>
 </div>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var graph_color = '<?=_PROJECT_COLOR;?>';
 </script>

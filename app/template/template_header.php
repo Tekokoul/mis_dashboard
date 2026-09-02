@@ -144,7 +144,7 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                         </ul>
                     </nav>
                 </div>
-                <script>
+                <script nonce="<?= csp_nonce(); ?>">
                     // Maintain Scroll Position
                     if (typeof localStorage !== 'undefined') {
                         if (localStorage.getItem('sidebar-left-position') !== null) {

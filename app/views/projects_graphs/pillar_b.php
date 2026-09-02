@@ -36,6 +36,6 @@ $val_all = ($data['pillar']['totals']>0) ? round(($data['pillar']['progress']/$d
         ?>
     </div>
 </div>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var graph_color = '<?=_PROJECT_COLOR;?>';
 </script>

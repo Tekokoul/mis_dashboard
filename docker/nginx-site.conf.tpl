@@ -64,6 +64,9 @@ server {
         # container speaks plain http.
         fastcgi_param HTTPS           $forwarded_https if_not_empty;
         fastcgi_param REQUEST_SCHEME  $forwarded_scheme;
+        # The CSP nonce: the same $request_id the security-headers snippet
+        # puts in script-src, so PHP can stamp it on every inline <script>.
+        fastcgi_param CSP_NONCE       $request_id;
 
         # Must exceed the pool's request_terminate_timeout (120s) so a slow
         # request surfaces PHP's own error rather than a premature 504.

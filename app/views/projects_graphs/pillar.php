@@ -18,7 +18,7 @@
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=(float)$data['pillar']['progress']?>" role="img" aria-label="<?= display($data['pillar']['name']); ?>: <?= pct($data['pillar']['progress']); ?> percent complete"></canvas>
             <label class="gaugeBasicTextfield"><?=pct($data['pillar']['progress']);?>%</label>
         </div>
-        <p class="afcdc-deliverable__meta mb-3"><?php $t = (int)($data['pillar']['totals'] ?? 0); $c = (int)($data['pillar']['completed'] ?? 0); echo $t > 0 ? "$c of $t activities delivered" : 'Nothing to measure yet'; ?></p>
+        <?php $t = (int)($data['pillar']['totals'] ?? 0); $c = (int)($data['pillar']['completed'] ?? 0); if ($t > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= $c; ?> of <?= $t; ?> activities delivered</p><?php endif; ?>
         <div>
             <p><strong>Description:</strong><br><?=nl2br(display($data['pillar']['description']))?></p>
         </div>
@@ -48,9 +48,9 @@
                         else                  { $st = 'active'; $stIcon = 'bx-adjust';       $stText = 'In progress'; }
                         ?>
                         <span class="afcdc-progress-zero">
-                            <?php if ($oAll > 0 && $oPct < 12): ?><?= pct($oPct); ?>% · <?php endif; ?>
-                            <?php if ($oAll > 0): ?><?= $oDone; ?> of <?= $oAll; ?> activities delivered <?php endif; ?>
-                            <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span>
+                            <?php if ($oPct < 12): ?><?= pct($oPct); ?>%<?php endif; ?>
+                            <?php if ($oAll > 0): ?> · <?= $oDone; ?> of <?= $oAll; ?> activities delivered<?php endif; ?>
+                            <?php if ($st === 'active' || $st === 'good'): ?> <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span><?php endif; ?>
                         </span>
                     </div>
                     <hr>
@@ -60,6 +60,6 @@
         ?>
     </div>
 </div>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var graph_color = '<?=_PROJECT_COLOR;?>';
 </script>

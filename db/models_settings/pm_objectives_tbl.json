@@ -1,7 +1,20 @@
 {
   "meta": {
     "name": "Objectives",
-    "actions": []
+    "actions": [],
+    "filters": [
+      {
+        "title": "Choose Pillar",
+        "key": "pillar_id",
+        "type": "dropdown",
+        "values_from": "db",
+        "link_to_table": "pm_pillars_tbl",
+        "link_to_field": "name",
+        "order_by": "`position` asc",
+        "where_clause": "",
+        "add_zero_value": true
+      }
+    ]
   },
   "fields": {
     "id": {

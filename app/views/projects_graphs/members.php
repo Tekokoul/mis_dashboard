@@ -4,7 +4,7 @@ $sorted_data = $data['progress'];
 $progress = array_column($sorted_data, 'progress');
 array_multisort($progress, SORT_DESC, $sorted_data);
 ?>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var ms_sorted = [];
     var ms_chart = [];
     var ms_monthly = [];
@@ -26,7 +26,7 @@ array_multisort($progress, SORT_DESC, $sorted_data);
                 <h2 class="card-title"><?=$this->S['graphs']['members_ranking']?></h2>
             </div>
             <div class="card-body">
-                <script>
+                <script nonce="<?= csp_nonce(); ?>">
                 <?php
                 foreach ($sorted_data as $member){
                     if($member['totals']>0){
@@ -52,7 +52,7 @@ ms_sorted.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|J
                 <h2 class="card-title"><?=$this->S['graphs']['members_overall_tasks']?></h2>
             </div>
             <div class="card-body">
-                <script>
+                <script nonce="<?= csp_nonce(); ?>">
                 <?php
                 foreach ($data['progress'] as $member){
                     ?>
@@ -73,7 +73,7 @@ ms_chart.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|JS
                 <h2 class="card-title">Completed Projects / Month</h2>
             </div>
             <div class="card-body">
-                <script>
+                <script nonce="<?= csp_nonce(); ?>">
                     <?php
                 foreach ($data['monthly'] as $year => $months){
                     foreach ($months as $month => $values) {

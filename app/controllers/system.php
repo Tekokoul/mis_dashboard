@@ -2,11 +2,17 @@
 require_once _CONTROLLERS_PATH."core.php";
 class systemController extends coreController {
 
-    protected $unprotected = ["login", "recover_password"];
+    // recover_password was removed on 2 Sep 2026: a form with no handler
+    // that put the typed e-mail address into the URL.
+    protected $unprotected = ["login"];
 
     public function login() {
         if($this->isLoggedIn()){
-            redirect($this->L("dashboard"));
+            // Already signed in: go where Profile > Settings says (same
+            // allow-list as users::login), not to the near-empty dashboard.
+            $landing = (string)($_SESSION['user']['settings']['landing_page'] ?? '');
+            $allowed = ['projects_graphs/overview', 'dashboard', 'projects/progress_list', 'projects_graphs/projects'];
+            redirect($this->L(in_array($landing, $allowed, true) ? $landing : 'projects_graphs/overview'));
         } else {
             $this->generateCSRFtoken();
             $this->partial_render();
@@ -38,10 +44,6 @@ class systemController extends coreController {
         } else {
             redirect($this->L("login"));
         }
-    }
-
-    public function recover_password(){
-        $this->partial_render();
     }
 
     public function info(){

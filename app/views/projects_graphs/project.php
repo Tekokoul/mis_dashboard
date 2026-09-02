@@ -45,11 +45,14 @@ foreach ($members as $member){
         $actual_shown = ($data['project']['actual_budget'] ?? null) !== null && (float)$data['project']['actual_budget'] > 0
             ? (float)$data['project']['actual_budget'] : $actual_budget;
         ?>
-        <p class="afcdc-deliverable__meta mb-3"><?= display($stLine); ?></p>
+        <?php // Only movement is worth a line: nothing is said for an activity that has not been delivered yet. ?>
+        <?php if ($c > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= display($stLine); ?></p><?php endif; ?>
         <div>
             <p><strong>Description:</strong><br><?=nl2br(display($data['project']['description']))?><hr>
+            <?php if ($st === 'active' || $st === 'good'): ?>
             <strong>Delivery status:</strong><br>
             <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span><hr>
+            <?php endif; ?>
             <strong>KPIs:</strong><br><?=display($data['project']['kpi'])?><hr>
             <strong>Estimated budget:</strong><br>USD <?=(display_price($data['project']['estimated_budget'] ?? 0,2,".",",")??'N/A');?><hr>
             <strong>Actual budget:</strong><br>USD <?=(display_price($actual_shown,2,".",",")??'N/A');?><hr>
@@ -80,6 +83,6 @@ foreach ($members as $member){
         ?>
     </div>
 </div>
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var graph_color = '<?=_PROJECT_COLOR;?>';
 </script>

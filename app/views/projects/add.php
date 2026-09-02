@@ -76,7 +76,7 @@ $col_width = 12/$columns;
     </div>
 </form>
 
-<script>
+<script nonce="<?= csp_nonce(); ?>">
     var project_id = 0;
     var project_type = 'pm_projects_milestones';
 </script>

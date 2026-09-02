@@ -97,7 +97,7 @@ function filter_DropDown($name, $field, $data = []) {
 //            $where_clause .= " or ".$link_to_table.".id=".$data;
 //            $limit ++;
 //        }
-        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' onchange="javascript:this.form.submit()">';
+        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
         if(isset($field['add_zero_value'])) {
             $html .= "<option value='%'";
             $html .= ($data==0) ? ' selected ' : '';
@@ -199,7 +199,7 @@ function filter_DropDown($name, $field, $data = []) {
             $data = json_from_db($data);
         }
 
-        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' onchange="javascript:this.form.submit()">';
+        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
         if(isset($field['add_zero_value'])) {
             $html .= "<option value='0'";
             $html .= ($data==0) ? ' selected ' : '';
@@ -219,7 +219,7 @@ function filter_DropDown($name, $field, $data = []) {
         $html .= '</select>';
     }
     if($field['values_from']=="values_list"){
-        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' onchange="javascript:this.form.submit()">';
+        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
         foreach ($field[$field['values_from']] as $key => $value){
             $html .= '<option value="'.display($key).'"';
             if($key==$data){
