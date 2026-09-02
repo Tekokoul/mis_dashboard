@@ -34,7 +34,7 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
     }
     ?>
     <link rel="stylesheet" href="/css/<?=$skin;?>" />
-    <link rel="stylesheet" href="/css/custom.css">
+    <link rel="stylesheet" href="/css/custom.css?v=<?=_CURRENT_COMMIT?>">
     <script src="/vendor/modernizr/modernizr.js"></script>
 <style>
     .login-bg {
@@ -237,8 +237,8 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
 <script src="/vendor/common/common.js"></script>
 <script src="/vendor/jquery-placeholder/jquery.placeholder.js"></script>
 <script src="/vendor/nanoscroller/nanoscroller.js"></script>
-<script src="/js/theme.js"></script>
-<script src="/js/custom.js"></script>
-<script src="/js/theme.init.js"></script>
+<script src="/js/theme.js?v=<?=_CURRENT_COMMIT?>"></script>
+<script src="/js/custom.js?v=<?=_CURRENT_COMMIT?>"></script>
+<script src="/js/theme.init.js?v=<?=_CURRENT_COMMIT?>"></script>
 </body>
 </html>

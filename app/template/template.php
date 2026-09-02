@@ -122,10 +122,13 @@ if(file_exists(_PUBLIC_PATH.$jsfile)){
 }
 
 ?>
-<script src="/js/theme.js"></script>
-<script src="/js/theme.init.js"></script>
-<script src="/js/form.js"></script>
-<script src="/js/custom.js"></script>
+<?php // ?v=_CURRENT_COMMIT so a deploy busts the browser cache: nginx serves JS
+      // with a 31-day max-age, and these four had no version - a changed
+      // custom.js kept running the old cached copy (the filters "not submitting"). ?>
+<script src="/js/theme.js?v=<?=_CURRENT_COMMIT?>"></script>
+<script src="/js/theme.init.js?v=<?=_CURRENT_COMMIT?>"></script>
+<script src="/js/form.js?v=<?=_CURRENT_COMMIT?>"></script>
+<script src="/js/custom.js?v=<?=_CURRENT_COMMIT?>"></script>
     <?php
     if(isset($this->R->CE_Notification)&&_DEBUG_MODE){
         ?>

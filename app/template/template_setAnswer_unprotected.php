@@ -54,9 +54,9 @@ $icon = ($code>=400) ? "fa-exclamation-circle" :"fa-info-circle";
 <script src="/vendor/nanoscroller/nanoscroller.js"></script>
 <script src="/vendor/magnific-popup/jquery.magnific-popup.js"></script>
 <script src="/vendor/jquery-placeholder/jquery.placeholder.js"></script>
-<script src="/js/theme.js"></script>
-<script src="/js/custom.js"></script>
-<script src="/js/theme.init.js"></script>
+<script src="/js/theme.js?v=<?=defined('_CURRENT_COMMIT')?_CURRENT_COMMIT:'';?>"></script>
+<script src="/js/custom.js?v=<?=defined('_CURRENT_COMMIT')?_CURRENT_COMMIT:'';?>"></script>
+<script src="/js/theme.init.js?v=<?=defined('_CURRENT_COMMIT')?_CURRENT_COMMIT:'';?>"></script>
 
 </body>
 </html>
