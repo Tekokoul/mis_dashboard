@@ -13,16 +13,16 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
 <div class="row">
     <div class="col-lg-5 col-md-12">
         <div>
-            <h2><?=$data['objective']['name']?></h2>
+            <h2><?=display($data['objective']['name'])?></h2>
         </div>    
         <div class="gauge-chart">
-            <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$data['objective']['progress']?>"></canvas>
-            <!-- <strong><?=$data['objective']['name']?></strong> -->
-            <label class="gaugeBasicTextfield"><?=number_format((float)$data['objective']['progress'], 2, ',', '');?>%</label>
+            <canvas class="gaugeBasic" width="350" height="200" data-value="<?=(float)$data['objective']['progress']?>" role="img" aria-label="<?= display($data['objective']['name']); ?>: <?= pct($data['objective']['progress']); ?> percent complete"></canvas>
+            <label class="gaugeBasicTextfield"><?=pct($data['objective']['progress']);?>%</label>
         </div>
+        <p class="afcdc-deliverable__meta mb-3"><?php $t = (int)($data['objective']['totals'] ?? 0); $c = (int)($data['objective']['completed'] ?? 0); echo $t > 0 ? "$c of $t activities delivered" : 'Nothing to measure yet'; ?></p>
         <div>
-            <p><strong>Description:</strong><br><?=$data['objective']['description']?><hr>
-            <strong>Outcomes:</strong><br><?=$data['objective']['outcomes']?></p>
+            <p><strong>Description:</strong><br><?=nl2br(display($data['objective']['description']))?><hr>
+            <strong>Outcomes:</strong><br><?=nl2br(display($data['objective']['outcomes']))?></p>
         </div>
     </div>
     <div class="col-lg-7 col-md-12">
@@ -33,14 +33,14 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
         foreach ($data['programmes'] as $programme){
             $prj_val = ($programme['totals']>0) ? round(($programme['progress']/$programme['totals']*100), 2) : 0;
             ?>
-                <div class="row">
-                    <div class="col col-7"><a href="<?=$this->L("projects_graphs/programme/".$programme['id']);?>"><?=$programme['name'];?></a></div>
+                <div class="row afcdc-drill">
+                    <div class="col col-7"><a class="stretched-link" href="<?=$this->L("projects_graphs/programme/".(int)$programme['id']);?>"><?=display($programme['name']);?></a></div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
-                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=$programme['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=$programme['progress'];?>%;">
-                                <?php if ((float)$programme['progress'] >= 12): ?><?= number_format((float)$programme['progress'], 2, ',', ''); ?>%<?php endif; ?>
+                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$programme['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$programme['progress'];?>%;">
+                                <?php if ((float)$programme['progress'] >= 12): ?><?= pct($programme['progress']); ?>%<?php endif; ?>
                             </div>
                         </div>
-                        <?php if ((float)$programme['progress'] < 12): ?><span class="afcdc-progress-zero"><?= number_format((float)$programme['progress'], 2, ',', ''); ?>%</span><?php endif; ?></div>
+                        <?php if ((float)$programme['progress'] < 12): ?><span class="afcdc-progress-zero"><?= pct($programme['progress']); ?>%</span><?php endif; ?></div>
                         <hr>
                 </div>
                 <?php

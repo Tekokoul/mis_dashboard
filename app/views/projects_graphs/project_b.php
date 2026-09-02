@@ -27,7 +27,7 @@ if($data['project']['totals']>0){
         <div class="gauge-chart">
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$value?>"></canvas>
             <strong><?=$data['project']['name']?></strong>
-            <label id="gaugeBasicTextfield"><?=number_format((float)$value, 2, ',', '');?>%</label>
+            <label id="gaugeBasicTextfield"><?=pct($value);?>%</label>
         </div>
     </div>
     <div class="col-md-8">

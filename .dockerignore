@@ -18,7 +18,10 @@ app/configuration/settings.local.php
 .env.*
 !.env.example
 
-# Local database dumps, which may contain real data.
+# Local database dumps, which may contain real data. The directory pattern
+# is needed: `*.sql.gz` matches only at the top level (a `*` never crosses
+# a `/`), so without it every dump under backups/ was baked into the image.
+backups/
 backup_*.sql
 *.sql.gz
 

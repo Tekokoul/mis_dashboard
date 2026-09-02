@@ -1,4 +1,9 @@
 -- =============================================================================
+--  FIRST INSTALL ONLY. NEVER RUN THIS AGAINST A DATABASE THAT IS IN USE.
+--  It deletes every row of every pm_* table before inserting - every recorded
+--  delivery and every activity anyone added through the dashboard is lost.
+--  In production the container loads it by itself, once, on an empty database.
+-- =============================================================================
 --  africacdc_dhis_seed.sql
 --  Africa CDC - Division of Digital Health and Information Systems (DHIS)
 --  Re-points the CrystalEngine project-monitoring dashboard from the previous tenant's programme data
@@ -9,8 +14,10 @@
 --  --------------
 --  Loads the DHIS programme hierarchy into the pm_* tables:
 --
---      pm_pillars_tbl      2 rows   the Internal Lens and the External Lens
---      pm_objectives_tbl  10 rows   the 10 MIS key deliverables (WBS 1.1-1.5, 2.1-2.5)
+--      pm_pillars_tbl      4 rows   the Internal and External Lens, plus the two
+--                                   pillars added on the live site (Digital ER, AfCDC development)
+--      pm_objectives_tbl  15 rows   the 10 MIS key deliverables (WBS 1.1-1.5, 2.1-2.5)
+--                                   plus objectives 3.1-3.3 and 4.1-4.2
 --      pm_programmes_tbl   6 rows   one per deliverable that has AWP activities
 --      pm_projects_tbl    55 rows   the FY2026 Annual Workplan activities
 --
@@ -196,7 +203,17 @@ VALUES
         1, 1),
     (2, 'Member States & the Continent', 'External Lens',
         'What Africa CDC offers Member States and the continent. Five MIS key deliverables, WBS 2.1 to 2.5, covering the reporting window August 2026 to January 2027. 4 of the 5 are not yet carried by any FY2026 Annual Workplan activity; only WBS 2.2 has activities (3 of them).',
-        2, 1);
+        2, 1),
+    -- Pillars 3 and 4 were added through the live dashboard on 2 Sep 2026
+    -- and are carried here so a fresh install matches production. Their
+    -- descriptions are the text entered on the live site, verbatim. They
+    -- have no AWP activities yet, so they report 0% until some are added.
+    (3, 'Digital Emergency Response', 'Digital ER',
+        'Technologies (infrastructure and software) to improve response of AfCDC in speed, support community awareness, and help limit the spread of infection in affected regions.',
+        3, 1),
+    (4, 'AfCDC development', 'AfCDC Development',
+        'Includes Special growth projects related to Digital Transformation or to assist in the development of AfricaCDC',
+        4, 1);
 
 
 -- =============================================================================
@@ -262,7 +279,15 @@ VALUES
     (10, 2, 'Outbreak Digital Response in 48 hours', '2.5',
         'Alignment with EPR/RRT: toolkit + Member States & Partners coordination.  — NO AWP ACTIVITY',
         'Outcome: Alignment with EPR/RRT: toolkit + Member States & Partners coordination.',
-        5, 1);
+        5, 1),
+    -- Objectives of pillars 3 and 4, as entered on the live dashboard on
+    -- 2 Sep 2026. No description or outcome text was entered there, so none
+    -- is invented here. No AWP activity is attached to any of them yet.
+    (11, 3, 'Digital ER Infrastructure', '3.1', '', '', 1, 1),
+    (12, 3, 'Software, Intelligence and Innovation', '3.2', '', '', 2, 1),
+    (13, 3, 'Capacity Building', '3.3', '', '', 3, 1),
+    (14, 4, 'Partnerships and Funding', '4.1', '', '', 1, 1),
+    (15, 4, 'Internal projects', '4.2', '', '', 2, 1);
 
 
 -- =============================================================================
@@ -620,9 +645,9 @@ ALTER TABLE `pm_progress_percentages_tbl`  AUTO_INCREMENT = 1;
 -- =============================================================================
 -- Read all four result sets before declaring the load good.
 
--- 9a. Row counts. Expect exactly: 2 / 10 / 6 / 55, and 0 for the rest.
-SELECT 'pm_pillars_tbl'              AS table_name, COUNT(*) AS rows_loaded, 2 AS expected FROM `pm_pillars_tbl`
-UNION ALL SELECT 'pm_objectives_tbl',            COUNT(*), 10  FROM `pm_objectives_tbl`
+-- 9a. Row counts. Expect exactly: 4 / 15 / 6 / 55, and 0 for the rest.
+SELECT 'pm_pillars_tbl'              AS table_name, COUNT(*) AS rows_loaded, 4 AS expected FROM `pm_pillars_tbl`
+UNION ALL SELECT 'pm_objectives_tbl',            COUNT(*), 15  FROM `pm_objectives_tbl`
 UNION ALL SELECT 'pm_programmes_tbl',            COUNT(*), 6  FROM `pm_programmes_tbl`
 UNION ALL SELECT 'pm_projects_tbl',              COUNT(*), 55 FROM `pm_projects_tbl`
 UNION ALL SELECT 'pm_projects_tasks_tbl',        COUNT(*), 0  FROM `pm_projects_tasks_tbl`

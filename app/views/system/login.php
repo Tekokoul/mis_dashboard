@@ -4,24 +4,24 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
     // the OTHER column - so this needs the coloured mark. _WHITELABEL_LOGO_DARK is
     // the all-white PNG and was invisible here.
     $logo_src = defined("_WHITELABEL_LOGO_ON_LIGHT") ? _WHITELABEL_LOGO_ON_LIGHT : _WHITELABEL_LOGO_DARK;
-    $logo = '<img src="'.$logo_src.'" class="logo-image" width="180" alt="'._PROJECT_NAME.'"/>';
+    $logo = '<img src="'.$logo_src.'" class="logo-image" width="240" alt="'._PROJECT_NAME.'"/>';
     $copyright = '<p class="text-center text-muted mt-3 mb-3">'. _WHITELABEL_COPYRIGHT .'</p>';
     $bg = _WHITELABEL_BG;
 } else {
-    $logo = '<img src="/media/logo/africacdc_logo.png" class="logo-image" width="180" alt="'._PROJECT_NAME.'" />';
+    $logo = '<img src="/media/logo/africacdc_logo.png" class="logo-image" width="240" alt="'._PROJECT_NAME.'" />';
     $copyright = '<p class="text-center text-muted mt-3 mb-3">&copy; Copyright '. date("Y").' Africa CDC. An entity of the African Union.<br>'
                . _PROJECT_NAME .' ver. '. _PROJECT_VERSION .'</p>';
     $bg = "/media/logo/africacdc_login_bg.svg";
 }
 ?>
 <!doctype html>
-<html class="fixed">
+<html lang="en" class="fixed">
 <head>
     <meta charset="UTF-8">
     <title><?= _PROJECT_NAME; ?></title>
     <meta name="author" content="<?= _AUTHOR ?>">
     <link rel="icon" href="<?= (defined("_WHITELABEL") && _WHITELABEL) ? _WHITELABEL_LOGO_FAVICON : "/media/logo/africacdc_favicon.png"; ?>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,600,700,800|Shadows+Into+Light"
           rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.css"/>
@@ -52,34 +52,39 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
         padding: 3.5rem 4rem;
         margin: 0;
     }
-    .login-brand img { width: 190px; height: auto; }
-    .login-quotes { max-width: 34rem; }
+    /* The panel is the brand moment of the app, so the mark and the quote
+       carry it: a ~300px logo and a 2.75rem quote at desktop width, both
+       scaling with the viewport so nothing wraps awkwardly on a laptop. */
+    .login-brand img { width: clamp(230px, 23vw, 320px); height: auto; }
+    .login-quotes { max-width: 46rem; }
     .login-quotes .kicker {
-        font-size: .6875rem;
+        font-size: .9rem;
         font-weight: 700;
-        letter-spacing: .14em;
+        letter-spacing: .16em;
         text-transform: uppercase;
-        color: rgba(255,255,255,.72);
-        margin-bottom: 1rem;
+        color: rgba(255,255,255,.78);
+        margin-bottom: 1.25rem;
     }
     .login-quotes .rule {
-        width: 3.5rem; height: 3px;
+        width: 4.5rem; height: 4px;
         background: #B4A269;            /* AU gold, as an accent rule only */
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.75rem;
     }
     .login-quote {
         display: none;
         color: #FFFFFF;                  /* 8.67:1+ on the deep-green field */
-        font-size: 1.75rem;
+        font-size: clamp(2.1rem, 2.7vw, 2.9rem);
         font-weight: 300;
-        line-height: 1.35;
-        margin: 0 0 .75rem;
+        line-height: 1.22;
+        letter-spacing: -.01em;
+        text-wrap: balance;
+        margin: 0 0 1rem;
     }
     .login-quote.is-active { display: block; }
     .login-quote-source {
         display: none;
-        font-size: .8125rem;
-        color: rgba(255,255,255,.72);
+        font-size: 1.05rem;
+        color: rgba(255,255,255,.78);
         margin: 0;
     }
     .login-quote-source.is-active { display: block; }
@@ -158,9 +163,9 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                             <form action="<?= $this->L("users/login"); ?>" method="POST">
                                 <input type="hidden" name="csrf" value="<?= $_SESSION['token']; ?>">
                                 <div class="form-group mb-3">
-                                    <label>Username</label>
+                                    <label for="username">Username</label>
                                     <div class="input-group">
-                                        <input name="username" type="text" class="form-control form-control-lg"/>
+                                        <input id="username" name="username" type="text" class="form-control form-control-lg" autocomplete="username" autocapitalize="none" spellcheck="false" required/>
                                         <span class="input-group-text">
                                 <i class="bx bx-user text-4"></i>
                             </span>
@@ -168,11 +173,11 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                                 </div>
                                 <div class="form-group mb-3">
                                     <div class="clearfix">
-                                        <label class="float-left">Password</label>
+                                        <label for="password" class="float-left">Password</label>
                                       <!--  <a href="<?= $this->L("recover-password"); ?>" class="float-end">Lost Password?</a>-->
                                     </div>
                                     <div class="input-group">
-                                        <input name="password" type="password" class="form-control form-control-lg"/>
+                                        <input id="password" name="password" type="password" class="form-control form-control-lg" autocomplete="current-password" required/>
                                         <span class="input-group-text">
                                 <i class="bx bx-lock text-4"></i>
                             </span>

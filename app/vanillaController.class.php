@@ -31,7 +31,25 @@ class vanillaController {
         $this->main_menu = file_exists(_MENUS_PATH.$chosen_menu) ? readJSONFile(_MENUS_PATH.$chosen_menu) : [];
         $this->JS = [];
         $this->CSS = [];
+        // Every state change is a POST, and every POST must carry the session
+        // token. Checked here, once, for all controllers - a check that has to
+        // be remembered per action is a check that gets missed (it had been,
+        // on 18 of 19 forms). Then the token's expiry slides forward so an
+        // active session never sees it lapse.
+        $this->enforceCSRF();
+        $this->generateCSRFtoken();
         $this->check_DRM();
+    }
+
+    protected function enforceCSRF(){
+        if (strtoupper((string)($this->R->url['http_method'] ?? 'GET')) !== 'POST') {
+            return;
+        }
+        $sent = (string)($this->query['csrf'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+        $known = (string)($_SESSION['token'] ?? '');
+        if ($known === '' || $sent === '' || !hash_equals($known, $sent) || time() > (int)($_SESSION['token_expiry'] ?? 0)) {
+            $this->setAnswer(403, "This page had been open too long for the change to be accepted. Reload it and try again.");
+        }
     }
 
     public function render($data = [], $mode = "html", $error = false, $template = "template" ) {
@@ -109,6 +127,11 @@ class vanillaController {
 
     function setAnswer($code, $message, $data=[], $mode = _SET_ANSWER_MODE, $compatibility = _SET_ANSWER_COMPATIBILITY) {
         if($mode=="template"){
+            // The page says 401/403/404; the response used to say 200, which
+            // hid every denied request from the proxy logs and from monitoring.
+            if (!headers_sent() && (int)$code >= 100 && (int)$code < 600) {
+                http_response_code((int)$code);
+            }
             if($this->isLoggedIn()){
                 $viewPath = _TEMPLATE_PATH."template_setAnswer_protected.php";
                 include _TEMPLATE_PATH."template.php";
@@ -152,8 +175,23 @@ class vanillaController {
         return _MULTILINGUAL ? "/".$this->lang."/".$destination : "/".$destination;
     }
 
+    // The "Back" link on every form. The Referer is request data: only a
+    // same-origin path is accepted (no scheme, no host, no "javascript:"),
+    // and it is escaped for the href attribute it lands in.
     public function GoBack(){
-        return isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : $this->L("/");
+        $ref = (string)($_SERVER['HTTP_REFERER'] ?? "");
+        $path = "";
+        if ($ref !== "") {
+            $parts = parse_url($ref);
+            $same_host = empty($parts['host']) || strcasecmp($parts['host'], (string)($_SERVER['HTTP_HOST'] ?? "")) === 0;
+            if ($parts !== false && $same_host && empty($parts['scheme']) === empty($parts['host'])) {
+                $path = ($parts['path'] ?? "/") . (isset($parts['query']) ? "?".$parts['query'] : "");
+            }
+        }
+        if ($path === "" || $path[0] !== "/" || str_starts_with($path, "//")) {
+            $path = $this->L("");
+        }
+        return htmlspecialchars($path, ENT_QUOTES, 'UTF-8');
     }
 
     public function AddCSS($file){
@@ -190,8 +228,10 @@ class vanillaController {
     }
 
     function checkCSRF($token){
-        if (($token!=$_SESSION['token'])||time()>$_SESSION['token_expiry']){
-            $this->setAnswer(403, "Invalid CSRF token. Try to login within one minute.");
+        // Constant-time compare, and a missing session token never matches.
+        $known = (string)($_SESSION['token'] ?? "");
+        if ($known === "" || !hash_equals($known, (string)$token) || time() > (int)($_SESSION['token_expiry'] ?? 0)){
+            $this->setAnswer(403, "The sign-in form had expired. Reload the page and try again.");
         }
     }
 

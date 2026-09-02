@@ -1,8 +1,7 @@
 {
   "meta": {
     "name": "Programmes",
-    "actions": [
-    ]
+    "actions": []
   },
   "fields": {
     "id": {
@@ -24,15 +23,15 @@
       "type": "varchar",
       "appear_in_list": 1,
       "list_width": 50,
-      "search_field": true,
-      "order_field": "ASC"
+      "search_field": true
     },
     "abbr": {
       "title": "Abbreviation",
       "type": "varchar",
       "search_field": true,
       "appear_in_list": 0,
-      "list_width": 10
+      "list_width": 10,
+      "order_field": "ASC"
     },
     "description": {
       "no_editor": true

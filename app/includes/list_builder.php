@@ -35,26 +35,31 @@ function display_list_element($field, $data, $active){
                     } else {
                         $linked_fields[]=$field['link_to_field'];
                     }
+                    // Escaped: these come from user-editable rows, so an
+                    // objective renamed to contain markup would otherwise run
+                    // for every user who opens any list showing that column.
                     $answer = "";
                     foreach($linked_fields as $tempfield){
-                        $answer .= $linked_result[$tempfield]." ";
+                        $answer .= display($linked_result[$tempfield] ?? "")." ";
                     }
+                    $answer = trim($answer);
                 } else {
                     $answer = "None";
                 }
             }
             if($field['values_from']=="values_list") {
-                $answer = $field['values_list'][$data];
+                $answer = display($field['values_list'][$data] ?? "");
             }
             if($field['values_from']=="file") {
                 $linked_result = readJSONFile(_JSON_MODELS_PATH.$field['link_to_table']);
                 $link_to_field = $field['link_to_field'];
                 $link_from_field = $field['link_from_field'] ?? "id";
-                $answer = $linked_result[array_search($data, array_column($linked_result, $link_from_field))][$link_to_field];
+                $file_row = $linked_result[array_search($data, array_column($linked_result, $link_from_field))] ?? [];
+                $answer = display($file_row[$link_to_field] ?? "");
             }
             break;
         case "order_status":
-            $answer = '<span class="ecommerce-status '.$field['values_list'][$data]['status'].'">'.$field['values_list'][$data]['title'].'</span>';
+            $answer = '<span class="ecommerce-status '.display($field['values_list'][$data]['status'] ?? "").'">'.display($field['values_list'][$data]['title'] ?? "").'</span>';
             break;
         default:
             $answer = display($data);
@@ -116,15 +121,18 @@ function filter_DropDown($name, $field, $data = []) {
         } else {
             $linked_fields[]=$link_to_field;
         }
+        // Filter options are built from database rows: escaped like a table
+        // cell, so a name containing </select><img onerror> cannot break out
+        // of the control on the list pages.
         foreach($linkedresult as $linkedrow) {
-            $html .= "<option value='" . $linkedrow[$link_from_field] . "' ";
+            $html .= "<option value='" . display($linkedrow[$link_from_field]) . "' ";
             if($display_to_field!=""){
                 $html .= ">";
                 $values_array = [];
                 foreach($linked_fields as $tempfield){
                     $values_array[] = $linkedrow[$tempfield];
                 }
-                $html .= vsprintf($display_to_field, $values_array);
+                $html .= display(vsprintf($display_to_field, $values_array));
             } else {
                 if (is_array($data)) {
                     $html .= in_array($linkedrow[$link_from_field], $data) ? "selected" : "";
@@ -134,7 +142,7 @@ function filter_DropDown($name, $field, $data = []) {
 
                 $html .= ">";
                 foreach ($linked_fields as $tempfield) {
-                    $html .= $linkedrow[$tempfield] . " ";
+                    $html .= display($linkedrow[$tempfield]) . " ";
                 }
             }
             $html .= "</option>";
@@ -167,11 +175,11 @@ function filter_DropDown($name, $field, $data = []) {
         }
 
         foreach($linkedresult as $linkedrow) {
-            $html .= "<option value='" . $linkedrow[$link_from_field] . "' ";
+            $html .= "<option value='" . display($linkedrow[$link_from_field]) . "' ";
             $html .= ($linkedrow[$link_from_field] == $data) ? "selected" : "";
             $html .= ">" ;
             foreach($linked_fields as $tempfield){
-                $html .= $linkedrow[$tempfield]." ";
+                $html .= display($linkedrow[$tempfield])." ";
             }
             $html .= "</option>";
         }
@@ -200,24 +208,24 @@ function filter_DropDown($name, $field, $data = []) {
 
         $json_values = json_from_db($field["values"]);
         foreach ($json_values as $json_value) {
-            $html .= "<option value='" . $json_value[$option_field] . "' ";
+            $html .= "<option value='" . display($json_value[$option_field]) . "' ";
             if (is_array($data)) {
                 $html .= in_array($json_value[$option_field], $data) ? "selected" : "";
             } else {
                 $html .= ($json_value[$option_field] == $data) ? "selected" : "";
             }
-            $html .= ">".$json_value[$option_field]."</option>";
+            $html .= ">".display($json_value[$option_field])."</option>";
         }
         $html .= '</select>';
     }
     if($field['values_from']=="values_list"){
         $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' onchange="javascript:this.form.submit()">';
         foreach ($field[$field['values_from']] as $key => $value){
-            $html .= '<option value="'.$key.'"';
+            $html .= '<option value="'.display($key).'"';
             if($key==$data){
                 $html .= ' selected ';
             }
-            $html .= '>'.$value.'</option>';
+            $html .= '>'.display($value).'</option>';
         }
         $html .= '</select>';
     }

@@ -17,6 +17,13 @@ class coreModel
     }
 
     function get_table_name($table_name, $mode = "C") {
+        // The model name arrives from the URL or the form (core/db_list/<model>,
+        // tablename=<model>) and becomes an SQL identifier, so it is confined
+        // to identifier characters before it goes anywhere near a query.
+        // "pm_projects_tbl WHERE id=1 AND SLEEP(3)-- " used to be accepted.
+        if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', (string)$table_name)) {
+            db_error("model name", "refused model name: " . substr((string)$table_name, 0, 80));
+        }
         if ($mode == "C") {
             return $this->S['db_table_prefix'] . $table_name . $this->S['db_table_suffix'];
         }
@@ -189,15 +196,21 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             $query_clauses .= " where 1 " . implode(" ", $where_string);
         }
 
-        // include the ordering query
+        // include the ordering query. The model settings name the sort column
+        // (db/models_settings/*.json, "order_field"); the content lists sort by
+        // WBS code or id so they read in document order. A model with no
+        // order_field falls back to the primary key: without an ORDER BY,
+        // InnoDB returns physical order, which changes after any rewrite.
         $order_fields = $this->array_with_value("order_field", $fields);
         if (count($order_fields)>0) {
             $query_clauses .= " order by ";
             $order_string = [];
             foreach ($order_fields as $order_field => $properties) {
-                $order_string[] = $order_field . " " . $properties['order_field'];
+                $order_string[] = "`" . $order_field . "` " . ((strtolower($properties['order_field']) == "desc") ? "desc" : "asc");
             }
             $query_clauses .= implode(",", $order_string);
+        } else {
+            $query_clauses .= " order by `id` asc";
         }
         $result['count'] = $this->DB->MQ($count_query.$query_clauses, "one", $params)['total'];
 
@@ -239,11 +252,14 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
 
     function get_data($model, $id, $by_field = []) {
         if(!empty($by_field)){
-            $query = "select * from " . $this->get_table_name($model) . " where ".$by_field['key']."='" . $by_field['value']."'";
+            // key is caller-supplied (code, not request); the VALUE is bound.
+            $query = "select * from " . $this->get_table_name($model) . " where `".$by_field['key']."` = ?";
+            $by_params = [$by_field['value']];
         } else {
-            $query = "select * from " . $this->get_table_name($model) . " where id=" . $id;
+            $query = "select * from " . $this->get_table_name($model) . " where id = ?";
+            $by_params = [$id];
         }
-        $data = $this->DB->MQ($query, "one");
+        $data = $this->DB->MQ($query, "one", $by_params);
         if ($this->has_languages_table($model)) {
             $query = "select * from " . $this->get_table_name($model, "L") . " where article_id=" . $id." order by language_id";
             $languages_result = $this->DB->MQ($query, "all");
@@ -310,10 +326,11 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         $query = "INSERT INTO " . $this->get_table_name($table_name) . " (";
         $query_elements_1 = [];
         $query_elements_2 = [];
+        $values = [];
         foreach ($common_fields as $field=>$properties){
             $query_elements_1[] = "`".$field."`";
 
-            if(isset($data[$field])&&$data[$field]!=""){
+            if(isset($data[$field])&&$data[$field]!==""){
                 if(is_array($data[$field])){
                     if((isset($properties['comma_separated']))&&$properties['comma_separated']) {
                         $data[$field] = implode(",", $data[$field]);
@@ -321,18 +338,21 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                         $data[$field] = $this->json_to_db($data[$field]);
                     }
                 }
+                // Values are bound, never interpolated. Column names come from
+                // the live schema (information_schema) and the model settings,
+                // not from the request, so they remain identifiers.
+                $query_elements_2[] = "?";
                 if($properties['type']=="password"){
-                    $query_elements_2[] = "'".$this->create_password($data[$field])."'";
+                    $values[] = $this->create_password($data[$field]);
                 } else {
-                    $to_add = (isset($properties['added_date'])) ? "'".date("Y-m-d H:i:s")."'" : "'".$data[$field]."'";
-                    $query_elements_2[] = $to_add;
+                    $values[] = (isset($properties['added_date'])) ? date("Y-m-d H:i:s") : $data[$field];
                 }
             } else {
                 $query_elements_2[] = "NULL";
             }
         }
         $query .= implode(",", $query_elements_1).") VALUES (".implode(",",$query_elements_2).")";
-        $answer['common'] = $this->DB->MQ($query, 'last');
+        $answer['common'] = $this->DB->MQ($query, 'last', $values);
         $data['id'] = $answer['common'];
 
         if($this->has_languages_table($table_name)){
@@ -375,19 +395,31 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         $this->run_callbacks($callbacks['before'], $data);
         $query = "UPDATE " . $this->get_table_name($table_name) . " SET ";
         $query_elements = [];
+        $values = [];
         foreach ($common_fields as $field=>$properties){
-            if(isset($data[$field])&&$data[$field]!=""){
+            // A column the request did not mention is left exactly as it is.
+            // Every column the form omitted used to be set to NULL, so a
+            // one-field edit - or a forged POST with only `id` - blanked
+            // username, group and active and locked the account out. A
+            // checkbox is the one control that is absent when cleared, so it
+            // keeps the old behaviour and becomes NULL.
+            if (!array_key_exists($field, $data) && ($properties['type'] ?? '') !== "checkbox") {
+                continue;
+            }
+            if(isset($data[$field])&&$data[$field]!==""){
+                // Values bound; column names are schema-derived identifiers.
+                $query_elements[] = "`".$field."` = ?";
                 if(is_array($data[$field])){
                     if((isset($properties['comma_separated']))&&$properties['comma_separated']) {
-                        $query_elements[] = "`".$field."` = '".implode(",", $data[$field])."'";
+                        $values[] = implode(",", $data[$field]);
                     } else {
-                        $query_elements[] = "`".$field."` = '".$this->json_to_db($data[$field])."'";
+                        $values[] = $this->json_to_db($data[$field]);
                     }
                 } else {
                     if($properties['type']=="password"){
-                        $query_elements[] = "`".$field."` = '".$this->create_password($data[$field])."'";
+                        $values[] = $this->create_password($data[$field]);
                     } else {
-                        $query_elements[] = "`".$field."` = '".$data[$field]."'";
+                        $values[] = $data[$field];
                     }
                 }
             } else {
@@ -406,7 +438,8 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             $answer['common'] = true;   // nothing to change
         } else {
             $query .= implode(",", $query_elements)." where id = ?";
-            $answer['common'] = $this->DB->MQ($query, false, [$id]);
+            $values[] = $id;
+            $answer['common'] = $this->DB->MQ($query, false, $values);
         }
 
         if($this->has_languages_table($table_name)){
@@ -414,20 +447,25 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                 $language_fields = $this->remaining_array($fields['languages'][$language], $this->array_with_value("no_update", $fields['languages'][$language]));
                 $query = "UPDATE " . $this->get_table_name($data['tablename'], "L") . " SET ";
                 $query_elements = [];
+                $lang_values = [];
                 foreach ($language_fields as $field=>$properties){
                     if(isset($data['languages'][$language][$field])&&$data['languages'][$language][$field]!=""){
                         if(is_array($data['languages'][$language][$field])){
-                            $query_elements[] = "`".$field."` = '".$this->json_to_db($data['languages'][$language][$field])."'";
+                            $query_elements[] = "`".$field."` = ?";
+                            $lang_values[] = $this->json_to_db($data['languages'][$language][$field]);
                         } else {
-                            $query_elements[] = "`".$field."` = '".$data['languages'][$language][$field]."'";
+                            $query_elements[] = "`".$field."` = ?";
+                            $lang_values[] = $data['languages'][$language][$field];
                         }
 
                     } else {
                         $query_elements[] = "`".$field."` = NULL";
                     }
                 }
-                $query .= implode(",", $query_elements)." where article_id='".$id."' and language_id='".$language_properties['langid']."'";
-                $answer[$language] = $this->DB->MQ($query);
+                $query .= implode(",", $query_elements)." where article_id = ? and language_id = ?";
+                $lang_values[] = $id;
+                $lang_values[] = $language_properties['langid'];
+                $answer[$language] = $this->DB->MQ($query, false, $lang_values);
             }
         }
         $this->run_callbacks($callbacks['after'], $data);
@@ -439,26 +477,38 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         $answer = [];
         $callbacks = $this->get_callbacks($table_name, "delete");
         // LOGS
-        $query = "SELECT * FROM ".$this->get_table_name($table_name)." where id='".$id."'";
-        $log = $this->DB->MQ($query, "one");
-        $query = "INSERT INTO `core_table_logs_tbl` ( `tablename`, `record`, `log_date`, `user`) VALUES ( '".$this->get_table_name($table_name)."', '".$this->json_to_db($log)."', '".date("Y-m-d H:i:s")."', '".$_SESSION['user']['username']."' );";
-        $this->DB->MQ($query);
+        $query = "SELECT * FROM ".$this->get_table_name($table_name)." where id = ?";
+        $log = $this->DB->MQ($query, "one", [$id]);
+        // The whole deleted row goes into the audit log as JSON, so this value
+        // is arbitrary content and must be bound, not quoted into the string.
+        $query = "INSERT INTO `core_table_logs_tbl` (`tablename`, `record`, `log_date`, `user`) VALUES (?, ?, ?, ?)";
+        $this->DB->MQ($query, false, [
+            $this->get_table_name($table_name),
+            $this->json_to_db($log),
+            date("Y-m-d H:i:s"),
+            $_SESSION['user']['username'] ?? '',
+        ]);
         // LOGS
         $this->run_callbacks($callbacks['before'], $log);
 
-        $query = "DELETE FROM ".$this->get_table_name($table_name)." where id='".$id."'";
-        $answer['common'] = $this->DB->MQ($query);
+        $query = "DELETE FROM ".$this->get_table_name($table_name)." where id = ?";
+        $answer['common'] = $this->DB->MQ($query, false, [$id]);
         if($this->has_languages_table($table_name)){
             // LOGS
-            $query = "SELECT * FROM ".$this->get_table_name($table_name, "L")." where article_id='".$id."'";
-            $logs = $this->DB->MQ($query, "all");
+            $query = "SELECT * FROM ".$this->get_table_name($table_name, "L")." where article_id = ?";
+            $logs = $this->DB->MQ($query, "all", [$id]);
             foreach ($logs as $log){
-                $query = "INSERT INTO `core_table_logs_tbl` ( `tablename`, `record`, `log_date`, `user`) VALUES ( '".$this->get_table_name($table_name, "L")."', '".$this->json_to_db($log)."', '".date("Y-m-d H:i:s")."', '".$_SESSION['user']['username']."');";
-                $this->DB->MQ($query);
+                $query = "INSERT INTO `core_table_logs_tbl` (`tablename`, `record`, `log_date`, `user`) VALUES (?, ?, ?, ?)";
+                $this->DB->MQ($query, false, [
+                    $this->get_table_name($table_name, "L"),
+                    $this->json_to_db($log),
+                    date("Y-m-d H:i:s"),
+                    $_SESSION['user']['username'] ?? '',
+                ]);
             }
             // LOGS
-            $query = "DELETE FROM ".$this->get_table_name($table_name, "L")." where article_id='".$id."'";
-            $answer['languages'] = $this->DB->MQ($query);
+            $query = "DELETE FROM ".$this->get_table_name($table_name, "L")." where article_id = ?";
+            $answer['languages'] = $this->DB->MQ($query, false, [$id]);
         }
         $this->run_callbacks($callbacks['after'], $log);
 
@@ -472,7 +522,11 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                 unset($key);
             } else {
                 if(!is_array($value)){
-                    $answer[$key] = addslashes(trim($value));
+                    // No addslashes here any more. add_data/update_data bind
+                    // their values, and PDO escapes a bound value itself - so
+                    // pre-escaping would store a literal backslash instead of
+                    // the character the user typed.
+                    $answer[$key] = trim((string)$value);
                 } else {
                     $answer[$key] = $this->prepare_data($value);
                 }
@@ -509,12 +563,35 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
     }
 
 
+    // password_hash: salted, slow, Argon2id where PHP has it. Until 2 Sep 2026
+    // this was md5(md5($text)), unsalted; those hashes are still accepted by
+    // users::login once and rewritten with this on the spot.
     function create_password($text){
-        return md5(md5($text));
+        return password_hash((string)$text, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT);
+    }
+
+    // True when $text matches $stored - either a password_hash() value or a
+    // legacy md5(md5()) one. Sets $needs_rehash when the stored form should
+    // be replaced with create_password($text).
+    function check_password($text, $stored, &$needs_rehash = false){
+        $stored = (string)$stored;
+        $needs_rehash = false;
+        if ($stored === "") {
+            return false;
+        }
+        if ($stored[0] === '$') {
+            $ok = password_verify((string)$text, $stored);
+            $needs_rehash = $ok && password_needs_rehash($stored, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT);
+            return $ok;
+        }
+        $ok = hash_equals($stored, md5(md5((string)$text)));
+        $needs_rehash = $ok;
+        return $ok;
     }
 
     function json_to_db($json_array) {
-        return addslashes(json_encode($json_array,JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES));
+        // Not addslashes()d: the result is written as a bound value.
+        return json_encode($json_array, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
     }
 
     function json_from_db($json_data){

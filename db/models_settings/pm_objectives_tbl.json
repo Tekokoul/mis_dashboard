@@ -1,8 +1,7 @@
 {
   "meta": {
     "name": "Objectives",
-    "actions": [
-    ]
+    "actions": []
   },
   "fields": {
     "id": {
@@ -24,15 +23,15 @@
       "type": "varchar",
       "appear_in_list": 2,
       "list_width": 30,
-      "search_field": true,
-      "order_field": "ASC"
+      "search_field": true
     },
     "abbr": {
       "title": "Abbreviation",
       "type": "varchar",
       "appear_in_list": 0,
       "search_field": true,
-      "list_width": 10
+      "list_width": 10,
+      "order_field": "ASC"
     },
     "description": {
       "no_editor": true

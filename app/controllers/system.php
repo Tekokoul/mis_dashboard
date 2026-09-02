@@ -45,33 +45,32 @@ class systemController extends coreController {
     }
 
     public function info(){
+        // No shell: exec() and friends are disabled for web requests
+        // (docker/php-fpm-pool.conf), and the old uname/free/lsb_release
+        // pipeline made this page fatal. Everything here comes from PHP itself.
         $data = [];
-        $data['commit_version'] = get_current_git_commit();
-        $data['hostname'] = trim(exec('uname -n'));
-        $data['system'] = trim(exec('uname -s'));
-        $data['kernel'] = trim(exec('uname -r'));
-        $data['architecture'] = trim(exec('uname -m'));
-        $data['cpu_number'] = trim(exec('cat /proc/cpuinfo | grep vendor | wc -l'));
-        $data['cpu_vendor'] = trim(exec('cat /proc/cpuinfo | grep vendor_id | head -1 | awk \'{print $3}\''));
-        $data['cpu_model'] = trim(exec('cat /proc/cpuinfo | grep \'model name\' | head -1 | awk \'{print $4,$5,$6,$7}\''));
-        $data['cpu_frequency'] = trim(exec('cat /proc/cpuinfo | grep \'cpu MHz\' | head -1 | awk \'{print $4,"MHz"}\''));
-        $data['cpu_cache'] = trim(exec('cat /proc/cpuinfo | grep \'cache size\' | head -1 | awk \'{print $4,$5}\''));
-        $data['memory_total'] = trim(exec('free -m | grep Mem | awk \'{print $2, "MB"\'}'));
-        $data['memory_used'] = trim(exec('free -m | grep Mem | awk \'{print $3, "MB"\'}'));
-        $data['memory_free'] = trim(exec('free -m | grep Mem | awk \'{print $4, "MB"\'}'));
-        $data['swap_total'] = trim(exec('free -m | grep Swap | awk \'{print $2, "MB"\'}'));
-        $data['swap_used'] = trim(exec('free -m | grep Swap | awk \'{print $3, "MB"\'}'));
-        $data['swap_free'] = trim(exec('free -m | grep Swap | awk \'{print $4, "MB"\'}'));
-        $data['os_version'] = trim(exec('lsb_release -ds'));
-        $data['http_version'] =  trim($_SERVER['SERVER_SOFTWARE']);
-        $data['mysql_version'] = trim($this->DB->MQ("SELECT VERSION()", "one")['VERSION()']);
+        $data['commit_version'] = defined('_CURRENT_COMMIT') ? _CURRENT_COMMIT : '';
+        $data['hostname'] = php_uname('n');
+        $data['system'] = php_uname('s');
+        $data['kernel'] = php_uname('r');
+        $data['architecture'] = php_uname('m');
+        $load = function_exists('sys_getloadavg') ? sys_getloadavg() : null;
+        $data['load_average'] = is_array($load) ? implode(' / ', array_map(fn($v) => number_format((float)$v, 2, '.', ''), $load)) : 'n/a';
+        $data['memory_limit'] = ini_get('memory_limit');
+        $data['memory_used'] = number_format(memory_get_usage(true) / 1048576, 1, '.', '') . ' MB (this request)';
+        $data['os_version'] = PHP_OS_FAMILY;
+        $data['http_version'] =  trim((string)($_SERVER['SERVER_SOFTWARE'] ?? ''));
+        $data['mysql_version'] = trim((string)($this->DB->MQ("SELECT VERSION()", "one")['VERSION()'] ?? ''));
         $data['php_version'] = trim(phpversion());
-//        $data['typesense_version'] = trim(exec('typesense --version'));
-        $data['git_version'] = trim(exec("git --version | awk '{print $3}'"));
-        $data['uptime'] = trim(exec('uptime'));
-        $data['date'] = trim(exec('date'));
+        $data['date'] = date('Y-m-d H:i:s');
         $data['tz'] = trim(date_default_timezone_get());
-        $data['php'] = ini_get_all(null, false);
+        // Administrators only (see protectedController::$access). The full
+        // ini_get_all() dump - every path and disabled function - is not
+        // needed for diagnostics; the handful that matter are listed.
+        $data['php'] = [];
+        foreach (['memory_limit', 'upload_max_filesize', 'post_max_size', 'max_execution_time', 'date.timezone', 'opcache.enable'] as $k) {
+            $data['php'][$k] = ini_get($k);
+        }
         $this->render($data);
     }
 

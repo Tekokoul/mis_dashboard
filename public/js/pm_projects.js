@@ -107,16 +107,19 @@ if(project_id === 0){
                     dropdownParent: $('#taskModal')
                 });
 
-                // Add click handlers for the update and cancel buttons
-                $('.modal-confirm').on('click', function () {
-                    // Make an AJAX request to update the data
+                // Scoped to this modal and re-bound with .off(): the page-wide
+                // '.modal-confirm' selector used to stack a handler on the
+                // delete dialog's Confirm on every open, and the Update button
+                // (no type, so a submit) had no preventDefault - one click
+                // posted twice and created duplicate KPIs.
+                $('#taskModal .modal-confirm').off('click').on('click', function (event) {
+                    event.preventDefault();
                     $('#taskform').submit();
                     $.magnificPopup.close();
                 });
 
-                $('.modal-dismiss').on('click', function (event) {
-                    // Close the popup when the cancel button is clicked
-                    event.preventDefault(); // Prevent the default form submission behavior
+                $('#taskModal .modal-dismiss').off('click').on('click', function (event) {
+                    event.preventDefault();
                     $.magnificPopup.close();
                 });
             }, error: function (xhr, status, error) {
@@ -159,21 +162,21 @@ if(project_id === 0){
                     content.on('click', '.modal-confirm', function (e) {
                         e.preventDefault();
                         $.magnificPopup.close();
+                        // POST with the CSRF token - a GET delete could be
+                        // fired by an <img src> on any page.
                         $.ajax({
-                            method: "GET",
+                            method: "POST",
                             url: lang_prefix + "/projects/task_delete/" + t.data('id'),
+                            data: { csrf: window.CSRF_TOKEN || '' },
                             dataType: "json",
                             cache: false,
                             success: function (data) {
-                                // new PNotify({
-                                //     title: '<b>SUCCESS</b>',
-                                //     text: data.message,
-                                //     type: 'success',
-                                //     addclass: notificationclass,
-                                //     stack: {"dir1": "up", "dir2": "left"},
-                                //     width: "50%"
-                                // });
                                 location.reload();
+                            },
+                            error: function (xhr) {
+                                alert(xhr.status === 403
+                                    ? 'The page had been open too long for the deletion to be accepted. Reload and try again.'
+                                    : 'The KPI could not be deleted (' + xhr.status + ').');
                             }
                         });
                     });

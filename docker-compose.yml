@@ -61,6 +61,11 @@ services:
       DB_NAME: ${DB_NAME:-afcdc_dhis}
       DB_USER: ${DB_USER:-afcdc}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      # Used by the entrypoint ONLY for schema loading and idempotent
+      # migrations (ALTER TABLE), so the app's own user can be limited to
+      # SELECT/INSERT/UPDATE/DELETE. The application never sees it: the
+      # entrypoint unsets it before PHP-FPM starts.
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-}
       APP_URL: ${APP_URL:?APP_URL is required}
       APP_NAME: ${APP_NAME:-Africa CDC DHIS Performance Monitor}
       APP_DEBUG: ${APP_DEBUG:-false}
@@ -76,12 +81,16 @@ services:
       # is baked into the image, so a deploy is a rebuild, not a mount.
       - media:/var/www/html/public/media
       - cache:/var/www/html/public/cache
+      # Per-user list preferences are written by the app at runtime; without
+      # a volume every deploy reset them.
+      - users_settings:/var/www/html/db/users_settings
     networks: [internal]
 
 volumes:
   db_data:
   media:
   cache:
+  users_settings:
 
 networks:
   internal:

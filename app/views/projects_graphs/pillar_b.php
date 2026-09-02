@@ -15,7 +15,7 @@ $val_all = ($data['pillar']['totals']>0) ? round(($data['pillar']['progress']/$d
         <div class="gauge-chart">
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$val_all?>"></canvas>
             <strong><?=$data['pillar']['name']?></strong>
-            <label id="gaugeBasicTextfield"><?=number_format((float)$val_all, 2, ',', '');?>%</label>
+            <label id="gaugeBasicTextfield"><?=pct($val_all);?>%</label>
         </div>
     </div>
     <div class="col-md-8">

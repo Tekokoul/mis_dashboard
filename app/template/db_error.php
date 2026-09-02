@@ -152,9 +152,18 @@ $copyright = defined("_WHITELABEL_COPYRIGHT") ? _WHITELABEL_COPYRIGHT : "An enti
         <p class="white">Administrators: check that the database service is up and that this
             deployment's connection settings are still valid.</p>
         <table cellpadding='0' cellspacing='0'>
-            <tr><th>Time:</th><td><?=date("Y-m-d H:i:s");?></td></tr>
-            <tr><th>Query:</th><td><?=$query;?></td></tr>
-            <tr><th>Error:</th><td class='error'><?=$error;?></td></tr>
+            <tr><th>Time:</th><td><?= date("Y-m-d H:i:s"); ?></td></tr>
+<?php
+// The failing query and the driver message go to the server log, never to the
+// page: this template renders for unauthenticated visitors, so printing them
+// disclosed schema and connection detail and was an XSS sink besides. They are
+// shown in the browser only when _DEBUG_MODE is explicitly on.
+error_log("[db_error] ".$query." :: ".$error);
+if (defined("_DEBUG_MODE") && _DEBUG_MODE):
+?>
+            <tr><th>Query:</th><td><?= htmlspecialchars((string)$query, ENT_QUOTES, 'UTF-8'); ?></td></tr>
+            <tr><th>Error:</th><td class='error'><?= htmlspecialchars((string)$error, ENT_QUOTES, 'UTF-8'); ?></td></tr>
+<?php endif; ?>
         </table>
     </div>
 </div>

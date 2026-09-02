@@ -4,21 +4,18 @@ tinymce.init({
     height: 400,
     entity_encoding:"raw",
     relative_urls: false,
-    plugins: 
-        "advlist autolink link image lists charmap print preview hr anchor pagebreak searchreplace wordcount visualblocks visualchars insertdatetime media nonbreaking table directionality emoticons paste  code fullscreen responsivefilemanager"
+    // The Responsive Filemanager plugin (server-side file browser/uploader)
+    // was removed on 2 Sep 2026: it was reachable without a login. Images and
+    // media are inserted by URL.
+    plugins:
+        "advlist autolink link image lists charmap print preview hr anchor pagebreak searchreplace wordcount visualblocks visualchars insertdatetime media nonbreaking table directionality emoticons paste  code fullscreen"
     ,
     toolbar1: "bold italic underline | alignleft aligncenter alignright alignjustify | bullist numlist | blockquote | link unlink anchor | image media | forecolor backcolor | code fullscreen ",
     image_advtab: true ,
     image_class_list: [
         {title: 'Responsive', value: 'img-responsive'}
     ],
-    media_live_embeds: true,
-    external_filemanager_path: "/vendor/responsive_filemanager/filemanager/",
-    filemanager_title: "Files & Media",
-    external_plugins: {
-        "responsivefilemanager": "/vendor/responsive_filemanager/tinymce/plugins/responsivefilemanager/plugin.min.js",
-        "filemanager": "/vendor/responsive_filemanager/filemanager/plugin.min.js"
-    }
+    media_live_embeds: true
 });
 
 $(function(){
@@ -44,18 +41,6 @@ $(function(){
         }
     });
 });
-
-$(function() {
-    $('[data-plugin-rfm]').on('click', function () {
-        open_popup('/vendor/responsive_filemanager/filemanager/dialog.php?'+this.dataset.parameters);
-    });
-});
-
-function responsive_filemanager_callback(field_id) {
-    var img_field = document.getElementById(field_id);
-    img_field.value = "/media/" + img_field.value;
-    $('#thumb_'+field_id).html('<img src="'+project_domain+'/ngine_resize.php?w=200&f='+img_field.value+'" class="img-fluid">');
-}
 
 $(document.body).off("click", ".deleteElement").on("click", ".deleteElement", function(e){
     if($('.deleteElement').length>1){
@@ -114,21 +99,21 @@ $('.modal-basic').magnificPopup({
             content.on('click', '.modal-confirm', function (e) {
                 e.preventDefault();
                 $.magnificPopup.close();
+                // POST, with the CSRF token: as a GET this could be triggered
+                // by an <img src> on any page an administrator visited.
                 $.ajax({
-                    method: "GET",
+                    method: "POST",
                     url: lang_prefix+"/core/db_delete/"+content.data('tablename')+"/"+t.data('id'),
+                    data: { csrf: window.CSRF_TOKEN || '' },
                     dataType: "json",
                     cache: false,
                     success: function(data){
-                        // new PNotify({
-                        //     title: '<b>SUCCESS</b>',
-                        //     text: data.message,
-                        //     type: 'success',
-                        //     addclass: notificationclass,
-                        //     stack: {"dir1": "up", "dir2": "left"},
-                        //     width: "50%"
-                        // });
                         location.reload();
+                    },
+                    error: function(xhr){
+                        alert(xhr.status === 403
+                            ? 'The page had been open too long for the deletion to be accepted. Reload and try again.'
+                            : 'The entry could not be deleted (' + xhr.status + ').');
                     }
                 });
             });

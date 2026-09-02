@@ -32,7 +32,7 @@ define("_DEFAULT_LANGUAGE", "en");
 define("_MULTILINGUAL", false);
 define("_SET_ANSWER_MODE", "template"); // template = themed HTML page, ce = framework JSON envelope, json = plain JSON
 define("_SET_ANSWER_COMPATIBILITY", "http"); // http will return true code and app will always return 200 with code encapsulated
-define("_CSRF_EXPIRY", 60); // CSRF expiry time in seconds
+define("_CSRF_EXPIRY", 7200); // CSRF token idle expiry in seconds; it slides forward on every request
 define("_ERROR_HANDLER", "CE_ErrorHandler");
 define("_PROJECT_HELPER_CLASS", "");   // legacy per-tenant API helper class.
 // No such class exists in this build; the two call sites guard on class_exists.

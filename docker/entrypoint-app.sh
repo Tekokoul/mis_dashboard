@@ -121,7 +121,16 @@ fi
 # ---------------------------------------------------------------------------
 # 3. Writable paths
 # ---------------------------------------------------------------------------
-mkdir -p /var/www/html/public/cache /var/www/html/public/media /var/www/html/logs
+mkdir -p /var/www/html/public/cache /var/www/html/public/media /var/www/html/logs /var/www/html/db/users_settings
+chown -R www-data:www-data /var/www/html/db/users_settings
+# public/media is a volume that outlives the image, so the brand assets the
+# image ships under media/logo are hidden after the first start. The Dockerfile
+# staged them in /opt/brand; refresh the volume's copy on every start so a
+# logo or login background changed in git actually reaches the site.
+if [ -d /opt/brand ]; then
+    mkdir -p /var/www/html/public/media/logo
+    cp -a /opt/brand/. /var/www/html/public/media/logo/
+fi
 chown -R www-data:www-data /var/www/html/public/cache /var/www/html/public/media /var/www/html/logs
 
 # ---------------------------------------------------------------------------
@@ -149,27 +158,65 @@ done
 if [ "$AUTO_MIGRATE" = "true" ]; then
     q() { "$MYSQL_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASSWORD" \
                 --default-character-set=utf8mb4 -N -B -e "$1" "$DB_NAME" 2>/dev/null; }
-    load() { "$MYSQL_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DB_USER" -p"$DB_PASSWORD" \
+    # DDL (schema load, ALTER TABLE) runs as root when DB_ROOT_PASSWORD is
+    # provided, so the application's own user can be limited to
+    # SELECT/INSERT/UPDATE/DELETE. Without it, the app user is used - which
+    # works only while that user still holds ALTER/CREATE.
+    DDL_USER="$DB_USER"; DDL_PASSWORD="$DB_PASSWORD"
+    if [ -n "${DB_ROOT_PASSWORD:-}" ]; then DDL_USER="root"; DDL_PASSWORD="$DB_ROOT_PASSWORD"; fi
+    qddl() { "$MYSQL_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DDL_USER" -p"$DDL_PASSWORD" \
+                --default-character-set=utf8mb4 -N -B -e "$1" "$DB_NAME" 2>/dev/null; }
+    load() { "$MYSQL_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DDL_USER" -p"$DDL_PASSWORD" \
                    --default-character-set=utf8mb4 "$DB_NAME" < "$1" >/dev/null; }
     D=/var/www/html/db/for_upload
 
-    tables=$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}'")
-    if [ "${tables:-0}" -eq 0 ]; then
+    # The content files DELETE every pm_* row before inserting, so they may
+    # run only on a database this same start just created from the schema -
+    # never because a count came back 0 on a database that already has
+    # tables. That used to be the rule, and it had two holes: an operator who
+    # emptied one table, or a query that simply failed (q() discards stderr,
+    # so an error looked exactly like "0 rows") would reseed on a restart and
+    # erase every recorded delivery.
+    if ! tables=$(q "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='${DB_NAME}'") || [ -z "$tables" ]; then
+        die "could not read the schema state - refusing to touch the database"
+    fi
+    if [ "$tables" -eq 0 ]; then
         log "empty database - loading schema"
         load "$D/africacdc_dhis_schema.sql"
-    else
-        log "database already has ${tables} tables - skipping schema"
-    fi
-
-    deliverables=$(q "SELECT COUNT(*) FROM pm_objectives_tbl" || echo 0)
-    if [ "${deliverables:-0}" -eq 0 ]; then
-        log "no deliverables - loading content and tasks"
+        log "fresh schema - loading content and tasks"
         load "$D/africacdc_dhis_seed.sql"
         load "$D/africacdc_dhis_tasks.sql"
         log "loaded $(q 'SELECT COUNT(*) FROM pm_objectives_tbl') deliverables, $(q 'SELECT COUNT(*) FROM pm_projects_tbl') activities"
     else
-        log "${deliverables} deliverables already present - skipping seed"
+        log "database already has ${tables} tables - leaving schema and content alone"
     fi
+
+    # Idempotent migrations - each one checks before it changes, touches no
+    # data rows, and is safe to run on every start.
+    #
+    # 1. Password hashes moved from unsalted md5(md5()) (32 chars) to
+    #    password_hash() (up to 97 for Argon2id). The column was varchar(45).
+    pwlen=$(q "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='core_users_tbl' AND COLUMN_NAME='password'" || echo "")
+    if [ -n "$pwlen" ] && [ "$pwlen" -lt 255 ]; then
+        log "widening core_users_tbl.password from varchar(${pwlen}) to varchar(255) for password_hash()"
+        qddl "ALTER TABLE core_users_tbl MODIFY password VARCHAR(255) DEFAULT NULL" \
+            || die "could not widen core_users_tbl.password - set DB_ROOT_PASSWORD for the app service, or run the ALTER by hand"
+    fi
+
+    # 2. Activities carry a budget and notes. The project page always printed
+    #    "Estimated Budget" from a column that never existed, so there was no
+    #    way to enter one. ADD COLUMN only when absent.
+    #    AFTER kpi: the forms follow column order, so the new fields sit under
+    #    "Expected KPI" instead of at the bottom.
+    for col in "estimated_budget DOUBLE DEFAULT NULL AFTER kpi" "actual_budget DOUBLE DEFAULT NULL AFTER estimated_budget" "notes TEXT DEFAULT NULL AFTER actual_budget"; do
+        name=${col%% *}
+        have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_projects_tbl' AND COLUMN_NAME='${name}'" || echo "")
+        if [ "$have" = "0" ]; then
+            log "adding pm_projects_tbl.${name}"
+            qddl "ALTER TABLE pm_projects_tbl ADD COLUMN ${col}" \
+                || die "could not add pm_projects_tbl.${name} - set DB_ROOT_PASSWORD for the app service, or run the ALTER by hand"
+        fi
+    done
 
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)
     if [ "${users:-0}" -eq 0 ]; then
@@ -184,6 +231,11 @@ fi
 # foreground as PID 1. If FPM dies, /health.php starts answering 502 and the
 # container health check fails - the orchestrator restarts the whole container,
 # which is the recovery path a two-process container needs.
+# The root password was only for schema loading and migrations above; PHP
+# must never inherit it (a worker's environment is readable to anything that
+# can read /proc, and clear_env is not guaranteed).
+unset DB_ROOT_PASSWORD DDL_PASSWORD DDL_USER
+
 log "starting PHP-FPM"
 php-fpm -D
 for i in 1 2 3 4 5 6 7 8 9 10; do

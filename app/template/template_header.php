@@ -22,9 +22,9 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                 <?=$logo?>
                 <img src="<?=$logo_mobile?>" class="logo-image-mobile" height="41" alt="<?=_PROJECT_NAME?>" />
             </a>
-            <div class="d-md-none toggle-sidebar-left" data-toggle-class="sidebar-left-opened" data-target="html" data-fire-event="sidebar-left-opened">
-                <i class="fas fa-bars" aria-label="Toggle sidebar"></i>
-            </div>
+            <button type="button" class="d-md-none toggle-sidebar-left" data-toggle-class="sidebar-left-opened" data-target="html" data-fire-event="sidebar-left-opened" aria-label="Open menu">
+                <i class="fas fa-bars" aria-hidden="true"></i>
+            </button>
             <div class="header-nav collapse">
                 <div class="header-nav-main header-nav-main-effect-1 header-nav-main-sub-effect-1 header-nav-main-square">
                     <nav>
@@ -34,27 +34,6 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                                     <?=_PROJECT_NAME;?>
                                 </a>
                             </li>
-                            <?php
-                            if(!_WHITELABEL_HEADER){
-                                ?>
-                            <li class="">
-                                <a class="nav-link" href="<?=_PROJECT_URL;?>" target="_blank">
-                                    Visit website
-                                </a>
-                            </li>
-                            <li class="">
-                                <a class="nav-link" href="<?=$this->L("core/filemanager");?>">
-                                    Files & Media
-                                </a>
-                            </li>
-                            <li class="">
-                                <a class="nav-link" href="<?=$this->L("support");?>">
-                                    Support
-                                </a>
-                            </li>
-                            <?php
-                            }
-                            ?>
                         </ul>
                     </nav>
                 </div>
@@ -79,11 +58,11 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
             <div id="userbox" class="userbox">
                 <a href="#" data-bs-toggle="dropdown">
                     <figure class="profile-picture">
-                        <img src="<?=$user_logo;?>" alt="<?=$_SESSION['user']['givenname']." ".$_SESSION['user']['sn'];?>" class="rounded-circle" />
+                        <img src="<?=$user_logo;?>" alt="<?=display($_SESSION['user']['givenname']." ".$_SESSION['user']['sn']);?>" class="rounded-circle" />
                     </figure>
                     <div class="profile-info">
-                        <span class="name"><?=$_SESSION['user']['givenname']." ".$_SESSION['user']['sn'];?></span>
-                        <span class="role"><?=$_SESSION['user']['group']['name'];?></span>
+                        <span class="name"><?=display($_SESSION['user']['givenname']." ".$_SESSION['user']['sn']);?></span>
+                        <span class="role"><?=display($_SESSION['user']['group']['name']);?></span>
                     </div>
 
                     <i class="fa custom-caret"></i>
@@ -120,6 +99,19 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                     <nav id="menu" class="nav-main" role="navigation">
                         <ul class="nav nav-main">
                             <?php
+                            // "You are here". The old test compared the menu link with the raw
+                            // request URI, so nothing was lit on a drill-down, an add/edit page,
+                            // page 2 of a list or a filtered list. Map those back to the menu
+                            // entry they belong to, then match on the path prefix.
+                            $here = strtok((string)$this->R->url['request_uri'], '?');
+                            foreach (['#^/projects_graphs/(pillar|objective|programme|project)/.*$#' => '/projects_graphs/overview',
+                                      '#^/projects/(add|edit)(/.*)?$#'          => '/projects/list',
+                                      '#^/projects/progress_edit(/.*)?$#'       => '/projects/progress_list',
+                                      '#^/core/db_(add|edit)/([a-z_]+).*$#'     => '/core/db_list/$2',
+                                      '#^/users/(add|edit)(/.*)?$#'             => '/users/list'] as $re => $to) {
+                                $r = preg_replace($re, $to, $here, 1, $n); if ($n) { $here = $r; break; }
+                            }
+                            $isHere = fn(string $link): bool => $here === $link || str_starts_with($here, $link.'/');
                             foreach ($this->main_menu as $menu_item=>$properties){
                                 if(in_array( $_SESSION['user']['group']['id'], explode(",",$properties['active_for']))) {
                                     $html = "";
@@ -128,10 +120,8 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                                             $html = '<li class="nav-group-label">'.$properties['title'].'</li>';
                                             break;
                                         case "link":
-                                            //
-                                            $html = '<li';
-                                            $html .= ($this->L($properties['link'])==$this->R->url['request_uri'])? ' class="nav-active"' : '' ;
-                                            $html .= '><a class="nav-link" href="'.$this->L($properties['link']).'"><i class="bx '.$properties['icon'].'" aria-hidden="true"></i><span>'.$properties['title'].'</span></a></li>';
+                                            $active = $isHere($this->L($properties['link']));
+                                            $html = '<li'.($active ? ' class="nav-active"' : '').'><a class="nav-link"'.($active ? ' aria-current="page"' : '').' href="'.$this->L($properties['link']).'"><i class="bx '.$properties['icon'].'" aria-hidden="true"></i><span>'.$properties['title'].'</span></a></li>';
                                             break;
                                         case "parent":
                                             $html = '<li class="nav-parent';
@@ -167,4 +157,4 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                 </script>
             </div>
         </aside>
-        <section role="main" class="content-body">
+        <section role="main" id="content" tabindex="-1" class="content-body">

@@ -68,6 +68,7 @@ RUN set -eux; \
 
 COPY docker/nginx.conf.tpl      /etc/nginx/templates/nginx.conf.tpl
 COPY docker/nginx-site.conf.tpl /etc/nginx/templates/nginx-site.conf.tpl
+COPY docker/nginx-security-headers.conf /etc/nginx/snippets/security-headers.conf
 COPY docker/opcache.ini        /usr/local/etc/php/conf.d/10-opcache.ini
 COPY docker/php.ini.tpl        /usr/local/etc/php/conf.d/zz-africacdc.ini.tpl
 COPY docker/php-fpm-pool.conf  /usr/local/etc/php-fpm.d/zz-www.conf.tpl
@@ -75,9 +76,23 @@ COPY docker/php-fpm-pool.conf  /usr/local/etc/php-fpm.d/zz-www.conf.tpl
 RUN rm -f /usr/local/etc/php-fpm.d/www.conf.default /usr/local/etc/php-fpm.d/www.conf
 
 WORKDIR /var/www/html
-COPY --from=code --chown=www-data:www-data /src /var/www/html
-RUN chown -R www-data:www-data public/cache public/media logs \
- && chmod -R 755 public/cache public/media logs
+COPY --from=code /src /var/www/html
+# The tree is code: owned by root, readable by the PHP user, writable by
+# nobody. It used to be copied 0777 straight from the host, so any file-write
+# primitive - an upload, a config editor - could drop executable PHP into the
+# document root. Exactly the paths the app writes at runtime are opened up,
+# to www-data, and nothing in them is served as PHP.
+RUN chown -R root:www-data /var/www/html \
+ && find /var/www/html -type d -exec chmod 755 {} + \
+ && find /var/www/html -type f -exec chmod 644 {} + \
+ && mkdir -p public/cache public/media logs db/users_settings db/json_models \
+ && chown -R www-data:www-data public/cache public/media logs db/users_settings db/json_models \
+ && chmod -R 775 public/cache public/media logs db/users_settings db/json_models
+# public/media is a named volume, so after the FIRST start the volume shadows
+# whatever this image ships there - a logo or the login background changed in
+# git never reaches the live site. Stage the brand assets outside the volume;
+# the entrypoint copies them in on every start.
+RUN cp -a public/media/logo /opt/brand
 
 ARG BUILD_ID=dev
 ENV APP_BUILD_ID=${BUILD_ID}

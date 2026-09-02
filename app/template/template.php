@@ -1,10 +1,13 @@
 <!doctype html>
-<html class="modern fixed has-top-menu has-left-sidebar-half">
+<html lang="en" class="modern fixed has-top-menu has-left-sidebar-half">
 <head>
     <meta charset="UTF-8">
     <title><?=_PROJECT_NAME;?></title>
     <meta name="author" content="<?=_AUTHOR;?>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <?php /* Every POST in the app must carry this token (vanillaController::enforceCSRF);
+             the script at the foot of the page attaches it to forms and AJAX. */ ?>
+    <meta name="csrf-token" content="<?= htmlspecialchars((string)($_SESSION['token'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="icon" href="<?= (defined("_WHITELABEL") && _WHITELABEL) ? _WHITELABEL_LOGO_FAVICON : "/media/logo/africacdc_favicon.png"; ?>">
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,600,700,800|Shadows+Into+Light" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.css" />
@@ -34,6 +37,7 @@
     <script src="/vendor/modernizr/modernizr.js"></script>
 </head>
 <body>
+<a class="afcdc-skip" href="#content">Skip to main content</a>
 
 <?php
 $categoryPage = 0;
@@ -54,10 +58,48 @@ include "template_footer.php";
     var lang_prefix = "<?= (_MULTILINGUAL) ? "/".$this->lang : "";?>" ;
 
     var project_domain = "<?=_PROJECT_URL;?>";
+    // Profile > Settings, read by the activities table and the gauges.
+    var page_length = <?= (int)($_SESSION['user']['settings']['table_rows'] ?? _PAGINATION); ?>;
+    var animate_gauges = <?= (int)($_SESSION['user']['settings']['animate_gauges'] ?? 1); ?>;
     <?php $notification_position = (isset($_SESSION['user']['settings']['notification_area'])) ? $_SESSION['user']['settings']['notification_area'] : "stack-bottomleft";?>
     var notificationclass = '<?=$notification_position;?>';
 </script>
 <script src="/vendor/jquery/jquery.js"></script>
+<script>
+    // CSRF. The server refuses any POST without the session token
+    // (vanillaController::enforceCSRF). One place attaches it everywhere:
+    // a hidden field on every POST form - including forms loaded later into
+    // a modal, via the delegated submit handler - and a header on every
+    // jQuery request that is not a plain GET.
+    (function () {
+        var meta = document.querySelector('meta[name="csrf-token"]');
+        var token = meta ? meta.getAttribute('content') : '';
+        if (!token) return;
+        window.CSRF_TOKEN = token;
+        function attach(form) {
+            if (!form || (form.method || 'get').toLowerCase() !== 'post') return;
+            if (form.querySelector('input[name="csrf"]')) return;
+            var input = document.createElement('input');
+            input.type = 'hidden'; input.name = 'csrf'; input.value = token;
+            form.appendChild(input);
+        }
+        function attachAll() { Array.prototype.forEach.call(document.querySelectorAll('form'), attach); }
+        document.addEventListener('DOMContentLoaded', attachAll);
+        document.addEventListener('submit', function (e) { attach(e.target); }, true);
+        // Forms that arrive later (the Record-delivery modal is fetched by
+        // AJAX and submitted with form.submit(), which fires no submit event).
+        if (window.MutationObserver) {
+            new MutationObserver(attachAll).observe(document.documentElement, { childList: true, subtree: true });
+        }
+        $.ajaxSetup({
+            beforeSend: function (xhr, settings) {
+                if (!/^(GET|HEAD|OPTIONS)$/i.test(settings.type || 'GET')) {
+                    xhr.setRequestHeader('X-CSRF-Token', token);
+                }
+            }
+        });
+    })();
+</script>
 <script src="/vendor/jquery-browser-mobile/jquery.browser.mobile.js"></script>
 <script src="/vendor/popper/umd/popper.min.js"></script>
 <script src="/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>

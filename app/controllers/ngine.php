@@ -16,21 +16,18 @@ class ngineController extends protectedController {
     //           i.e. a public oracle for forging credential hashes
     protected $unprotected = [];
 
+    // Deploying is `git pull && ./setup-production.sh deploy` on the server;
+    // there is no git inside the container, so a pull from the browser could
+    // never work - and a working one would have been a second, uncontrolled
+    // deploy path. The endpoint stays only so old bookmarks get a clear answer.
     public function deploy() {
-        exec('git --git-dir="'._ROOT_PATH.'".git --work-tree="'._ROOT_PATH.'" pull', $output, $code);
-        if($code!=0){
-            $this->setAnswer(503, "Unable to run");    
-        }
-        $this->setAnswer(200, array2str($output));
+        $this->setAnswer(410, "Deploying from the browser has been removed. Deploy with ./setup-production.sh deploy on the server.");
     }
 
+    // The old info() dumped the whole registry - settings included - to any
+    // logged-in user.
     public function info() {
-        $info['installation'] = _PROJECT_NAME;
-        $info['HTTP server'] = $_SERVER['SERVER_SOFTWARE'];
-        $info['PHP version'] =  phpversion();
-        $info["git status"] = exec('git --git-dir="'._ROOT_PATH.'".git --work-tree="'._ROOT_PATH.'" status');
-        $info["R"] = $this->R;
-        $this->setAnswer(200, "nGine info", $info);
+        $this->setAnswer(410, "System information is no longer exposed here.");
     }
 
 //    public function emailtest(){

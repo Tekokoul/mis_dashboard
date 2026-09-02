@@ -7,12 +7,16 @@
 // Africa CDC. Progress is computed in projects_graphs::overview().
 $lenses = $data['pillars'] ?? [];
 $overall = (float)($data['progress'] ?? 0);
+$overallDone = (int)($data['completed'] ?? 0);
+$overallAll  = (int)($data['totals'] ?? 0);
+$latest = $data['latest_delivery'] ?? null;
 ?>
 <header class="page-header page-header-left-inline-breadcrumb">
     <h2 class="font-weight-bold text-6"><?= htmlspecialchars($this->S['graphs']['overview_title'], ENT_QUOTES, 'UTF-8'); ?></h2>
     <div class="right-wrapper">
         <ol class="breadcrumbs">
-            <li><span></span></li>
+            <li><span><?php if ($latest): ?>Latest recorded delivery: <time datetime="<?= date(DATE_ATOM, strtotime($latest)); ?>"><?= date('j M Y', strtotime($latest)); ?></time><?php else: ?>No deliveries recorded yet<?php endif; ?></span></li>
+            <li><a href="#" class="afcdc-print" role="button" onclick="window.print(); return false;"><i class="bx bx-printer" aria-hidden="true"></i> Print or save as PDF</a></li>
         </ol>
     </div>
 </header>
@@ -28,12 +32,10 @@ $overall = (float)($data['progress'] ?? 0);
                     <div class="progress-bar" role="progressbar"
                          aria-valuenow="<?= $overall; ?>" aria-valuemin="0" aria-valuemax="100"
                          style="width: <?= $overall; ?>%;">
-                        <?php if ($overall >= 8): ?><?= number_format($overall, 2, ',', ''); ?>%<?php endif; ?>
+                        <?php if ($overall >= 8): ?><?= pct($overall); ?>%<?php endif; ?>
                     </div>
                 </div>
-                <?php if ($overall < 8): ?>
-                    <div class="m-2 afcdc-progress-zero"><?= number_format($overall, 2, ',', ''); ?>% complete</div>
-                <?php endif; ?>
+                <div class="m-2 afcdc-progress-zero"><?php if ($overall < 8): ?><?= pct($overall); ?>% complete · <?php endif; ?><?= $overallDone; ?> of <?= $overallAll; ?> activities delivered · <?= max(0, $overallAll - $overallDone); ?> remaining</div>
             </div>
         </section>
     </div>
@@ -44,6 +46,8 @@ $overall = (float)($data['progress'] ?? 0);
         $lensName = htmlspecialchars($lens['name'], ENT_QUOTES, 'UTF-8');
         $lensAbbr = htmlspecialchars($lens['abbr'] ?? '', ENT_QUOTES, 'UTF-8');
         $lensPct  = (float)$lens['progress'];
+        $lensAll  = (int)($lens['totals'] ?? 0);
+        $lensDone = (int)($lens['completed'] ?? 0);
         $objectives = $lens['objectives'] ?? [];
     ?>
     <!-- col-lg-6: there are two lenses, so they are peers on one row. The
@@ -66,8 +70,9 @@ $overall = (float)($data['progress'] ?? 0);
                         <canvas class="gaugeBasic" width="300" height="150"
                                 data-value="<?= $lensPct; ?>"
                                 role="img"
-                                aria-label="<?= $lensName; ?>: <?= number_format($lensPct, 2, ',', ''); ?> percent complete"></canvas>
-                        <label class="gaugeBasicTextfield"><?= number_format($lensPct, 2, ',', ''); ?>%</label>
+                                aria-label="<?= $lensName; ?>: <?= pct($lensPct); ?> percent complete, <?= $lensDone; ?> of <?= $lensAll; ?> activities delivered"></canvas>
+                        <label class="gaugeBasicTextfield"><?= pct($lensPct); ?>%</label>
+                        <span class="afcdc-progress-zero d-block"><?= $lensAll > 0 ? "$lensDone of $lensAll activities delivered" : 'Nothing to measure yet'; ?></span>
                     </div>
 
                     <div>
@@ -76,23 +81,34 @@ $overall = (float)($data['progress'] ?? 0);
                             $objPct  = (float)$objective['progress'];
                             // abbr holds the WBS code (1.1, 2.3 ...) when it is seeded.
                             $wbs = trim((string)($objective['abbr'] ?? ''));
+                            // One status word per row. A bare "0.00%" never said whether the
+                            // deliverable had stalled or simply has no activity under it yet.
+                            $objAll  = (int)($objective['totals'] ?? 0);
+                            $objDone = (int)($objective['completed'] ?? 0);
+                            if ($objAll === 0)      { $st = 'idle';   $stIcon = 'bx-minus-circle'; $stText = 'Nothing to measure yet'; }
+                            elseif ($objPct >= 100) { $st = 'good';   $stIcon = 'bx-check-circle'; $stText = 'Delivered'; }
+                            elseif ($objPct <= 0)   { $st = 'idle';   $stIcon = 'bx-time-five';    $stText = 'Not started'; }
+                            else                    { $st = 'active'; $stIcon = 'bx-adjust';       $stText = 'In progress'; }
                         ?>
-                        <div class="afcdc-deliverable">
+                        <div class="afcdc-deliverable afcdc-drill<?= $objAll === 0 ? ' afcdc-deliverable--unfunded' : ''; ?>">
                             <span class="afcdc-deliverable__wbs"><?= htmlspecialchars($wbs !== '' ? $wbs : '—', ENT_QUOTES, 'UTF-8'); ?></span>
                             <span class="afcdc-deliverable__name">
-                                <a href="<?= $this->L("projects_graphs/objective/" . (int)$objective['id']); ?>"><?= $objName; ?></a>
+                                <a class="stretched-link" href="<?= $this->L("projects_graphs/objective/" . (int)$objective['id']); ?>"><?= $objName; ?></a>
                             </span>
                             <div class="afcdc-deliverable__meta">
                                 <div class="progress progress-lg progress-squared w-100">
                                     <div class="progress-bar" role="progressbar"
                                          aria-valuenow="<?= $objPct; ?>" aria-valuemin="0" aria-valuemax="100"
+                                         aria-valuetext="<?= $objAll === 0 ? 'Nothing to measure yet' : $objDone.' of '.$objAll.' activities delivered'; ?>"
                                          style="width: <?= $objPct; ?>%;">
-                                        <?php if ($objPct >= 12): ?><?= number_format($objPct, 2, ',', ''); ?>%<?php endif; ?>
+                                        <?php if ($objPct >= 12): ?><?= pct($objPct); ?>%<?php endif; ?>
                                     </div>
                                 </div>
-                                <?php if ($objPct < 12): ?>
-                                    <span class="afcdc-progress-zero"><?= number_format($objPct, 2, ',', ''); ?>%</span>
-                                <?php endif; ?>
+                                <span class="afcdc-progress-zero">
+                                    <?php if ($objAll > 0 && $objPct < 12): ?><?= pct($objPct); ?>% · <?php endif; ?>
+                                    <?php if ($objAll > 0): ?><?= $objDone; ?> of <?= $objAll; ?> activities delivered <?php endif; ?>
+                                    <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span>
+                                </span>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -112,10 +128,11 @@ $overall = (float)($data['progress'] ?? 0);
 <div class="row">
     <div class="col-md-12">
         <p class="afcdc-note">
-            Percentages are computed from completed activity records only
-            (<code>pm_progress_tasks_tbl</code>), against the number of RCCs and Member States each
-            activity applies to. A deliverable with no activities recorded against it reports 0%
-            because there is nothing to measure yet — not because it has stalled.
+            Progress is the share of delivery records marked <em>Delivered</em>. Each activity counts once for every
+            RCC or Member State it applies to — today every activity is reported once, centrally, by DHIS HQ, so one
+            record per activity. Staff record a delivery under <strong>Progress</strong> in the sidebar, on the
+            activity's page, with <strong>Record delivery</strong>; every gauge recalculates on the next load.
+            A deliverable marked <em>Nothing to measure yet</em> has no Annual Workplan activity under it — it has not stalled.
         </p>
     </div>
 </div>

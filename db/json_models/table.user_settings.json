@@ -1,50 +1,51 @@
 {
   "table_rows": {
     "type": "dropdown",
-    "title": "Results per page",
-    "values_from" : "values_list",
+    "title": "Rows per page in lists",
+    "values_from": "values_list",
     "values_list": {
+      "10": "10",
+      "25": "25",
       "50": "50 (Default)",
-      "100": "100",
-      "150": "150"
+      "100": "100"
+    }
+  },
+  "landing_page": {
+    "type": "dropdown",
+    "title": "After sign-in, open",
+    "values_from": "values_list",
+    "values_list": {
+      "projects_graphs/overview": "Overview (Default)",
+      "dashboard": "Dashboard",
+      "projects/progress_list": "Progress",
+      "projects_graphs/projects": "Per Project"
     }
   },
   "editing_columns": {
     "type": "dropdown",
-    "title": "Columns in edit mode",
-    "values_from" : "values_list",
+    "title": "Columns on edit forms",
+    "values_from": "values_list",
     "values_list": {
       "1": "One column",
-      "2": "Two Columns (Default)"
+      "2": "Two columns (Default)"
     }
   },
   "update_redirect": {
     "type": "dropdown",
-    "title": "Update returns to",
-    "values_from" : "values_list",
+    "title": "After saving, return to",
+    "values_from": "values_list",
     "values_list": {
-      "db_edit": "Edit page (Default)",
-      "db_list": "List page"
+      "db_edit": "The edit page (Default)",
+      "db_list": "The list"
     }
   },
-  "notification_area": {
+  "animate_gauges": {
     "type": "dropdown",
-    "title": "Notifications area",
-    "values_from" : "values_list",
+    "title": "Animate the gauges",
+    "values_from": "values_list",
     "values_list": {
-      "stack-topleft": "Top Left",
-      "stack-topright": "Top Right",
-      "stack-bottomleft": "Bottom Left (Default)",
-      "stack-bottomright": "Bottom Right"
-    }
-  },
-  "eshop_id": {
-    "type": "dropdown",
-    "title": "Prefered id for e-shop products",
-    "values_from" : "values_list",
-    "values_list": {
-      "sku": "SKU",
-      "ean": "EAN (Barcode)"
+      "1": "Yes (Default)",
+      "0": "No"
     }
   }
 }

@@ -17,6 +17,10 @@ server {
 
     charset utf-8;
 
+    # Security headers. Repeated inside every location that has an add_header
+    # of its own, because add_header does not inherit (see the snippet).
+    include snippets/security-headers.conf;
+
     # --- front controller ---------------------------------------------------
     # Apache:
     #   RewriteCond %{REQUEST_FILENAME} !-f
@@ -34,6 +38,13 @@ server {
     }
 
     # --- PHP ----------------------------------------------------------------
+    # The only directories PHP may write to are never executed as PHP, so a
+    # file that lands there through an upload is served as a download or not
+    # at all - never run.
+    location ~* ^/(media|cache)/.*\.(php|phtml|phar)$ {
+        deny all;
+    }
+
     location ~ \.php$ {
         # try_files first: without it nginx would forward any URL ending in
         # .php to FPM, which answers "Primary script unknown" and turns a
@@ -90,26 +101,32 @@ server {
 
     # --- caching -------------------------------------------------------------
     # Mirrors the mod_expires / mod_headers blocks in public/.htaccess.
+    # Each of these sets add_header, which drops the server-level security
+    # headers for that location - hence the include in every block.
     location ~* \.(ico|flv|jpg|jpeg|png|gif|webp|svg|css|swf)$ {
         expires 31d;
         add_header Cache-Control "max-age=2678400, public";
+        include snippets/security-headers.conf;
         access_log off;
         try_files $uri =404;
     }
     location ~* \.js$ {
         expires 31d;
         add_header Cache-Control "max-age=2678400, private";
+        include snippets/security-headers.conf;
         access_log off;
         try_files $uri =404;
     }
     location ~* \.pdf$ {
         expires 1d;
         add_header Cache-Control "max-age=86400, public";
+        include snippets/security-headers.conf;
         try_files $uri =404;
     }
     location ~* \.(woff|woff2|ttf|otf|eot)$ {
         expires 1y;
         add_header Cache-Control "max-age=31536000, public";
+        include snippets/security-headers.conf;
         access_log off;
         try_files $uri =404;
     }

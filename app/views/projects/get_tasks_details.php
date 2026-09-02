@@ -7,13 +7,15 @@
             <div class="card-body">
                 <div class="datatables-header-footer-wrapper">
                     <?php
-                    if(count($data['data'])>0){
+                    // !empty rather than count(): the controller leaves data unset
+                    // for an unknown project, and count(null) is a TypeError.
+                    if(!empty($data['data'])){
                         ?>
                         <div class="table-responsive">
                             <table class="table table-ecommerce-simple table-borderless table-striped mb-0" id="datatable-list" style="min-width: 640px;">
                                 <thead>
                                 <tr>
-                                    <th width="4%">A/A</th>
+                                    <th width="4%">#</th>
                                     <th>KPI</th>
                                     <th width="18%">Status</th>
                                     <th width="22%"></th>
@@ -58,6 +60,17 @@
                                 </tbody>
                             </table>
                         </div>
+                        <?php
+                    } else {
+                        // Empty because the account's reporting entity is not in this
+                        // activity's KPI "applies to", or the account is linked to no
+                        // entity at all (member_id 0).
+                        $ms = $_SESSION['user']['member_state'] ?? null;
+                        ?>
+                        <p class="text-muted py-4 mb-0">
+                        <?php if (empty($ms)): ?>Your account is not linked to a reporting entity yet, so there is nothing to record here. Ask an administrator to link it.
+                        <?php else: ?>No KPI for this activity applies to <?= display($ms['name'] ?? 'your entity'); ?>. If you expected to report on it, ask an administrator to add your entity under the KPI's "Applies to".<?php endif; ?>
+                        </p>
                         <?php
                     }
                     ?>

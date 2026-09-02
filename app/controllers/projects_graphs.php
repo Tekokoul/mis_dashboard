@@ -47,7 +47,11 @@ class projects_graphsController extends coreController{
                     $tasks = $this->DB->MQ($query, "all");
     
                     foreach ($tasks as $task) {
-                        $appliesTo = json_decode($task['applies_to'], true);
+                        // applies_to is a JSON list of member ids stored by the task form.
+                        // It is imploded into IN(...) below, so it is reduced to positive
+                        // integers here - a stored value like `1) UNION SELECT ...` used
+                        // to execute for every viewer of this page.
+                        $appliesTo = array_values(array_filter(array_map('intval', (array)json_decode((string)$task['applies_to'], true)), fn($v) => $v > 0));
     
                         if (is_array($appliesTo) && count($appliesTo) > 0) {
                             $taskAssignments = count($appliesTo);
@@ -78,6 +82,7 @@ class projects_graphsController extends coreController{
                 }
     
                 $objectiveData['totals'] = $objectiveTotal;
+            $objectiveData['completed'] = $objectiveProgress;   // raw count, for "n of m delivered"
                 $objectiveData['progress'] = ($objectiveTotal > 0) 
                     ? round(($objectiveProgress / $objectiveTotal) * 100, 2) 
                     : 0;
@@ -89,6 +94,7 @@ class projects_graphsController extends coreController{
             }
     
             $pillarData['totals'] = $pillarTotal;
+            $pillarData['completed'] = $pillarProgress;
             $pillarData['progress'] = ($pillarTotal > 0) 
                 ? round(($pillarProgress / $pillarTotal) * 100, 2) 
                 : 0;
@@ -101,10 +107,20 @@ class projects_graphsController extends coreController{
             $data['progress'] += $pillarProgress;
         }
     
+        // Keep the raw count before it becomes a percentage: the view prints
+        // "n of m delivered" next to every bar, which a bare 0.00% never said.
+        $data['completed'] = (int)$data['progress'];
+
         // Calculate overall progress as a percentage of totals
-        $data['progress'] = ($data['totals'] > 0) 
-            ? round(($data['progress'] / $data['totals']) * 100, 2) 
+        $data['progress'] = ($data['totals'] > 0)
+            ? round(($data['progress'] / $data['totals']) * 100, 2)
             : 0;
+
+        // Latest user-entered delivery date - the Date field of the
+        // Record-delivery form - so the header can say when the figures were
+        // last moved. Zero dates are skipped; strtotime() cannot parse them.
+        $latest = $this->DB->MQ("SELECT MAX(progress_date) AS latest FROM pm_progress_tasks_tbl WHERE result = 1 AND progress_date > '1000-01-01'", "one");
+        $data['latest_delivery'] = $latest['latest'] ?? null;
     
         $this->AddJS("/vendor/gauge/gauge.js");
         $this->AddJS("/js/graphs.js");
@@ -122,7 +138,7 @@ class projects_graphsController extends coreController{
         $validated = $this->sanitize($this->parts, $rules);
     
         // Fetch the pillar details
-        $query = "SELECT * FROM pm_pillars_tbl WHERE id = " . $validated['id'];
+        $query = "SELECT * FROM pm_pillars_tbl WHERE id = " . (int)$validated['id'];
         $pillar = $this->DB->MQ($query, "one");
     
         if (!$pillar) {
@@ -211,6 +227,7 @@ class projects_graphsController extends coreController{
     
             // Add objective data
             $objectiveData['totals'] = $objectiveTotal;
+            $objectiveData['completed'] = $objectiveProgress;   // raw count, for "n of m delivered"
             $objectiveData['progress'] = ($objectiveTotal > 0) 
                 ? round(($objectiveProgress / $objectiveTotal) * 100, 2) 
                 : 0;
@@ -223,6 +240,7 @@ class projects_graphsController extends coreController{
     
         // Finalize pillar data
         $data['pillar']['totals'] = $pillarTotal;
+        $data['pillar']['completed'] = $pillarProgress;
         $data['pillar']['progress'] = ($pillarTotal > 0) 
             ? round(($pillarProgress / $pillarTotal) * 100, 2) 
             : 0;
@@ -243,7 +261,7 @@ class projects_graphsController extends coreController{
         $validated = $this->sanitize($this->parts, $rules);
     
         // Fetch the objective details
-        $query = "SELECT * FROM pm_objectives_tbl WHERE id = " . $validated['id'];
+        $query = "SELECT * FROM pm_objectives_tbl WHERE id = " . (int)$validated['id'];
         $objective = $this->DB->MQ($query, "one");
         $data['objective'] = $objective;
     
@@ -328,6 +346,7 @@ class projects_graphsController extends coreController{
     
         // Finalize objective data
         $data['objective']['totals'] = $objectiveTotal;
+        $data['objective']['completed'] = $objectiveProgress;
         $data['objective']['progress'] = $objectiveProgressPercentage;
     
         $this->AddJS("/vendor/gauge/gauge.js");
@@ -346,7 +365,7 @@ class projects_graphsController extends coreController{
         $validated = $this->sanitize($this->parts, $rules);
     
         // Fetch the programme details
-        $query = "SELECT * FROM pm_programmes_tbl WHERE id = " . $validated['id'];
+        $query = "SELECT * FROM pm_programmes_tbl WHERE id = " . (int)$validated['id'];
         $programme = $this->DB->MQ($query, "one");
         $data['programme'] = $programme;
     
@@ -354,7 +373,7 @@ class projects_graphsController extends coreController{
         $programmeProgress = 0;
     
         // Fetch projects linked to the programme
-        $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . $validated['id'] . " AND objective_id = " . $programme['objective_id'];
+        $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . (int)$validated['id'] . " AND objective_id = " . $programme['objective_id'];
         $projects = $this->DB->MQ($query, "all");
         $data['projects'] = [];
     
@@ -407,6 +426,7 @@ class projects_graphsController extends coreController{
     
         // Finalize programme data
         $data['programme']['totals'] = $programmeTotal;
+        $data['programme']['completed'] = $programmeProgress;
         $data['programme']['progress'] = $programmeProgressPercentage;
     
         $this->AddJS("/vendor/gauge/gauge.js");
@@ -429,7 +449,7 @@ class projects_graphsController extends coreController{
         $temp = [];
     
         // Fetch project details
-        $query = "SELECT * FROM pm_projects_tbl WHERE id=" . $validated['id'];
+        $query = "SELECT * FROM pm_projects_tbl WHERE id=" . (int)$validated['id'];
         $project = $this->DB->MQ($query, "one");
     
         // Fetch all tasks for the project
@@ -448,7 +468,9 @@ class projects_graphsController extends coreController{
     
         // Loop through tasks and process their `applies_to`
         foreach ($tasks as $task) {
-            $applies_to = json_decode($task['applies_to'] ?? "[]", true);
+            // Same reduction to positive integers as the other views: `$member`
+            // below is interpolated into three queries.
+            $applies_to = array_values(array_filter(array_map('intval', (array)json_decode((string)($task['applies_to'] ?? "[]"), true)), fn($v) => $v > 0));
             $taskAssignments = count($applies_to);
             $temp['project']['totals'] += $taskAssignments; // Add to total assignments
     
@@ -505,6 +527,7 @@ class projects_graphsController extends coreController{
         : 0;
         
         // Add members with their states and progress to the response
+        $temp['project']['completed'] = $completedAssignments;
         $temp['project']['members'] = array_values($memberProgress);
     
         $data = $temp;

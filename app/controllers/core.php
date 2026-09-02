@@ -175,7 +175,9 @@ class coreController extends protectedController{
     }
 
     public function db_delete() {
-        $this->checkMethod("GET");
+        // POST only: as a GET, an <img src="/core/db_delete/pm_projects/5"> on
+        // any page an administrator opened deleted the row.
+        $this->checkMethod("POST");
         $this->mapRoute("model/id");
         $this->checkRequired(["model", "id"], $this->parts);
         $rules = [
@@ -211,10 +213,6 @@ class coreController extends protectedController{
         } else {
             $this->setAnswer(404, "No records found.", [], "json");
         }
-    }
-
-    public function filemanager(){
-        $this->render();
     }
 
     public function password_update(){

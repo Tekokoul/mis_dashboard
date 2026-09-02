@@ -7,11 +7,10 @@
  * The password is read from the terminal with echo disabled, so it never
  * appears in the argument list, the shell history, or `docker inspect`.
  *
- * NOTE ON HASHING: this app stores MD5(MD5(password)), unsalted
- * (app/models/core.php::create_password), and the login query compares against
- * that. This script matches it because otherwise the account could not log in.
- * It is not a safe scheme; replacing it with password_hash()/password_verify()
- * is a contained change and is worth scheduling.
+ * HASHING: password_hash() (Argon2id where PHP has it, else bcrypt), the same
+ * as app/models/core.php::create_password. Accounts created before 2 Sep 2026
+ * still hold the old unsalted MD5(MD5()) hash; the login accepts it once and
+ * rehashes, so nobody has to be re-passworded.
  */
 
 declare(strict_types=1);
@@ -77,12 +76,12 @@ $pw2 = prompt_hidden("Confirm: ");
 if ($pw === '')      { fwrite(STDERR, "empty password refused - nothing changed\n"); exit(1); }
 if ($pw !== $pw2)    { fwrite(STDERR, "passwords did not match - nothing changed\n"); exit(1); }
 if (strlen($pw) < 12) {
-    fwrite(STDERR, "refusing a password under 12 characters: the stored hash is unsalted MD5,\n"
-                 . "so short passwords fall to an offline attack almost immediately.\n");
+    fwrite(STDERR, "refusing a password under 12 characters.\n");
     exit(1);
 }
 
-$hash = md5(md5($pw));   // matches app/models/core.php::create_password
+// Same scheme as app/models/core.php::create_password.
+$hash = password_hash($pw, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT);
 // Wipe the plaintext from memory where the extension is available.
 if (function_exists('sodium_memzero')) { sodium_memzero($pw); sodium_memzero($pw2); }
 unset($pw, $pw2);

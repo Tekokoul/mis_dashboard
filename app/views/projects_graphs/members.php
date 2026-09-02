@@ -37,7 +37,7 @@ array_multisort($progress, SORT_DESC, $sorted_data);
                         $completed = 0;
                     }
                     ?>
-ms_sorted.push({ country: '<?=addslashes($member['name']);?>', total: <?=$total;?>, completed: <?=$completed;?>});
+ms_sorted.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE);?>, total: <?=(float)$total;?>, completed: <?=(float)$completed;?>});
                     <?php
                 }
                 ?>
@@ -56,7 +56,7 @@ ms_sorted.push({ country: '<?=addslashes($member['name']);?>', total: <?=$total;
                 <?php
                 foreach ($data['progress'] as $member){
                     ?>
-ms_chart.push({ country: '<?=addslashes($member['name'])?>', total: <?=$member['totals'];?>, completed: <?=$member['progress'];?>});
+ms_chart.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE);?>, total: <?=(float)$member['totals'];?>, completed: <?=(float)$member['progress'];?>});
                         <?php
                 }
                 ?>
@@ -80,7 +80,7 @@ ms_chart.push({ country: '<?=addslashes($member['name'])?>', total: <?=$member['
                         print "ms_monthly.push({ year: '".$year."', month: '".$month."',";
                         $list = [];
                         foreach ($data['members'] as $member){
-                            $list[] = "'".$member['id']."': ".($values[$member['id']]['tasks'] ?? 0);
+                            $list[] = "'".(int)$member['id']."': ".(int)($values[$member['id']]['tasks'] ?? 0);
                         }
                         print implode(",", $list)."});\n";
                     }
@@ -88,14 +88,17 @@ ms_chart.push({ country: '<?=addslashes($member['name'])?>', total: <?=$member['
                 print "member_keys.push(";
                 $list = [];
                 foreach ($data['members'] as $member) {
-                    $list[] = "'".$member['id']."'";
+                    $list[] = "'".(int)$member['id']."'";
                 }
                 print implode(",", $list).");\n";
 
+                // Names go through json_encode with the HEX flags: addslashes
+                // escapes quotes but not "</script>", so a member named
+                // `x</script><b>..` used to close the block and inject markup.
                 print "member_labels.push(";
                 $list = [];
                 foreach ($data['members'] as $member) {
-                    $list[] = "'".addslashes($member['name'])."'";
+                    $list[] = json_encode((string)$member['name'], JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE);
                 }
                 print implode(",", $list).");\n";
                     ?>

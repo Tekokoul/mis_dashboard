@@ -1,11 +1,11 @@
 <!doctype html>
-<html class="fixed">
+<html lang="en" class="fixed">
 <head>
     <meta charset="UTF-8">
     <title><?=_PROJECT_NAME;?></title>
     <meta name="author" content="<?=_AUTHOR?>">
     <link rel="icon" href="<?= (defined("_WHITELABEL") && _WHITELABEL) ? _WHITELABEL_LOGO_FAVICON : "/media/logo/africacdc_favicon.png"; ?>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link href="https://fonts.googleapis.com/css?family=Open+Sans:300,400,500,600,700,800|Shadows+Into+Light" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.css" />
     <link rel="stylesheet" href="/vendor/animate/animate.compat.css">

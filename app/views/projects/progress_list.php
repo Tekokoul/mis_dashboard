@@ -35,7 +35,7 @@ $page_link_suffix = (isset($data['search'])&&($data['search']!="")) ? "?search-t
                                     <div class="search search-style-1 search-style-1-lg mx-lg-auto">
                                         <div class="input-group">
 
-                                            <input type="text" class="search-term form-control" name="search-term" id="search-term" placeholder="Search" value="<?=$data['search'];?>">
+                                            <input type="text" class="search-term form-control" name="search-term" id="search-term" placeholder="Search" value="<?= htmlspecialchars((string)($data['search'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                                             <button class="btn btn-default" type="submit"><i class="bx bx-search"></i></button>
 
                                         </div>
@@ -53,7 +53,7 @@ $page_link_suffix = (isset($data['search'])&&($data['search']!="")) ? "?search-t
                                 <thead>
                                 <tr>
                                     <th width="3%"><input type="checkbox" name="select-all" class="select-all checkbox-style-1 p-relative top-2" value="" /></th>
-                                    <th width="4%">A/A</th>
+                                    <th width="4%">#</th>
                                     <?php
                                     foreach ($data['fields'] as $field => $properties){
                                         if(isset($properties['appear_in_list'])){

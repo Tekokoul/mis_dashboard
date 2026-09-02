@@ -27,19 +27,55 @@ class usersController extends protectedController {
 
         $this->checkCSRF($validated['csrf']);
 
+        // Throttle. Failed attempts are recorded in core_users_logs_tbl as
+        // 'login_failed' against the account they named (0 when no such
+        // account exists); more than five in fifteen minutes and the account
+        // is refused until the window passes. No new table, so nothing to
+        // migrate on the live database.
+        $account = $this->DB->MQ("SELECT id FROM core_users_tbl WHERE username = ?", "one", [$validated['username']]);
+        $account_id = (int)($account['id'] ?? 0);
+        $recent = $this->DB->MQ(
+            "SELECT COUNT(*) AS n FROM core_users_logs_tbl WHERE action = 'login_failed' AND core_users_id = ? AND log_date > (NOW() - INTERVAL 15 MINUTE)",
+            "one", [$account_id]
+        );
+        if ((int)($recent['n'] ?? 0) >= 5) {
+            $this->setAnswer(429, "Too many sign-in attempts. Wait fifteen minutes and try again.");
+        }
+
         // Bound parameters. username is attacker-controlled and reaches this
         // query BEFORE any authentication; FILTER_SANITIZE_EMAIL is an input
         // filter, not an escaping mechanism, so it must never be interpolated.
-        $query = "SELECT *, core_users_tbl.id as user_id FROM core_users_tbl
-WHERE username = ? AND password = ?";
+        // The password is checked in PHP, not in the WHERE clause: hashes are
+        // password_hash() values now (legacy md5(md5) is accepted once and
+        // rewritten - see coreModel::check_password).
+        $query = "SELECT *, core_users_tbl.id as user_id FROM core_users_tbl WHERE username = ?";
+        $user = $this->DB->MQ($query, "one", [$validated['username']]);
 
-        $user = $this->DB->MQ($query, "one", [
-            $validated['username'],
-            md5(md5($validated['password'])),
-        ]);
+        $needs_rehash = false;
+        if (is_set($user) && !$this->model->check_password($validated['password'], $user['password'] ?? "", $needs_rehash)) {
+            $user = false;
+        }
+        if (is_set($user) && $needs_rehash) {
+            $this->DB->MQ("UPDATE core_users_tbl SET password = ? WHERE id = ?", false, [
+                $this->model->create_password($validated['password']), (int)$user['id'],
+            ]);
+        }
+
+        if (!is_set($user)) {
+            $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'login_failed', ?)", false, [$account_id, date("Y-m-d H:i:s")]);
+            // Same answer whether the account exists or not.
+            usleep(300000);
+        }
 
         if (is_set($user)){
             if($user['active']){
+                // A fresh session id at the authentication boundary, so a
+                // session id planted in the browser before login (fixation)
+                // never becomes an authenticated one; and a fresh CSRF token
+                // for the same reason.
+                session_regenerate_id(true);
+                $_SESSION['token'] = bin2hex(random_bytes(35));
+                $_SESSION['token_expiry'] = time() + _CSRF_EXPIRY;
                 $this->setUser($user);
                 $query = "select * from core_groups_tbl where id = ?";
                 $_SESSION['user']['group'] = $this->DB->MQ($query, "one", [(int)$user['group']]);
@@ -49,7 +85,13 @@ WHERE username = ? AND password = ?";
                 }
                 $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'login', ?)", false, [(int)$user['id'], date("Y-m-d H:i:s")]);
 
-                redirect($this->L("dashboard"));
+                // Land where the user asked to (Profile > Settings), default the
+                // overview - the page the monitor exists for - rather than the
+                // near-empty "Hello" dashboard card. Allow-listed: the value is
+                // read from a file the user's own settings form writes.
+                $landing = (string)($_SESSION['user']['settings']['landing_page'] ?? '');
+                $allowed = ['projects_graphs/overview', 'dashboard', 'projects/progress_list', 'projects_graphs/projects'];
+                redirect($this->L(in_array($landing, $allowed, true) ? $landing : 'projects_graphs/overview'));
             } else {
                 $this->setAnswer(401, "You do not have permission to login.");
             }
@@ -215,8 +257,14 @@ and '".date("Y-m-d H:i:s")."' and core_users_id=".$_SESSION['user']['id']." orde
         ];
         $validated = $this->sanitize($this->query, $rules);
         if($validated['password']!=""){
+            // The target is always the signed-in user - never an id from the
+            // request - and the hash goes through create_password so a later
+            // change of hashing scheme lands here too.
             $query = "update core_users_tbl set password = ? where id = ?";
-            $this->DB->MQ($query);
+            $this->DB->MQ($query, false, [
+                $this->model->create_password($validated['password']),
+                (int)$_SESSION['user']['id'],
+            ]);
         }
         redirect($this->L("users/profile"));
     }

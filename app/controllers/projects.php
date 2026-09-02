@@ -190,7 +190,8 @@ class projectsController extends coreController{
     }
 
     public function task_delete(){
-        $this->checkMethod("GET");
+        // POST only - see core::db_delete.
+        $this->checkMethod("POST");
         $this->mapRoute("id");
         $this->checkRequired(["id"], $this->parts);
         $rules = [
@@ -273,7 +274,9 @@ class projectsController extends coreController{
 
         $model['model_name'] = "pm_projects";
         $model["model"] = $this->model->get_table_fields("pm_projects");
-        $data['meta_name'] = $this->model->get_meta_name("pm_projects");
+        // Same model as the Projects list, but this is the reporting view -
+        // title it the way the menu does, not "Projects / Interventions".
+        $data['meta_name'] = "Progress";
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['meta_filters'] = $this->model->get_meta_filters("pm_projects");
 
@@ -598,8 +601,11 @@ class projectsController extends coreController{
                     "type" => "int",
                     "hidden" => true
                 ],
+                // One vocabulary everywhere: the KPI table says "Delivered /
+                // Not delivered", the button says "Record delivery", so the
+                // form does too (it used to say Task / Result / Finished).
                 "task" => [
-                    "title" => "Task",
+                    "title" => "KPI",
                     "type" => "varchar",
                     "order_field" => "ASC",
                     "disabled" => true,
@@ -615,31 +621,31 @@ class projectsController extends coreController{
                     "no_editor" => true
                 ],
                 "result" => [
+                    "title" => "Delivery status",
                     "type" => "dropdown",
                     "values_from" => "values_list",
                     "values_list" => [
-                          "0" => "Not finished",
-                          "1" => "Finished"
+                          "0" => "Not delivered",
+                          "1" => "Delivered"
                     ]
                 ],
                 "actual_budget" => [
                     "type" => "double",
-                    "title"=>"Actual budget",
-                    "no_editor" => true,
-                    "value" => "USD",   // the AWP and the deliverables workbook are both in USD
-                    "value_position" => "before"
+                    "title" => "Spend recorded with this delivery, USD (optional)",   // the activity's own Actual budget lives on its edit form
+                    "no_editor" => true
                 ],
                 "comment" => [
+                    "title" => "Comment (optional)",
                     "type" => "text",
                     "no_editor" => true
                 ],
                 "progress_date" => [
                     "type" => "datetime",
-                    "title" => "Date"
+                    "title" => "Date delivered"
                 ]
             ]];
-        $task = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_projects_tasks')." where project_id=". $validated['project_id'] ." and id=".$validated['id'], "one");
-        $values = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_progress_tasks')." where project_id=". $validated['project_id']." and member_id=".$validated['member_id']." and task_id=".$validated['id'], "one");
+        $task = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_projects_tasks')." where project_id=". (int)$validated['project_id'] ." and id=".(int)$validated['id'], "one");
+        $values = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_progress_tasks')." where project_id=". (int)$validated['project_id']." and member_id=".(int)$validated['member_id']." and task_id=".(int)$validated['id'], "one");
         $data['data'] = [
             "task" => $task['name'],
             "description" => $task['description'],
@@ -704,10 +710,9 @@ class projectsController extends coreController{
         if (!$executed) {
             $this->setAnswer(500, "Problem updating the entry.");
         } else {
-            $new_id = $validated['project_id'];
-            $id_part = "progress_edit/".$new_id;
-
-            redirect($this->L("projects/".$id_part));
+            // ?saved=1 lets progress_edit show a confirmation once; the router
+            // routes on the path only, so the query string is harmless to it.
+            redirect($this->L("projects/progress_edit/".(int)$validated['project_id']."?saved=1"));
         }
     }
 

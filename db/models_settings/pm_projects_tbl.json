@@ -1,8 +1,7 @@
 {
   "meta": {
     "name": "Projects / Interventions",
-    "actions": [
-    ],
+    "actions": [],
     "filters": [
       {
         "title": "Choose Pillar",
@@ -20,7 +19,8 @@
   "fields": {
     "id": {
       "hidden": true,
-      "no_update": true
+      "no_update": true,
+      "order_field": "ASC"
     },
     "pillar_id": {
       "title": "Pillar",
@@ -55,8 +55,7 @@
       "type": "varchar",
       "appear_in_list": 1,
       "list_width": 40,
-      "search_field": true,
-      "order_field": "ASC"
+      "search_field": true
     },
     "abbr": {
       "title": "Abbreviation",
@@ -70,6 +69,19 @@
     },
     "kpi": {
       "title": "Expected KPI"
+    },
+    "estimated_budget": {
+      "title": "Estimated budget (USD)",
+      "type": "double"
+    },
+    "actual_budget": {
+      "title": "Actual budget (USD)",
+      "type": "double"
+    },
+    "notes": {
+      "title": "Notes",
+      "type": "text",
+      "no_editor": true
     },
     "type": {
       "hidden": true,

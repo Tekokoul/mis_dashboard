@@ -76,40 +76,5 @@
     "link": "users/list",
     "icon": "bx-user",
     "active_for": "1"
-  },
-  {
-    "title": "Configure JSON files",
-    "type": "link",
-    "link": "admin/configure_json",
-    "icon": "bxs-file-json",
-    "active_for": "1"
-  },
-  {
-    "title": "Configuration",
-    "type": "link",
-    "link": "admin/configuration",
-    "icon": "bx-cog",
-    "active_for": "1"
-  },
-  {
-    "title": "Deploy / git pull",
-    "type": "link",
-    "link": "ngine/deploy",
-    "icon": "bx-git-pull-request",
-    "active_for": "1"
-  },
-  {
-    "title": "Tools",
-    "label": "Tools",
-    "type": "parent",
-    "icon": "bx-dots-horizontal",
-    "active_for": "1",
-    "nodes": [
-      {
-        "title": "Export Keys",
-        "link": "tools/export_keys",
-        "active_for": "1"
-      }
-    ]
   }
 ]

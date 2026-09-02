@@ -30,7 +30,7 @@ if($ttl>0){
             <div class="card-body">
                 <div class="progress progress-xl progress-squared m-2">
                     <div class="progress-bar" role="progressbar" aria-valuenow="<?=$val_all;?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=$val_all;?>%;">
-                        <?=number_format((float)($val_all), 2, ',', '');?>%
+                        <?=pct(($val_all));?>%
                     </div>
                 </div>
             </div>
@@ -56,7 +56,7 @@ if($ttl>0){
                         <div class="gauge-chart">
                             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$value?>"></canvas>
                             <strong><a href="<?=$this->L("projects_graphs/pillar/".$pillar['id']);?>"><?=$pillar['name']?></a></strong>
-                            <label id="gaugeBasicTextfield"><?=number_format((float)$value, 2, ',', '');?>%</label>
+                            <label id="gaugeBasicTextfield"><?=pct($value);?>%</label>
                         </div>
                         <?php
                         foreach ($pillar['programmes'] as $programme){
@@ -72,7 +72,7 @@ if($ttl>0){
                             <h5><?=$programme['abbr']." - ".$programme['name'];?></h5>
                         <div class="progress progress-lg progress-squared m-2">
                             <div class="progress-bar" role="progressbar" aria-valuenow="<?=$obj_value;?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=$obj_value;?>%;">
-                                <?=number_format((float)($obj_value), 2, ',', '');?>%
+                                <?=pct(($obj_value));?>%
                             </div>
                         </div>
                         <?php

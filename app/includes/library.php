@@ -270,13 +270,25 @@ function clear_cache(){
     header("Pragma: no-cache");
 }
 
+// Escapes for HTML. No stripslashes(): values are stored exactly as typed
+// (writes are bound, not addslashes()d), so stripping here ate a backslash a
+// user typed - N\A, a path - and then lost it for good on the next save.
+// ENT_QUOTES so the result is also safe inside single-quoted attributes.
 function display($text = ""){
-    $text = is_null($text) ? "" : $text;
-    return htmlspecialchars(stripslashes($text));
+    $text = is_null($text) ? "" : (string)$text;
+    return htmlspecialchars($text, ENT_QUOTES, 'UTF-8');
 }
 
 function display_from_db($text = ""){
-    return ($text!="") ? htmlspecialchars(stripslashes($text)) : "N/A";
+    return ($text!="") ? htmlspecialchars((string)$text, ENT_QUOTES, 'UTF-8') : "N/A";
+}
+
+// Every percentage on the graph pages goes through here, so the number
+// format is decided once. English locale, two decimals, no thousands
+// separator - "12.50", never "12,50" (the comma was a leftover of the
+// vendor's Greek locale; budgets already print "USD 0.00").
+function pct($value){
+    return number_format((float)$value, 2, '.', '');
 }
 
 function display_weight($text = "", $in="kg"){

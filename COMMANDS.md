@@ -106,8 +106,10 @@ Restore a backup:
 /opt/homebrew/bin/mariadb afcdc_dhis < backup_YYYYMMDD_HHMM.sql
 ```
 
-Rebuild the database from scratch. Three files, in order — schema, content,
-tickable tasks. None of them contains any legacy tenant data:
+Rebuild the **local development** database from scratch. Three files, in order —
+schema, content, tickable tasks. None of them contains any legacy tenant data.
+This runs against the Mac's own MariaDB; **never run it, or these files, against
+the server** — the content files delete every recorded delivery first:
 
 ```bash
 /opt/homebrew/bin/mariadb -e "DROP DATABASE IF EXISTS afcdc_dhis; CREATE DATABASE afcdc_dhis CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;" && for f in schema seed tasks; do /opt/homebrew/bin/mariadb --default-character-set=utf8mb4 afcdc_dhis < "db/for_upload/africacdc_dhis_$f.sql" >/dev/null; done && echo rebuilt
@@ -167,7 +169,7 @@ What has been recorded so far:
 /opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT p.abbr AS awp_code, p.name AS activity, g.result, g.progress_date, g.actual_budget FROM pm_progress_tasks_tbl g JOIN pm_projects_tbl p ON p.id=g.project_id ORDER BY g.progress_date DESC;"
 ```
 
-Clear all recorded progress and start again:
+Clear all recorded progress and start again — **local development database only**:
 
 ```bash
 /opt/homebrew/bin/mariadb afcdc_dhis -e "DELETE FROM pm_progress_tasks_tbl;"
@@ -202,32 +204,80 @@ git-ignored. **Never put them in `settings.php`.**
 
 ## Deploying to the server
 
-1. Back up the production database first (`mariadb-dump`, as above).
-2. Copy across: `public/css/skin_africacdc.css`, `public/css/custom.css`,
-   `public/js/members_graphs.js`, `public/js/page_projects_graphs_projects.js`,
-   `public/media/logo/africacdc_*`, the changed files under `app/`, and
-   `db/menus/ce_menu.json`.
-3. Load the seed **before or with** the code — it adds the `position` column that
-   the new ordering depends on, and the overview will error without it.
-4. Do **not** copy any of these:
-   - `tools/dev/` — development only
-   - `app/configuration/settings.local.php` — local credentials
-   - `.removed-sadc-crystalengine/` — quarantined legacy assets, still containing
-     the old logos, the previous tenant's database dump and vendor links
-   - `.backup-pre-afcdc/` — pre-rebrand copies of every edited file
+The server runs the Docker stack (see **Docker (production)** below). A deploy
+is `git pull` followed by `./setup-production.sh deploy` — nothing else.
 
-   Both quarantine folders sit above the docroot so they are not web-reachable,
-   but nothing stops a naive `rsync -a` from shipping them. They are listed in
-   `.gitignore`; if you deploy by copying, exclude them explicitly:
+- **Never run anything from `db/for_upload/` on the server.** Both content
+  files begin by deleting every row of every `pm_*` table: every recorded
+  delivery and every activity anyone added would go. They are for a brand-new,
+  empty database only, and the container loads them itself in that one case.
+- Do not copy files across by hand (`rsync`, `scp`). The Mac's `.env` would
+  overwrite the server's and take the site down; the code is built into the
+  image anyway.
+- The `backups/` folder on this Mac holds local-development snapshots. It is
+  not a rollback for production — the server keeps its own under its `backups/`.
 
-   ```
-   rsync -a --exclude='.removed-sadc-crystalengine' --exclude='.backup-pre-afcdc' \
-            --exclude='tools/dev' --exclude='settings.local.php' ./ user@host:/path/
-   ```
+On the server, in order:
 
-Undo: every file changed during the rebrand has its original in
-`.backup-pre-afcdc/`. There is no git repository here, so that folder is the
-only undo — keep it.
+```bash
+git status --short
+```
+
+```bash
+docker diff "$(docker compose ps -q app)" | grep -E ' /var/www/html/(db|app)/'
+```
+
+Any hand edits on the server (first command) or files the live app wrote
+(second) must be dealt with before pulling — copy them out with
+`docker compose cp app:/var/www/html/db ./db-live`, or commit them.
+
+```bash
+./setup-production.sh backup
+```
+
+```bash
+git pull && ./setup-production.sh deploy
+```
+
+```bash
+docker compose logs app | grep -i "schema\|content"
+```
+
+The last line must say `leaving schema and content alone`. Then re-run the
+count query from **Checks worth running** against the server and confirm no
+number fell.
+
+### One-time steps for the 2 September 2026 release
+
+**1. Give the app container the root password for migrations.** The
+entrypoint now widens `core_users_tbl.password` (for `password_hash`) and
+loads the schema on a fresh install as root, so the app's own user can be
+limited. Add to the server's `.env` if it is not already there (it is, if the
+stack was installed with `setup-production.sh`):
+
+```bash
+grep -q '^DB_ROOT_PASSWORD=' .env && echo "present" || echo "ADD DB_ROOT_PASSWORD to .env first"
+```
+
+**2. After the deploy, reduce the application user's privileges** — it held
+`ALL PRIVILEGES`, which turns any SQL injection into schema destruction. Run
+once, on the server (`afcdc` is the default `DB_USER`; check `.env`):
+
+```bash
+docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "REVOKE ALL PRIVILEGES ON \`$MARIADB_DATABASE\`.* FROM \"$MARIADB_USER\"@\"%\"; GRANT SELECT, INSERT, UPDATE, DELETE ON \`$MARIADB_DATABASE\`.* TO \"$MARIADB_USER\"@\"%\"; FLUSH PRIVILEGES; SHOW GRANTS FOR \"$MARIADB_USER\"@\"%\";"'
+```
+
+Reversible with `GRANT ALL PRIVILEGES ON <db>.* TO ...`. Nothing in the
+application issues DDL at runtime; only the entrypoint does, as root.
+
+**3. Everyone signs in again once.** Sessions from before the release do not
+carry the new CSRF token; the first request after the deploy shows the login
+page. Passwords are unchanged — each account's hash is upgraded silently the
+next time it signs in.
+
+**4. Removed on purpose:** the Configuration and Configure JSON editors, the
+Deploy / git pull item, the Tools menu, the file manager, and the image
+helpers (`ngine_*.php`). Configuration changes go through git and a deploy.
 
 ---
 

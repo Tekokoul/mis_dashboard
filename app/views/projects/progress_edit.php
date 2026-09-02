@@ -4,7 +4,7 @@ $columns = 2;
 $col_width = 12/$columns;
 ?>
 <header class="page-header page-header-left-inline-breadcrumb">
-    <h2 class="font-weight-bold text-6"><a href="<?=$this->L("projects/progress_list")?>" >Manage Project Progress</a></h2>
+    <h2 class="font-weight-bold text-6"><a href="<?=$this->L("projects/progress_list")?>" >Progress</a> &rsaquo; Record delivery</h2>
     <div class="right-wrapper">
         <ol class="breadcrumbs">
             <li><span>Edit mode</span></li>
@@ -36,10 +36,18 @@ $col_width = 12/$columns;
                 </section>
             </div>
             <div class="col col-lg-<?=$col_width;?> col-md-12">
+            <?php if (($_GET['saved'] ?? '') === '1'): ?>
+            <div id="afcdc-saved" class="alert alert-success py-2 mb-3" role="status" tabindex="-1">
+                <i class="bx bx-check-circle" aria-hidden="true"></i> <strong>Delivery recorded.</strong> Every gauge on the overview now reflects it.
+                <a href="<?= $this->L('projects_graphs/overview'); ?>" class="alert-link">View overview</a>
+            </div>
+            <?php endif; ?>
             <p class="afcdc-note mb-3">To mark this activity as done, click <strong>Record delivery</strong> on its KPI,
-                set the result to <strong>Finished</strong> and press <strong>Update</strong>. Every gauge on the
-                dashboard recalculates immediately.</p>
-            <div id="project_details"></div>
+                set <strong>Delivery status</strong> to <strong>Delivered</strong> and press <strong>Save delivery</strong>.
+                Every gauge on the dashboard recalculates immediately.</p>
+            <div id="project_details" aria-busy="true">
+                <div class="card card-modern"><div class="card-body"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span role="status">Loading KPIs…</span></div></div>
+            </div>
             </div>
 
     </div>
@@ -80,6 +88,12 @@ $col_width = 12/$columns;
 </form>
 
 <script>
-    var project_id = <?=$data['data']['id'];?>;
-    var project_type = '<?=$data['data']['type'];?>';
+    var project_id = <?=(int)$data['data']['id'];?>;
+    var project_type = <?=json_encode((string)($data['data']['type'] ?? ''), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP);?>;
+    // The "Delivery recorded" strip: focus is what gets it announced on a
+    // fresh load; dropping ?saved=1 from the URL stops F5 re-announcing it.
+    (function () {
+        var s = document.getElementById('afcdc-saved');
+        if (s) { s.focus(); if (history.replaceState) { history.replaceState(null, '', location.pathname); } }
+    })();
 </script>

@@ -147,7 +147,7 @@ $isfault   = ($code >= 400);
     <div class="content">
         <h1<?=$isfault ? " class='fault'" : "";?>><?=$code.": ".$status;?></h1>
         <table cellpadding='0' cellspacing='0'>
-        <tr><th>The server replied:</th><td><?=$message;?></td></tr>
+        <tr><th>The server replied:</th><td><?= htmlspecialchars((string)$message, ENT_QUOTES, 'UTF-8'); ?></td></tr>
         </table>
     </div>
 </div>

@@ -3,7 +3,7 @@
 ?>
 <section class="card">
     <header class="card-header">
-        <h2 class="card-title">Update KPI</h2>
+        <h2 class="card-title">Record delivery</h2>
     </header>
     <form id="taskform" action="<?=$this->L("projects/task_progress_update");?>" method="post">
     <div class="card-body">
@@ -27,8 +27,10 @@
     <footer class="card-footer">
         <div class="row">
             <div class="col-md-12 text-end">
-                <button class="btn btn-primary modal-confirm">Update</button>
-                <button class="btn btn-default modal-dismiss">Cancel</button>
+                <!-- Explicit types: inside a form both used to default to submit,
+                     so Cancel only worked because a script intercepted it. -->
+                <button type="submit" class="btn btn-primary modal-confirm">Save delivery</button>
+                <button type="button" class="btn btn-default modal-dismiss">Cancel</button>
             </div>
         </div>
     </footer>

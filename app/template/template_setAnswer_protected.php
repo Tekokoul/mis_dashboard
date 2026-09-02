@@ -13,7 +13,7 @@ $icon = ($code>=400) ? "fa-exclamation-circle" :"fa-info-circle";
             <div class="col-lg-8">
                 <div class="main-error mb-3">
                     <h2 class="error-code text-dark text-center font-weight-semibold m-0"><?=$code;?> <i class="fas <?=$icon;?>"></i></h2>
-                    <p class="error-explanation text-center"><?=$message;?></p>
+                    <p class="error-explanation text-center"><?= htmlspecialchars((string)$message, ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
             </div>
             <div class="col-lg-4">

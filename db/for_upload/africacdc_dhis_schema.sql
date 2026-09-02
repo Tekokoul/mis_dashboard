@@ -66,7 +66,7 @@ CREATE TABLE `core_users_logs_tbl` (
 CREATE TABLE `core_users_tbl` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'hidden|noupdate|',
   `username` varchar(45) DEFAULT NULL COMMENT 'appearinlist|orderfield|searchfield|',
-  `password` varchar(45) DEFAULT NULL,
+  `password` varchar(255) DEFAULT NULL,
   `givenname` varchar(45) DEFAULT NULL,
   `sn` varchar(45) DEFAULT NULL,
   `active` tinyint(4) DEFAULT NULL COMMENT 'bool0=No|bool1=Yes|',
@@ -234,6 +234,9 @@ CREATE TABLE `pm_projects_tbl` (
   `abbr` varchar(20) DEFAULT NULL,
   `description` text DEFAULT NULL,
   `kpi` varchar(255) DEFAULT NULL,
+  `estimated_budget` double DEFAULT NULL,
+  `actual_budget` double DEFAULT NULL,
+  `notes` text DEFAULT NULL,
   `type` varchar(100) DEFAULT NULL,
   `applies_to` text DEFAULT NULL,
   `active` tinyint(1) DEFAULT NULL,

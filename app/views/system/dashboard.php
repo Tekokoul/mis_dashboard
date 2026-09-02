@@ -12,11 +12,11 @@
                         <div class="widget-user-info">
                             <div class="widget-user-info-header">
                                 <h2 class="font-weight-bold text-color-dark text-5">
-                                    Hello, <?= $_SESSION['user']['givenname'] . " " . $_SESSION['user']['sn']; ?></h2>
-                                <p class="mb-0"><?= $_SESSION['user']['group']['name']; ?></p>
+                                    Hello, <?= display($_SESSION['user']['givenname'] . " " . $_SESSION['user']['sn']); ?></h2>
+                                <p class="mb-0"><?= display($_SESSION['user']['group']['name']); ?></p>
 
                                 <div class="widget-user-acrostic bg-primary">
-                                    <span class="font-weight-bold"><?= $_SESSION['user']['givenname'][0] . $_SESSION['user']['sn'][0]; ?></span>
+                                    <span class="font-weight-bold"><?= display(mb_substr((string)$_SESSION['user']['givenname'], 0, 1) . mb_substr((string)$_SESSION['user']['sn'], 0, 1)); ?></span>
                                 </div>
                             </div>
                             <div class="widget-user-info-body">

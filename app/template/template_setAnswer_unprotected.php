@@ -2,12 +2,12 @@
 $icon = ($code>=400) ? "fa-exclamation-circle" :"fa-info-circle";
 ?>
 <!doctype html>
-<html class="fixed">
+<html lang="en" class="fixed">
 <head>
     <meta charset="UTF-8">
     <title><?=_PROJECT_NAME;?></title>
     <meta name="author" content="<?=_AUTHOR?>">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="<?= (defined("_WHITELABEL") && _WHITELABEL) ? _WHITELABEL_LOGO_FAVICON : "/media/logo/africacdc_favicon.png"; ?>">
     <link href="https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700,800|Shadows+Into+Light" rel="stylesheet" type="text/css">
     <link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.css" />
@@ -31,7 +31,7 @@ $icon = ($code>=400) ? "fa-exclamation-circle" :"fa-info-circle";
             <div class="col-md-8">
                 <div class="main-error mb-3">
                     <h2 class="error-code text-dark text-center font-weight-semibold m-0"><?=$code;?> <i class="fas <?=$icon;?>"></i></h2>
-                    <p class="error-explanation text-center"><?=$message;?></p>
+                    <p class="error-explanation text-center"><?= htmlspecialchars((string)$message, ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
             </div>
             <div class="col-md-4">

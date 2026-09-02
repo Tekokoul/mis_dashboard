@@ -35,6 +35,47 @@
     .userbox .role {
         max-width: 100% !important;
     }
+
+    /* Below 768px the theme turns .header-right into a full-width white bar
+       under the logo row, built for a search box and notification icons that
+       this app does not have - so the user box hugged the left edge with an
+       empty right half and a stray divider. Make the bar a right-aligned row
+       with the name, role and caret where a thumb expects them. */
+    .header .header-right {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        padding: 0 14px;
+        height: 56px;
+        border-bottom: 1px solid #E4E6E2;
+    }
+    .header .header-right .separator,
+    .header .header-right .search-toggle {
+        display: none;
+    }
+    /* html.modern .userbox pins it absolutely at left:15px - that rule, not
+       the float, is what kept it on the left; and ::after draws the 1px
+       divider that made the bar look cut in half. */
+    html.modern .header .header-right #userbox,
+    .header .header-right #userbox {
+        position: static;
+        left: auto;
+        float: none;
+        margin: 0;
+        border: 0;
+        padding: 0;
+    }
+    .header .header-right #userbox::after {
+        display: none;
+    }
+    .header .header-right #userbox > a {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+    .header .header-right #userbox .profile-info {
+        text-align: right;
+    }
 }
 
 @media (min-height: 800px) and (min-width: 992px) {
@@ -219,8 +260,8 @@ html .afcdc-status {
     border-left: 3px solid currentColor;
     font-size: 0.6875rem;
     font-weight: 700;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
+    letter-spacing: 0;              /* sentence case reads as a status, not a shout (GOV.UK tag) */
+    text-transform: none;
     background: var(--afcdc-canvas);
     white-space: nowrap;
 }
@@ -228,7 +269,11 @@ html .afcdc-status > i { font-size: 0.875em; }
 html .afcdc-status--good     { color: var(--afcdc-good); }
 html .afcdc-status--warning  { color: var(--afcdc-warning); }
 html .afcdc-status--critical { color: var(--afcdc-critical); }
-html .afcdc-status--idle     { color: var(--afcdc-idle); }
+/* --afcdc-idle (#8A918C) measures 3.0:1 on the chip ground and now sits on
+   most overview rows; ink-soft measures 5.9:1. The token itself stays faint
+   for the disabled pagination arrows. */
+html .afcdc-status--idle     { color: var(--afcdc-ink-soft); }
+html .afcdc-status--active   { color: var(--au-green-deep); }
 
 /* --- Progress ------------------------------------------------------------
    Progress is a magnitude, so it stays one hue. The track is tinted rather
@@ -299,6 +344,13 @@ html [tabindex]:focus-visible {
     outline-offset: 2px;
     border-radius: 2px;
 }
+/* Skip link: off-canvas until a keyboard user tabs to it (GOV.UK pattern). */
+html .afcdc-skip { position: absolute; left: -999px; top: 0; z-index: 10000; background: #FFF; color: var(--au-green-deep); padding: .5rem 1rem; font-weight: 700; text-decoration: none; }
+html .afcdc-skip:focus { left: 1rem; top: 1rem; outline: 2px solid var(--au-green); outline-offset: 2px; }
+/* The skip target takes programmatic focus; the rule above must not box the whole main region. */
+html .content-body:focus { outline: 0; }
+/* The mobile menu toggle is a real <button> now: strip UA chrome so the theme's round disc renders unchanged. */
+html .header .toggle-sidebar-left { border: 0; padding: 0; font: inherit; cursor: pointer; }
 
 /* --- Wide content -------------------------------------------------------
    Tables and chart canvases scroll inside themselves; the page body never
@@ -387,6 +439,9 @@ html .afcdc-filter > span {
     text-transform: uppercase;
     color: var(--afcdc-ink-soft);
 }
+/* An active filter is visible as such: green label, green bar on the select. */
+html .afcdc-filter.is-active > span { color: var(--au-green-deep); }
+html .afcdc-filter.is-active > .form-select { border-left: 3px solid var(--au-green-deep); }
 
 /* The row counter is an index, not a measure: keep it quiet and narrow. */
 html .afcdc-col-num {
@@ -438,7 +493,41 @@ html #datatable-activities_wrapper .dataTables_filter label {
 
 /* --- Record-delivery affordances --------------------------------------- */
 html .afcdc-record-link { font-size: .6875rem; vertical-align: middle; white-space: nowrap; }
-html .afcdc-status--idle i, html .afcdc-status--good i { font-size: 1em; }
+html .afcdc-status--idle i, html .afcdc-status--good i, html .afcdc-status--active i { font-size: 1em; }
+
+/* --- Drill-down rows: the whole row is the target -----------------------
+   Bootstrap 5.2's .stretched-link spreads the name anchor over its nearest
+   positioned ancestor; this class is that ancestor. Additive only (no
+   display/grid/padding-top) so it sits on the overview grid row and on the
+   drill-down pages' .row blocks alike. */
+html .afcdc-drill { position: relative; padding-right: 1.5rem; }   /* long names wrap before the chevron */
+html .afcdc-drill::after {                                          /* border chevron: nothing for a screen reader to read out */
+    content: ""; position: absolute; right: .5rem; top: 50%; width: .5rem; height: .5rem;
+    border-right: 2px solid var(--afcdc-ink-soft); border-bottom: 2px solid var(--afcdc-ink-soft);
+    transform: translateY(-50%) rotate(-45deg); pointer-events: none;
+}
+html .afcdc-drill:hover, html .afcdc-drill:focus-within { background: var(--afcdc-canvas); }
+html .afcdc-drill:hover::after, html .afcdc-drill:focus-within::after { border-color: var(--au-green-deep); }
+html .afcdc-drill .afcdc-record-link { position: relative; z-index: 2; }   /* stays clickable above the overlay */
+
+/* --- "Delivery recorded" confirmation strip ---------------------------- */
+html .alert-success { border-left: 3px solid var(--au-green); }
+
+/* --- Print / save as PDF -------------------------------------------------
+   html.fixed pins the header, sidebar and page-header (theme.css) so a
+   printout repeated the dark chrome on every page with the title 300px in
+   over the cards, and Chrome dropped the bar fills. Screen is untouched. */
+@media print {
+    html .header, html #sidebar-left, html .sidebar-toggle, html .afcdc-skip,
+    html .dataTables_length, html .dataTables_paginate, html .dataTables_filter,
+    html #afcdc-filters-reset, html .afcdc-record-link, html .btn, html .afcdc-print { display: none !important; }
+    html .body, html .inner-wrapper, html .content-body { display: block !important; overflow: visible !important; min-height: 0 !important; margin: 0 !important; padding: 0 !important; }
+    html .page-header { position: static !important; left: auto !important; top: auto !important; height: auto !important; margin: 0 0 1rem !important; box-shadow: none !important; border: 0 !important; }
+    html .content-body .row > .col-lg-6 { width: 50% !important; }   /* keep the lens cards side by side on a portrait page */
+    html .card { box-shadow: none !important; border: 1px solid #CCC; }
+    html .afcdc-deliverable, html .gauge-chart, html tr { break-inside: avoid; }
+    html .progress, html .progress-bar, html .afcdc-status, html .afcdc-lens-tag { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+}
 
 /* ==========================================================================
    LAYOUT AND LEGIBILITY FIXES

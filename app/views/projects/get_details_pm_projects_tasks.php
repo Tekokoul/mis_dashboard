@@ -11,7 +11,7 @@
                             <table class="table table-ecommerce-simple table-borderless table-striped mb-0" id="datatable-list" style="min-width: 640px;">
                                 <thead>
                                 <tr>
-                                    <th width="4%">A/A</th>
+                                    <th width="4%">#</th>
                                     <?php
                                     foreach ($data['fields'] as $field => $properties){
                                         if(isset($properties['appear_in_list'])){
@@ -22,14 +22,16 @@
                                         }
                                     }
                                     ?>
-                                    <th width="5%"><a class="open-task-modal" data-project-id="<?=$data['project_id'];?>" data-id="new" href="#"><i class="bx bx-plus-medical text-3 me-2"></a></th>
+                                    <th width="5%"><a class="open-task-modal" data-project-id="<?=$data['project_id'];?>" data-id="new" href="#" aria-label="Add a KPI"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
                                 </tr>
                                 </thead>
-                                <?php
-                                if(count($data['data'])>0){
-                                ?>
                                 <tbody>
                                 <?php
+                                // The table and its wrapper are always closed, whatever the row
+                                // count: an activity with no KPI used to leave them open, and the
+                                // parser swallowed both modals below into the unclosed table.
+                                // The header stays so the "+" is still there to add the first one.
+                                if(count($data['data'])>0){
                                 $aa = (($data['page']-1)*$data['items'])+1;
                                 foreach ($data['data'] as $row) {
                                     ?>
@@ -48,21 +50,25 @@
                                             }
                                         }
                                         ?>
-                                        <th width="5%">
-                                            <a class="open-task-modal" data-project-id="<?=$data['project_id'];?>" data-id="<?=$row['id']?>" href="#"><i class="bx bx-pencil text-3 me-2"></i></a>
-                                            <a class="delete-task-modal" data-id="<?=$row['id'];?>" href="#deleteTaskModal"><i class="bx bx-trash text-3 me-2"></i></a>
-                                        </th>
+                                        <td width="5%">
+                                            <a class="open-task-modal" data-project-id="<?=$data['project_id'];?>" data-id="<?=$row['id']?>" href="#" aria-label="Edit"><i class="bx bx-pencil text-3 me-2"></i></a>
+                                            <a class="delete-task-modal" data-id="<?=$row['id'];?>" href="#deleteTaskModal" aria-label="Delete"><i class="bx bx-trash text-3 me-2"></i></a>
+                                        </td>
                                     </tr>
                                     <?php
                                     $aa++;
+                                }
+                                } else {
+                                    $cols = 2;
+                                    foreach ($data['fields'] as $properties) { if (isset($properties['appear_in_list'])) { $cols++; } }
+                                    ?>
+                                    <tr><td colspan="<?=$cols;?>" class="text-muted py-4">No KPI yet for this activity. Use the + above to add the first one.</td></tr>
+                                    <?php
                                 }
                                 ?>
                                 </tbody>
                             </table>
                         </div>
-                        <?php
-                    }
-                    ?>
                 </div>
             </div>
         </div>

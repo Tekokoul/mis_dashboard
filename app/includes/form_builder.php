@@ -176,8 +176,11 @@ function createDropDown($name, $field, $data) {
         } else {
             $linked_fields[]=$link_to_field;
         }
+        // Option values and labels come from database rows, so they are
+        // escaped like any other cell: a name containing </select><img onerror>
+        // used to break out of the control on every add/edit form.
         foreach($linkedresult as $linkedrow) {
-            $html .= "<option value='" . $linkedrow[$link_from_field] . "'";
+            $html .= "<option value='" . display($linkedrow[$link_from_field]) . "'";
             if (is_array($data)) {
                 $html .= in_array($linkedrow[$link_from_field], $data) ? " selected>" : ">";
             } else {
@@ -188,10 +191,10 @@ function createDropDown($name, $field, $data) {
                 foreach($linked_fields as $tempfield){
                     $values_array[] = $linkedrow[$tempfield];
                 }
-                $html .= vsprintf($display_to_field, $values_array);
+                $html .= display(vsprintf($display_to_field, $values_array));
             } else {
                 foreach ($linked_fields as $tempfield) {
-                    $html .= $linkedrow[$tempfield] . " ";
+                    $html .= display($linkedrow[$tempfield]) . " ";
                 }
             }
             $html .= "</option>";
@@ -227,11 +230,11 @@ function createDropDown($name, $field, $data) {
         }
 
         foreach($linkedresult as $linkedrow) {
-            $html .= "<option value='" . $linkedrow[$link_from_field] . "' ";
+            $html .= "<option value='" . display($linkedrow[$link_from_field]) . "' ";
             $html .= ($linkedrow[$link_from_field] == $data) ? "selected" : "";
             $html .= ">" ;
             foreach($linked_fields as $tempfield){
-                $html .= $linkedrow[$tempfield]." ";
+                $html .= display($linkedrow[$tempfield])." ";
             }
             $html .= "</option>";
         }
@@ -262,24 +265,24 @@ function createDropDown($name, $field, $data) {
         }
         $json_values = json_from_db($field["values"]);
         foreach ($json_values as $json_value) {
-            $html .= "<option value='" . $json_value[$option_field] . "' ";
+            $html .= "<option value='" . display($json_value[$option_field]) . "' ";
             if (is_array($data)) {
                 $html .= in_array($json_value[$option_field], $data) ? "selected" : "";
             } else {
                 $html .= ($json_value[$option_field] == $data) ? "selected" : "";
             }
-            $html .= ">".$json_value[$option_field]."</option>";
+            $html .= ">".display($json_value[$option_field])."</option>";
         }
         $html .= '</select>';
     }
     if($field['values_from']=="values_list"){
         $html .= '<select '.$selectElement.' class="form-control form-control-modern" name="'.$name.'" id="'.md5($name).'" '.$disabled.' '.$required.'>';
         foreach ($field[$field['values_from']] as $key => $value){
-            $html .= '<option value="'.$key.'"';
+            $html .= '<option value="'.display($key).'"';
             if($key==$data){
                 $html .= ' selected ';
             }
-            $html .= '>'.$value.'</option>';
+            $html .= '>'.display($value).'</option>';
         }
         $html .= '</select>';
     }

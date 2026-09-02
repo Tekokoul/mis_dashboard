@@ -9,7 +9,7 @@ $esc = static function ($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'U
 <header class="page-header page-header-left-inline-breadcrumb">
     <h2 class="font-weight-bold text-6">
         <?= $esc($this->S['graphs']['project_title'] ?? 'AWP Activity'); ?>
-        <span class="afcdc-count"><?= count($activities); ?> activities</span>
+        <span class="afcdc-count" id="afcdc-count" aria-live="polite" aria-atomic="true"><?= count($activities); ?> activities</span>
     </h2>
     <div class="right-wrapper">
         <ol class="breadcrumbs">

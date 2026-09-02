@@ -104,7 +104,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
             </button>
         </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
-            <a href="<?=isset($_SERVER['HTTP_REFERER']) ? $_SERVER['HTTP_REFERER'] : '';?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
+            <a href="<?=$this->GoBack();?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
         </div>
     </div>
 </form>

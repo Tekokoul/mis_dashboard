@@ -1,4 +1,9 @@
 -- ===========================================================================
+--  FIRST INSTALL ONLY. NEVER RUN THIS AGAINST A DATABASE THAT IS IN USE.
+--  It deletes every recorded delivery (pm_progress_tasks_tbl), every tickable
+--  task and the reporting entity before re-creating them. In production the
+--  container loads it by itself, once, right after the schema.
+-- ===========================================================================
 --  Africa CDC DHIS Performance Monitor
 --  Makes the 55 AWP activities tickable, under the "DHIS HQ reports" model.
 --

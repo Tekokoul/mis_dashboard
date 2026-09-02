@@ -226,14 +226,28 @@ wait_healthy() {
 # ---------------------------------------------------------------------------
 # first administrator
 # ---------------------------------------------------------------------------
+# One query, no headers. The MariaDB image ships `mariadb`; older images only
+# `mysql`. Probing for the binary matters: when this called `mysql` outright
+# the count silently failed on every deploy, read as "0 accounts", and the
+# script prompted for a "first administrator" - re-passwording a live account
+# if anyone typed an existing email.
+db_q() {
+    dc exec -T db sh -c \
+        'C=$(command -v mariadb || command -v mysql) || exit 127
+         exec "$C" -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -N -B -e "$0" "$MARIADB_DATABASE"' \
+        "$1" 2>/dev/null | tr -d '\r'
+}
+
 maybe_create_admin() {
     local count
-    count=$(dc exec -T db sh -c \
-        'mysql -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -N -B \
-             -e "SELECT COUNT(*) FROM core_users_tbl" "$MARIADB_DATABASE" 2>/dev/null' \
-        | tr -d '\r' || echo 0)
+    if ! count=$(db_q "SELECT COUNT(*) FROM core_users_tbl") || [ -z "$count" ]; then
+        head_ "Accounts"
+        warn "could not count the accounts, so no administrator prompt. Create one with:"
+        say  "    ./setup-production.sh admin you@africacdc.org"
+        return 0
+    fi
 
-    if [ "${count:-0}" -gt 0 ]; then
+    if [ "$count" -gt 0 ]; then
         head_ "Accounts"
         ok "${count} account(s) already exist — not creating another"
         return 0
@@ -317,6 +331,23 @@ cmd_backup() {
     gzip -f "$out"
     [ "${1:-}" = "quiet" ] || head_ "Backup"
     ok "wrote ${out}.gz ($(du -h "${out}.gz" | cut -f1))"
+
+    # The app also writes files inside its own container - per-user list
+    # preferences, anything saved through the admin JSON editor, settings.php -
+    # and none of that is in a volume, so a rebuild discards it. Keep a copy
+    # next to the database dump so a deploy can be undone completely.
+    if svc_running app; then
+        local appdata="backups/appdata_$(date -u +%Y%m%d_%H%M%S)"
+        if dc cp app:/var/www/html/db "$appdata" >/dev/null 2>&1 \
+           && dc cp app:/var/www/html/app/configuration/settings.php "$appdata/settings.php" >/dev/null 2>&1 \
+           && COPYFILE_DISABLE=1 tar -czf "$appdata.tar.gz" -C backups "$(basename "$appdata")"; then
+            rm -rf "$appdata"
+            ok "wrote ${appdata}.tar.gz (files the app wrote inside its container)"
+        else
+            rm -rf "$appdata"
+            warn "could not copy the app's own files out of the container"
+        fi
+    fi
 }
 
 cmd_restore() {
@@ -358,7 +389,8 @@ cmd_status() {
     say ""
     head_ "Content"
     dc exec -T db sh -c \
-      'mysql -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -t \
+      'C=$(command -v mariadb || command -v mysql) || exit 127
+       exec "$C" -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" -t \
         -e "SELECT (SELECT COUNT(*) FROM pm_pillars_tbl) lenses,
                    (SELECT COUNT(*) FROM pm_objectives_tbl) deliverables,
                    (SELECT COUNT(*) FROM pm_projects_tbl) activities,
@@ -373,7 +405,8 @@ cmd_stop()    { find_docker; dc down; ok "stopped — data kept in the named vol
 cmd_destroy() {
     find_docker
     say ""
-    warn "This deletes the containers AND the database volume. All recorded progress is lost."
+    warn "This deletes the containers AND all three volumes: the database, uploaded media"
+    warn "and the render cache. All recorded progress and every upload is lost."
     read -r -p "  Type DESTROY to confirm: " confirm
     [ "$confirm" = "DESTROY" ] || die "aborted — nothing changed"
     dc down -v
