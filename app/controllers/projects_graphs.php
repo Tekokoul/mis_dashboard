@@ -105,46 +105,9 @@ class projects_graphsController extends coreController{
         $data['progress'] = ($data['totals'] > 0) 
             ? round(($data['progress'] / $data['totals']) * 100, 2) 
             : 0;
-
-        // Per-workstream (programme) progress for the breakdown chart. Same
-        // arithmetic as the rollup above - completed records over the number of
-        // entities each task applies to - just grouped by programme in SQL
-        // instead of a fourth nesting level. NULLIF guards the legacy rows
-        // whose applies_to is an empty string rather than NULL.
-        $query = "SELECT g.id, g.abbr, g.name,
-                     COALESCE((SELECT SUM(JSON_LENGTH(NULLIF(t.applies_to, '')))
-                                 FROM pm_projects_tasks_tbl t
-                                 JOIN pm_projects_tbl p ON p.id = t.project_id
-                                WHERE p.programme_id = g.id), 0) AS totals,
-                     COALESCE((SELECT COUNT(*)
-                                 FROM pm_progress_tasks_tbl pr
-                                 JOIN pm_projects_tasks_tbl t2 ON t2.id = pr.task_id
-                                                              AND t2.project_id = pr.project_id
-                                 JOIN pm_projects_tbl p2 ON p2.id = pr.project_id
-                                WHERE p2.programme_id = g.id
-                                  AND pr.result = 1
-                                  AND JSON_CONTAINS(t2.applies_to, CONCAT('\"', pr.member_id, '\"'))), 0) AS completed
-                  FROM pm_programmes_tbl g
-                  JOIN pm_objectives_tbl o ON o.id = g.objective_id
-                  JOIN pm_pillars_tbl    l ON l.id = o.pillar_id
-                 ORDER BY l.position, o.position, o.id, g.id";
-        $data['programmes'] = [];
-        foreach ($this->DB->MQ($query, "all") ?: [] as $g) {
-            // min() clamps orphaned progress rows (a deleted task, a shrunk
-            // applies_to) so a bar can never overshoot the 0-100 axis.
-            $g['progress'] = ($g['totals'] > 0)
-                ? min(100, round(($g['completed'] / $g['totals']) * 100, 2))
-                : 0;
-            $data['programmes'][] = $g;
-        }
-
+    
         $this->AddJS("/vendor/gauge/gauge.js");
         $this->AddJS("/js/graphs.js");
-        // Breakdown bar charts (Morris on Raphael, the pair the members page
-        // already vendored). page_projects_graphs_overview.js draws them.
-        $this->AddJS("/vendor/raphael/raphael.js");
-        $this->AddCSS("/vendor/morris/morris.css");
-        $this->AddJS("/vendor/morris/morris.js");
         $this->render($data);
     }
      
@@ -392,7 +355,6 @@ class projects_graphsController extends coreController{
     
         // Fetch projects linked to the programme
         $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . $validated['id'] . " AND objective_id = " . $programme['objective_id'];
-        debug($query);
         $projects = $this->DB->MQ($query, "all");
         $data['projects'] = [];
     

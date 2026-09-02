@@ -21,10 +21,13 @@ foreach ($members as $member){
     <div class="col-lg-5 col-md-12">
     <div>
             <h2><?=$data['project']['name']?></h2>
+            <?php if (in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true)): ?>
+                <a href="<?=$this->L("projects/progress_edit/".(int)$data['project']['id']);?>" class="btn btn-primary btn-sm mb-3"><i class="bx bx-edit"></i> Record delivery</a>
+            <?php endif; ?>
         </div>   
     <div class="gauge-chart">
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$data['project']['progress']?>"></canvas>
-            <label id="gaugeBasicTextfield"><?=number_format((float)$data['project']['progress'], 2, ',', '');?>%</label>
+            <label class="gaugeBasicTextfield"><?=number_format((float)$data['project']['progress'], 2, ',', '');?>%</label>
         </div>
         <div>
             <p><strong>Description:</strong><br><?=$data['project']['description']?><hr>
@@ -58,12 +61,17 @@ foreach ($members as $member){
             foreach ($members as $member){
                 ?>
                 <div class="row">
-                    <div class="col col-6"><?=$member['member_state']['name']." (".$member['completed_tasks']."/".$member['assigned_tasks']." tasks)";?></div>
+                    <div class="col col-6">
+                        <?= htmlspecialchars((string)$member['member_state']['name'], ENT_QUOTES, 'UTF-8'); ?>
+                        <span class="afcdc-deliverable__meta"><?= (int)$member['completed_tasks']; ?> of <?= (int)$member['assigned_tasks']; ?> delivered</span>
+                    </div>
                     <div class="col col-6"><div class="progress progress-lg progress-squared m-2">
                             <div class="progress-bar" role="progressbar" aria-valuenow="<?=$member['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=$member['progress'];?>%;">
-                                <?=number_format((float)$member['progress'],2);?>%
+                                <?php if ((float)$member['progress'] >= 12): ?><?= number_format((float)$member['progress'], 2, ',', ''); ?>%<?php endif; ?>
                             </div>
-                        </div></div>
+                        </div>
+                        <?php if ((float)$member['progress'] < 12): ?><span class="afcdc-progress-zero"><?= number_format((float)$member['progress'], 2, ',', ''); ?>%</span><?php endif; ?>
+                    </div>
                 </div>
                 <?php
             }

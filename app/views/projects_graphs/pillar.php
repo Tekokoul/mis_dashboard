@@ -16,7 +16,7 @@
         </div>   
         <div class="gauge-chart">
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$data['pillar']['progress']?>"></canvas>
-            <label id="gaugeBasicTextfield"><?=number_format((float)$data['pillar']['progress'], 2, ',', '');?>%</label>
+            <label class="gaugeBasicTextfield"><?=number_format((float)$data['pillar']['progress'], 2, ',', '');?>%</label>
         </div>
         <div>
             <p><strong>Description:</strong><br><?=$data['pillar']['description']?></p>
@@ -36,9 +36,10 @@
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
                             <div class="progress-bar" role="progressbar" aria-valuenow="<?=$objective['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=$objective['progress'];?>%;">
-                                <?=($objective['progress']);?>%
+                                <?php if ((float)$objective['progress'] >= 12): ?><?= number_format((float)$objective['progress'], 2, ',', ''); ?>%<?php endif; ?>
                             </div>
                         </div>
+                        <?php if ((float)$objective['progress'] < 12): ?><span class="afcdc-progress-zero"><?= number_format((float)$objective['progress'], 2, ',', ''); ?>%</span><?php endif; ?>
                     </div>
                     <hr>
                 </div>

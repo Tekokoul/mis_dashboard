@@ -217,7 +217,10 @@ class coreController extends protectedController{
 
     public function password_update(){
         $this->checkMethod("POST");
-        debug($_REQUEST);
+        // Was `debug($_REQUEST)`, which echoed the submitted password in
+        // plaintext into the response body. The endpoint is not implemented;
+        // answer honestly instead of leaking the request.
+        $this->setAnswer(501, "Password update is not implemented.");
     }
 
 	protected function _sanitizeNumericals() {

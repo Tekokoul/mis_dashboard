@@ -14,16 +14,9 @@
                                 <thead>
                                 <tr>
                                     <th width="4%">A/A</th>
-                                    <?php
-                                    foreach ($data['fields'] as $field => $properties){
-                                        if(isset($properties['appear_in_list'])){
-                                            $title = (isset($properties['title'])) ? $properties['title'] : $field;
-                                            ?>
-                                            <th width="<?=$properties['list_width'];?>%"><?=ucfirst($title)?></th>
-                                            <?php
-                                        }
-                                    }
-                                    ?>
+                                    <th>KPI</th>
+                                    <th width="18%">Status</th>
+                                    <th width="22%"></th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -31,21 +24,32 @@
                                 $aa = (($data['page']-1)*$data['items'])+1;
                                 foreach ($data['data'] as $row) {
                                     ?>
+                                    <?php
+                                    // A KPI is either delivered or not; say so in words and colour,
+                                    // and make the thing to click look like a button. The word alone
+                                    // used to be the only control, and nobody found it.
+                                    $done  = ((int)($row['result'] ?? 0) === 1);
+                                    $attrs = 'data-project-id="'.(int)$row['project_id'].'" data-member-id="'.(int)$row['member_id'].'" data-id="'.(int)$row['task_id'].'"';
+                                    ?>
                                     <tr>
                                         <td><?=$aa;?></td>
-                                        <?php
-                                        $first = true;
-                                        foreach ($data['fields'] as $field => $properties) {
-                                            if (isset($properties['appear_in_list'])) {
-
-                                                $active = (isset($row['active'])) ? $row['active'] : true;
-                                                print ($first)
-                                                    ? '<td><a class="open-task-modal" data-project-id="'.$row['project_id'].'" data-member-id="'.$row['member_id'].'" data-id="'.$row['task_id'].'" href="#"><strong>' . display_list_element($properties, $row[$field], $active) . '</strong></a></td>'
-                                                    : '<td>' . display_list_element($properties, $row[$field], $active) . '</td>';
-                                                $first = false;
-                                            }
-                                        }
-                                        ?>
+                                        <td><strong><?= htmlspecialchars((string)($row['name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></strong>
+                                            <?php if (!empty($row['description'])): ?>
+                                                <div class="afcdc-progress-zero"><?= htmlspecialchars((string)$row['description'], ENT_QUOTES, 'UTF-8'); ?></div>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td>
+                                            <?php if ($done): ?>
+                                                <span class="afcdc-status afcdc-status--good"><i class="bx bx-check-circle"></i> Delivered</span>
+                                            <?php else: ?>
+                                                <span class="afcdc-status afcdc-status--idle"><i class="bx bx-time-five"></i> Not delivered</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td class="text-end">
+                                            <a href="#" class="open-task-modal btn btn-sm <?= $done ? 'btn-light border' : 'btn-primary'; ?>" <?= $attrs; ?>>
+                                                <i class="bx bx-edit"></i> <?= $done ? 'Change' : 'Record delivery'; ?>
+                                            </a>
+                                        </td>
                                     </tr>
                                     <?php
                                     $aa++;

@@ -18,7 +18,7 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
         <div class="gauge-chart">
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$data['objective']['progress']?>"></canvas>
             <!-- <strong><?=$data['objective']['name']?></strong> -->
-            <label id="gaugeBasicTextfield"><?=number_format((float)$data['objective']['progress'], 2, ',', '');?>%</label>
+            <label class="gaugeBasicTextfield"><?=number_format((float)$data['objective']['progress'], 2, ',', '');?>%</label>
         </div>
         <div>
             <p><strong>Description:</strong><br><?=$data['objective']['description']?><hr>
@@ -37,9 +37,10 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
                     <div class="col col-7"><a href="<?=$this->L("projects_graphs/programme/".$programme['id']);?>"><?=$programme['name'];?></a></div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
                             <div class="progress-bar" role="progressbar" aria-valuenow="<?=$programme['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=$programme['progress'];?>%;">
-                                <?=($programme['progress']);?>%
+                                <?php if ((float)$programme['progress'] >= 12): ?><?= number_format((float)$programme['progress'], 2, ',', ''); ?>%<?php endif; ?>
                             </div>
-                        </div></div>
+                        </div>
+                        <?php if ((float)$programme['progress'] < 12): ?><span class="afcdc-progress-zero"><?= number_format((float)$programme['progress'], 2, ',', ''); ?>%</span><?php endif; ?></div>
                         <hr>
                 </div>
                 <?php

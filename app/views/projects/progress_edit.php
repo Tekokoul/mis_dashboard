@@ -36,6 +36,9 @@ $col_width = 12/$columns;
                 </section>
             </div>
             <div class="col col-lg-<?=$col_width;?> col-md-12">
+            <p class="afcdc-note mb-3">To mark this activity as done, click <strong>Record delivery</strong> on its KPI,
+                set the result to <strong>Finished</strong> and press <strong>Update</strong>. Every gauge on the
+                dashboard recalculates immediately.</p>
             <div id="project_details"></div>
             </div>
 

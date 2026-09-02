@@ -8,7 +8,13 @@
 
 class ngineController extends protectedController {
 
-    protected $unprotected = ["info", "deploy", "p"];
+    // NOTHING here may be unprotected. Previously "info", "deploy" and "p" were
+    // all reachable without logging in:
+    //   deploy  ran `git pull` on the server for any anonymous visitor
+    //   info    dumped the registry, including the settings array
+    //   p       returned md5(md5($_GET['p'])) - the app's own password hash,
+    //           i.e. a public oracle for forging credential hashes
+    protected $unprotected = [];
 
     public function deploy() {
         exec('git --git-dir="'._ROOT_PATH.'".git --work-tree="'._ROOT_PATH.'" pull', $output, $code);
@@ -47,7 +53,7 @@ class ngineController extends protectedController {
 //        print $mailService->sendMail($email);
 //    }
     public function r(){
-        debug($this->R);
+        $this->setAnswer(200, "Registry inspection is disabled.");
     }
 
     public function email(){
@@ -75,7 +81,7 @@ class ngineController extends protectedController {
         //parameters from now on are per case------------------
         $email['parameters']['email_parameter'] = "Here... get a unique ID: ".uniqid();
 
-        debug($mailService->sendMail($email));
+        $this->setAnswer(200, $mailService->sendMail($email) ? "sent" : "failed");
     }
 
     public function notification(){
@@ -83,10 +89,8 @@ class ngineController extends protectedController {
 
     }
 
-    public function p(){
-        $this->checkRequired("p", $this->query);
-        debug(md5(md5($this->query['p'])));
-    }
+    // Removed: p() printed md5(md5($_GET['p'])), the exact hash the login query
+    // compares against. Use tools/create-admin.php to set a password instead.
 //
 //    public function testTX(){
 //        $response = $this->api_call(

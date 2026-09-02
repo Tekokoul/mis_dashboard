@@ -109,57 +109,6 @@ $overall = (float)($data['progress'] ?? 0);
     <?php endforeach; ?>
 </div>
 
-<?php
-// Chart data. Objectives come from the rollup already computed above;
-// programmes from $data['programmes']. Labels are kept short for the axis -
-// the full name rides along for the hover.
-$chart_objectives = [];
-foreach ($lenses as $lens) {
-    foreach (($lens['objectives'] ?? []) as $o) {
-        $name = (string)$o['name'];
-        $chart_objectives[] = [
-            'y'    => trim((string)($o['abbr'] ?? '')) ?: '—',
-            'a'    => (float)$o['progress'],
-            'full' => $name,
-        ];
-    }
-}
-$chart_programmes = [];
-foreach (($data['programmes'] ?? []) as $g) {
-    $name = (string)$g['name'];
-    $chart_programmes[] = [
-        'y'    => mb_strlen($name) > 26 ? mb_substr($name, 0, 25) . '…' : $name,
-        'a'    => (float)$g['progress'],
-        'full' => $name,
-    ];
-}
-?>
-<div class="row">
-    <div class="col-lg-6 mb-4">
-        <section class="card h-100">
-            <header class="card-header">
-                <h2 class="card-title"><i class="fas fa-chart-bar"></i>&nbsp;&nbsp;Progress by key deliverable</h2>
-            </header>
-            <div class="card-body">
-                <div id="chart-objectives" class="afcdc-chart afcdc-chart--tall"
-                     role="img" aria-label="Horizontal bar chart: percent complete for each of the <?= count($chart_objectives); ?> key deliverables"></div>
-            </div>
-        </section>
-    </div>
-    <div class="col-lg-6 mb-4">
-        <section class="card h-100">
-            <header class="card-header">
-                <h2 class="card-title"><i class="fas fa-chart-bar"></i>&nbsp;&nbsp;Progress by workstream</h2>
-            </header>
-            <div class="card-body">
-                <div id="chart-programmes" class="afcdc-chart"
-                     role="img" aria-label="Horizontal bar chart: percent complete for each of the <?= count($chart_programmes); ?> workstreams"></div>
-                <p class="afcdc-progress-zero mb-0 mt-2">Only deliverables with Annual Workplan activities carry a workstream.</p>
-            </div>
-        </section>
-    </div>
-</div>
-
 <div class="row">
     <div class="col-md-12">
         <p class="afcdc-note">
@@ -173,10 +122,4 @@ foreach (($data['programmes'] ?? []) as $g) {
 
 <script>
     var graph_color = '<?= _PROJECT_COLOR; ?>';
-    // JSON_HEX_TAG so a name containing "</script" cannot break out of the block.
-    // The ?: '[]' fallback matters: json_encode() returns false on invalid
-    // UTF-8, and printing false here would leave "var x = ;" - a SyntaxError
-    // that would also kill graph_color above and with it the lens gauges.
-    var afcdc_chart_objectives = <?= json_encode($chart_objectives, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) ?: '[]'; ?>;
-    var afcdc_chart_programmes = <?= json_encode($chart_programmes, JSON_HEX_TAG | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) ?: '[]'; ?>;
 </script>

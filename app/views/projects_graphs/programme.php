@@ -18,7 +18,7 @@ $val_all = ($data['programme']['totals']>0) ? round(($data['programme']['progres
         <div class="gauge-chart">
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=$data['programme']['progress']?>"></canvas>
             <!-- <strong><?=$data['programme']['name']?></strong> -->
-            <label id="gaugeBasicTextfield"><?=number_format((float)$data['programme']['progress'], 2, ',', '');?>%</label>
+            <label class="gaugeBasicTextfield"><?=number_format((float)$data['programme']['progress'], 2, ',', '');?>%</label>
         </div>
         <div>
             <p><strong>Description:</strong><br><?=$data['programme']['description']?></p>
@@ -33,12 +33,17 @@ $val_all = ($data['programme']['totals']>0) ? round(($data['programme']['progres
             $prj_val = ($project['totals']>0) ? round(($project['progress']/$project['totals']*100), 2) : 0;
             ?>
                 <div class="row">
-                    <div class="col col-7"><a href="<?=$this->L("projects_graphs/project/".$project['id']);?>"><?=$project['name'];?></a></div>
+                    <div class="col col-7"><a href="<?=$this->L("projects_graphs/project/".$project['id']);?>"><?=$project['name'];?></a>
+                        <?php if (in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true)): ?>
+                            <a href="<?=$this->L("projects/progress_edit/".(int)$project['id']);?>" class="btn btn-xs btn-light border ms-2 afcdc-record-link"><i class="bx bx-edit"></i> Record delivery</a>
+                        <?php endif; ?>
+                    </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
                             <div class="progress-bar" role="progressbar" aria-valuenow="<?=$project['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=$project['progress'];?>%;">
-                                <?=($project['progress']);?>%
+                                <?php if ((float)$project['progress'] >= 12): ?><?= number_format((float)$project['progress'], 2, ',', ''); ?>%<?php endif; ?>
                             </div>
                         </div>
+                        <?php if ((float)$project['progress'] < 12): ?><span class="afcdc-progress-zero"><?= number_format((float)$project['progress'], 2, ',', ''); ?>%</span><?php endif; ?>
                     </div>
                     <hr>
                 </div>

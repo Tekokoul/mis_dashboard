@@ -436,9 +436,172 @@ html #datatable-activities_wrapper .dataTables_filter label {
     color: var(--afcdc-ink-soft);
 }
 
-/* --- Breakdown charts on the overview ------------------------------------
-   Morris needs an explicit container height for horizontal bars. Tall = the
-   ten deliverables; default = the workstreams. */
-html .afcdc-chart { height: 300px; }
-html .afcdc-chart--tall { height: 430px; }
-html .afcdc-chart svg { max-width: 100%; }
+/* --- Record-delivery affordances --------------------------------------- */
+html .afcdc-record-link { font-size: .6875rem; vertical-align: middle; white-space: nowrap; }
+html .afcdc-status--idle i, html .afcdc-status--good i { font-size: 1em; }
+
+/* ==========================================================================
+   LAYOUT AND LEGIBILITY FIXES
+   Measured against the running app, not eyeballed. Each block records the
+   number that justified it.
+   ========================================================================== */
+
+/* --- 1. Body text was below AA everywhere ------------------------------
+   theme.css:18 sets `body { color: #777 }`, which measures 4.48:1 on white,
+   4.12:1 on the page ground and 3.63:1 on the alternate card ground - under
+   the 4.5:1 minimum on all three. Everything inherits it: form labels,
+   "Description:", "Included objectives", paragraph copy. AU Grey is the
+   brand's own body colour and clears AA on every ground the app uses
+   (7.01 / 6.44 / 5.68). One rule, whole app. */
+html.modern body {
+    color: var(--au-grey);
+}
+
+/* The page-header breadcrumb ("EDIT MODE  ENTRY: 1", "TOTAL OF 55 ENTRIES")
+   is set separately at theme.css:2192 and :2232 to #757677 - 4.18:1. */
+html .page-header.page-header-left-breadcrumb .breadcrumbs a,
+html .page-header.page-header-left-breadcrumb .breadcrumbs span,
+html .page-header.page-header-left-inline-breadcrumb .breadcrumbs a,
+html .page-header.page-header-left-inline-breadcrumb .breadcrumbs span {
+    color: var(--afcdc-ink-soft);
+}
+
+/* Bootstrap's default <code> pink #d63384 measures 4.14:1 on the page ground.
+   AU Red is on-brand and measures 6.94:1. */
+html .content-body code {
+    color: var(--au-red);
+}
+
+/* --- 2. Tables were clipped inside narrow columns ----------------------
+   Thirteen views hard-code style="min-width: 640px" on #datatable-list. That
+   is fine on a full-width page, but progress_edit renders the same partial in
+   a 468px column: the table stayed 640px wide, so the Status badge and the
+   "Record delivery" button painted 127px outside the card and a user could
+   not find the control at all.
+
+   min() keeps the 640px floor where there is room and lets the table fit
+   where there is not, so the same partial works in both places. Fixing it
+   here rather than in thirteen views also means no view can regress it. */
+html #datatable-list,
+html .table-responsive > table[style*="min-width"] {
+    min-width: min(640px, 100%) !important;
+}
+
+/* The list pages overflowed their wrapper by 12px (scrollWidth 1022 vs
+   clientWidth 1010). The cause is not the table: the header and footer are
+   Bootstrap .row elements, which carry margin-inline:-12px and expect to sit
+   inside something that supplies 12px of padding. This wrapper supplies none,
+   so each row is 1034px in a 1010px box. Giving the wrapper the padding the
+   rows assume removes the overflow AND aligns the header/footer controls with
+   the table's first column, which they never were. */
+html .datatables-header-footer-wrapper {
+    padding-inline: 12px;
+}
+
+/* --- 3. KPI table: let the action column keep its shape ----------------- */
+html #datatable-list td,
+html #datatable-list th {
+    vertical-align: middle;
+}
+html #datatable-list .afcdc-status {
+    white-space: nowrap;
+}
+
+/* --- 4. Drill-down pages: the same visual language as the overview -------
+   pillar / objective / programme / project were never touched by the
+   redesign, so they read as a different product: bare headings on the page
+   ground, no card, and section labels at the old muted grey. These rules
+   bring them up without rewriting the views. */
+html .content-body h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    color: var(--afcdc-ink);
+}
+/* "Description:", "Outcomes:", "KPIs:" and friends are <strong> run-in
+   labels; make them read as labels rather than emphasis. */
+html .content-body p > strong:first-child {
+    display: inline-block;
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--afcdc-ink-soft);
+    margin-bottom: 0.15rem;
+}
+/* Those views put <hr> inside <p> and between rows; quieten it. */
+html .content-body hr {
+    border-top-color: var(--afcdc-rule);
+    opacity: 1;
+    margin: 0.85rem 0;
+}
+/* The assignee fraction, so numbers line up down the column. */
+html .afcdc-deliverable__meta {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--afcdc-ink-soft);
+}
+
+/* --- 5. Progress tracks -------------------------------------------------
+   theme.css:15096 draws the track for a DARK theme: #474453 with an inset
+   0 1px 3px rgba(0,0,0,.4). custom.css only replaced the colour, so every
+   bar kept a 40%-black smudge along its top edge on a pale green ground.
+   theme.css:15115 also forces border-radius:0 !important on .progress-squared,
+   which every bar in the app carries - so the intended 2px never applied. */
+html .progress,
+html .progress-squared {
+    box-shadow: none;
+}
+html .progress,
+html .progress-bar,
+html .progress-squared,
+html .progress-squared .progress-bar {
+    border-radius: 2px !important;
+}
+
+/* --- 6. Sidebar section labels -----------------------------------------
+   modern.css:429 styles li.nav-group-label but sets no colour, so GRAPHS /
+   CONTENT / ADMINISTRATIVE inherit #777 from theme.css:126 - 3.43:1 at 12px
+   on the #1D2722 panel. They also cost ~66px each; three of them pushed
+   Configuration and Tools below the fold at 1366x768. */
+html.modern ul.nav-main li.nav-group-label {
+    color: #9AA39D;            /* 5.1:1 on the sidebar ground */
+    font-size: 0.6875rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    padding: 6px 25px;
+    margin-top: 14px;
+    margin-bottom: 2px;
+}
+
+/* --- 7. The last three sub-AA strings -----------------------------------
+   Measured on the rebuilt container; everything else now clears 4.5:1. */
+
+/* The role line under the user's name in the top bar: 3.63:1 on the userbox
+   ground - the lowest-contrast text left in the authenticated app. */
+html #userbox .role,
+html .userbox .role {
+    color: var(--afcdc-ink-soft);
+}
+
+/* btn-light's inherited label colour lands at 4.48:1 on white. Used by
+   "Clear filters" on the activities page and by the secondary buttons. */
+html .btn-light,
+html .btn-default {
+    color: var(--au-grey);
+}
+
+/* Bootstrap .text-muted is #6c757d-ish and lands at 4.4:1 on the near-white
+   card ground used by the About page. */
+html .content-body .text-muted,
+html .body-sign .text-muted {
+    color: var(--au-grey) !important;
+}
+
+/* --- 8. The 401 / error page overflowed by 12px -------------------------
+   template_setAnswer_unprotected.php puts a bare Bootstrap .row (margin
+   -12px) directly inside .center-error, which supplies no padding - so the
+   page every unauthenticated visitor sees scrolls sideways by 12px. */
+html .body-error .center-error {
+    padding-inline: 12px;
+}
