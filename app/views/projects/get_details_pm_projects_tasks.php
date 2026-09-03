@@ -32,7 +32,7 @@
                                 // parser swallowed both modals below into the unclosed table.
                                 // The header stays so the "+" is still there to add the first one.
                                 if(count($data['data'])>0){
-                                $aa = (($data['page']-1)*$data['items'])+1;
+                                $aa = (((int)($data['page'] ?? 1)) - 1) * ((int)($data['items'] ?? 0)) + 1;
                                 foreach ($data['data'] as $row) {
                                     ?>
                                     <tr>

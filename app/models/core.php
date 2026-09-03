@@ -139,7 +139,8 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         $dir = (strtolower($dir) == "desc") ? "desc" : "asc";
         $c = "`" . preg_replace('/[^A-Za-z0-9_]/', '', $column) . "`";
         return "CAST(SUBSTRING_INDEX(" . $c . ",'.',1) AS UNSIGNED) " . $dir
-             . ", CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(" . $c . ",'.0'),'.',2),'.',-1) AS UNSIGNED) " . $dir
+             . ", CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(" . $c . ",'.0.0'),'.',2),'.',-1) AS UNSIGNED) " . $dir
+             . ", CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(" . $c . ",'.0.0'),'.',3),'.',-1) AS UNSIGNED) " . $dir
              . ", " . $c . " " . $dir;
     }
 
@@ -370,7 +371,10 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                     $values[] = (isset($properties['added_date'])) ? date("Y-m-d H:i:s") : $data[$field];
                 }
             } else {
-                $query_elements_2[] = "NULL";
+                // The column's own default: NULL where allowed, else what the
+                // schema says (pm_objectives_tbl.position is NOT NULL DEFAULT 0,
+                // and an explicit NULL made every new objective fail).
+                $query_elements_2[] = "DEFAULT";
             }
         }
         $query .= implode(",", $query_elements_1).") VALUES (".implode(",",$query_elements_2).")";
@@ -453,7 +457,7 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                 if (($properties['type'] ?? '') == "password") {
                     continue;
                 }
-                $query_elements[] = "`".$field."` = NULL";
+                $query_elements[] = "`".$field."` = DEFAULT";
             }
         }
         if (count($query_elements) === 0) {
