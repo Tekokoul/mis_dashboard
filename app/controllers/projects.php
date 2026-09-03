@@ -103,10 +103,10 @@ class projectsController extends coreController{
         ];
         $validated = $this->sanitize($this->query, $rules);
 
-        $additional_tables = $this->query['additional_tables'];
+        $additional_tables = (array)($this->query['additional_tables'] ?? []);
         unset($this->query['additional_tables']);
 
-
+        if ($validated['tablename'] === 'pm_projects') { $this->normaliseParents($this->query); }
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             $new_id = $executed['common'];
@@ -115,6 +115,7 @@ class projectsController extends coreController{
                 $values['project_id'] = $new_id;
                 $executed = $this->model->add_data($add_tbl, $values);
             }
+            if ($validated['tablename'] === 'pm_projects') { $this->ensureDefaultTask((int)$new_id); }
             redirect($this->L("projects/".$id_part));
         } else {
             $this->setAnswer(500, "Problem adding the entry.");
@@ -148,10 +149,11 @@ class projectsController extends coreController{
         ];
         $validated = $this->sanitize($this->query, $rules);
 
-        $additional_tables = $this->query['additional_tables'];
+        $additional_tables = (array)($this->query['additional_tables'] ?? []);
         unset($this->query['additional_tables']);
 
-        $previous = $this->DB->MQ("select * from ".$this->model->get_table_name($validated['tablename'])." where id=".$validated['id'], "one");
+        $previous = $this->DB->MQ("select * from ".$this->model->get_table_name($validated['tablename'])." where id=".(int)$validated['id'], "one");
+        if ($validated['tablename'] === 'pm_projects') { $this->normaliseParents($this->query); }
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");
@@ -168,8 +170,56 @@ class projectsController extends coreController{
                     $executed = $this->model->add_data($add_tbl, $values);
                 }
             }
+            if ($validated['tablename'] === 'pm_projects') { $this->ensureDefaultTask((int)$validated['id']); }
             redirect($this->L("projects/".$id_part));
         }
+    }
+
+    /**
+     * pm_projects_tbl stores pillar_id, objective_id and programme_id side by
+     * side, and the overview joins on two of them at once: an activity whose
+     * goal disagrees with its objective vanishes from every count with no
+     * error. The parents follow the most specific choice made on the form.
+     */
+    private function normaliseParents(array &$row) {
+        $programme = (int)($row['programme_id'] ?? 0);
+        if ($programme > 0) {
+            $g = $this->DB->MQ("SELECT objective_id FROM pm_programmes_tbl WHERE id = ?", "one", [$programme]);
+            if (is_set($g)) { $row['objective_id'] = (int)$g['objective_id']; }
+        }
+        $objective = (int)($row['objective_id'] ?? 0);
+        if ($objective > 0) {
+            $o = $this->DB->MQ("SELECT pillar_id FROM pm_objectives_tbl WHERE id = ?", "one", [$objective]);
+            if (is_set($o)) { $row['pillar_id'] = (int)$o['pillar_id']; }
+        }
+    }
+
+    /**
+     * An activity is reported through its tasks: with none it is missing from
+     * Progress and counts for nothing on the overview. Every seeded activity
+     * has exactly one task, "Delivered", applying to every reporting entity;
+     * an activity added or saved through the form gets the same when it has
+     * none.
+     */
+    private function ensureDefaultTask($projectId) {
+        $projectId = (int)$projectId;
+        if ($projectId <= 0) { return; }
+        $project = $this->DB->MQ("SELECT id, abbr, name, type FROM pm_projects_tbl WHERE id = ?", "one", [$projectId]);
+        if (!is_set($project)) { return; }
+        $type = (string)($project['type'] ?? '');
+        if ($type !== '' && $type !== 'pm_projects_tasks') { return; }
+        if ($type === '') {
+            // The add form leaves the type empty; every seeded activity is the
+            // task-reported kind, and the progress pages pick their view by it.
+            $this->DB->MQ("UPDATE pm_projects_tbl SET type = 'pm_projects_tasks' WHERE id = ?", false, [$projectId]);
+        }
+        $has = $this->DB->MQ("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE project_id = ?", "one", [$projectId]);
+        if ((int)($has['n'] ?? 0) > 0) { return; }
+        $ids = [];
+        foreach ((array)$this->DB->MQ("SELECT id FROM pm_members_tbl WHERE active = 1", "all") as $m) { $ids[] = (string)(int)$m['id']; }
+        if (!$ids) { return; }
+        $this->DB->MQ("INSERT INTO pm_projects_tasks_tbl (project_id, name, description, applies_to) VALUES (?, 'Delivered', ?, ?)", false,
+            [$projectId, trim((string)$project['abbr'] . ' ' . (string)$project['name']), json_encode($ids)]);
     }
 
     public function task(){
