@@ -116,7 +116,7 @@ class projects_graphs_bController extends coreController{
         // Calculate the overall total
         $temp['project']['totals'] = $totals * count($memberProgress);
     
-        // Add members with their states and progress to the response
+        // Add division users with their states and progress to the response
         $temp['project']['members'] = array_values($memberProgress);
     
         $data = $temp;

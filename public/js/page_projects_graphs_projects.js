@@ -60,7 +60,7 @@
 
     // Restore each dropdown from the saved column search. The saved value is
     // the escaped regex, not the option text, so compare through rx(); a saved
-    // value with no matching option (a renamed lens or deliverable) is dropped
+    // value with no matching option (a renamed goal or deliverable) is dropped
     // so the table never silently hides rows behind a filter nobody can see.
     var dirty = false;
     Array.prototype.forEach.call(selects, function (sel) {

@@ -129,6 +129,20 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         return $model;
     }
 
+    /**
+     * ORDER BY clause that reads a text column as "major.minor" numbers:
+     * the part before the first dot, then the part after it (digits only,
+     * so "1.10 PRG" -> 1, 10), then the raw text as the final tiebreaker.
+     * Non-numeric values cast to 0 and fall back to plain text order.
+     */
+    public static function natural_order_sql($column, $dir = "asc") {
+        $dir = (strtolower($dir) == "desc") ? "desc" : "asc";
+        $c = "`" . preg_replace('/[^A-Za-z0-9_]/', '', $column) . "`";
+        return "CAST(SUBSTRING_INDEX(" . $c . ",'.',1) AS UNSIGNED) " . $dir
+             . ", CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(" . $c . ",'.0'),'.',2),'.',-1) AS UNSIGNED) " . $dir
+             . ", " . $c . " " . $dir;
+    }
+
     function get_list_data($model, $page, $items_per_page = 50, $search = "", $filterby=[]) {
 //        $this->check_DRM($model['model_name']);
         $fields = $this->get_list_fields($model);
@@ -206,7 +220,15 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             $query_clauses .= " order by ";
             $order_string = [];
             foreach ($order_fields as $order_field => $properties) {
-                $order_string[] = "`" . $order_field . "` " . ((strtolower($properties['order_field']) == "desc") ? "desc" : "asc");
+                $dir = (strtolower($properties['order_field']) == "desc") ? "desc" : "asc";
+                // "order_natural": a varchar that holds a WBS-style number
+                // ("1.0", "10.0", "1.10 PRG") sorts by its numeric parts, so
+                // 2.0 follows 1.0 instead of 15.0, and 1.10 follows 1.9.
+                if (!empty($properties['order_natural'])) {
+                    $order_string[] = self::natural_order_sql($order_field, $dir);
+                } else {
+                    $order_string[] = "`" . $order_field . "` " . $dir;
+                }
             }
             $query_clauses .= implode(",", $order_string);
         } else {

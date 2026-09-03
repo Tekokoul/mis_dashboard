@@ -1,5 +1,5 @@
 <?php
-// Every FY2026 Annual Workplan activity, flat, with the lens and key
+// Every FY2026 Annual Workplan activity, flat, with the goal and key
 // deliverable it rolls up to. Sorting, search and paging come from DataTables
 // (initialised in /js/page_projects_graphs_projects.js).
 $activities = $data['activities'] ?? [];
@@ -26,9 +26,9 @@ $esc = static function ($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'U
                 <!-- Filters sit in one row above the table, as a group. -->
                 <div class="afcdc-filters" role="group" aria-label="Filter activities">
                     <label class="afcdc-filter">
-                        <span>Lens</span>
+                        <span>Goal</span>
                         <select class="form-select form-select-sm" data-afcdc-filter="1">
-                            <option value="">All lenses</option>
+                            <option value="">All goals</option>
                             <?php foreach ($filters['lens'] as $v): ?>
                                 <option value="<?= $esc($v); ?>"><?= $esc($v); ?></option>
                             <?php endforeach; ?>
@@ -63,7 +63,7 @@ $esc = static function ($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'U
                         <thead>
                         <tr>
                             <th class="afcdc-col-num" data-orderable="false">#</th>
-                            <th>Lens</th>
+                            <th>Goal</th>
                             <th>WBS</th>
                             <th>Key deliverable</th>
                             <th>AWP code</th>

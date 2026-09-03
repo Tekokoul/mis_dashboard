@@ -148,7 +148,7 @@ Open a SQL prompt:
 
 ## Recording delivery
 
-In the app: sidebar → **Progress** → open an activity → click the KPI →
+In the app: sidebar → **Progress** → open an activity → click the task →
 set **Result** to `Finished` → **Update**. Percentages recompute immediately.
 
 Who is allowed to record it — `account` is a comma-separated list of user ids:
@@ -386,7 +386,7 @@ grep -rniI "sadc\|crystalengine\|crystalweb\|crwb\|starfan\|brainregain" app/ pu
 - Passwords: `password_hash()` (Argon2id) since the 2 September 2026 release;
   an account still carrying the old unsalted `MD5(MD5())` hash is upgraded
   the first time it signs in.
-- Four external-lens deliverables (2.1, 2.3, 2.4, 2.5) have no AWP activity
+- Four external-goal deliverables (2.1, 2.3, 2.4, 2.5) have no AWP activity
   behind them, so they have nothing to tick and will read 0% indefinitely. That
   is the source data, not a bug.
 

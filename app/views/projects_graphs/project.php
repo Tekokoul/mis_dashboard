@@ -53,7 +53,7 @@ foreach ($members as $member){
             <strong>Delivery status:</strong><br>
             <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span><hr>
             <?php endif; ?>
-            <strong>KPIs:</strong><br><?=display($data['project']['kpi'])?><hr>
+            <strong>Tasks:</strong><br><?=display($data['project']['kpi'])?><hr>
             <strong>Estimated budget:</strong><br>USD <?=(display_price($data['project']['estimated_budget'] ?? 0,2,".",",")??'N/A');?><hr>
             <strong>Actual budget:</strong><br>USD <?=(display_price($actual_shown,2,".",",")??'N/A');?><hr>
             <strong>Notes:</strong><br><?=nl2br(display($data['project']['notes']))?></p>

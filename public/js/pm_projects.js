@@ -111,7 +111,7 @@ if(project_id === 0){
                 // '.modal-confirm' selector used to stack a handler on the
                 // delete dialog's Confirm on every open, and the Update button
                 // (no type, so a submit) had no preventDefault - one click
-                // posted twice and created duplicate KPIs.
+                // posted twice and created duplicate tasks.
                 $('#taskModal .modal-confirm').off('click').on('click', function (event) {
                     event.preventDefault();
                     $('#taskform').submit();
@@ -176,7 +176,7 @@ if(project_id === 0){
                             error: function (xhr) {
                                 alert(xhr.status === 403
                                     ? 'The page had been open too long for the deletion to be accepted. Reload and try again.'
-                                    : 'The KPI could not be deleted (' + xhr.status + ').');
+                                    : 'The task could not be deleted (' + xhr.status + ').');
                             }
                         });
                     });

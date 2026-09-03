@@ -1,10 +1,10 @@
 {
   "meta": {
-    "name": "Multiple KPIs",
+    "name": "Tasks",
     "actions": [],
     "filters": [
       {
-        "title": "Choose Pillar",
+        "title": "Choose Goal",
         "key": "pillar_id",
         "type": "dropdown",
         "values_from": "db",

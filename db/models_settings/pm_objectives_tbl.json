@@ -4,7 +4,7 @@
     "actions": [],
     "filters": [
       {
-        "title": "Choose Pillar",
+        "title": "Choose Goal",
         "key": "pillar_id",
         "type": "dropdown",
         "values_from": "db",
@@ -22,7 +22,7 @@
       "no_update": true
     },
     "pillar_id": {
-      "title": "Pillar",
+      "title": "Goal",
       "type": "dropdown",
       "values_from": "db",
       "link_to_table": "pm_pillars_tbl",
@@ -44,7 +44,8 @@
       "appear_in_list": 0,
       "search_field": true,
       "list_width": 10,
-      "order_field": "ASC"
+      "order_field": "ASC",
+      "order_natural": true
     },
     "description": {
       "no_editor": true

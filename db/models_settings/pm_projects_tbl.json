@@ -4,7 +4,7 @@
     "actions": [],
     "filters": [
       {
-        "title": "Choose Pillar",
+        "title": "Choose Goal",
         "key": "pillar_id",
         "type": "dropdown",
         "values_from": "db",
@@ -23,7 +23,7 @@
       "order_field": "ASC"
     },
     "pillar_id": {
-      "title": "Pillar",
+      "title": "Goal",
       "type": "dropdown",
       "values_from": "db",
       "link_to_table": "pm_pillars_tbl",
@@ -37,7 +37,7 @@
       "values_from": "db",
       "link_to_table": "pm_objectives_tbl",
       "link_to_field": "abbr,name",
-      "order_by": "`name` asc",
+      "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0'),'.',2),'.',-1) AS UNSIGNED) asc, `abbr` asc",
       "where_clause": ""
     },
     "programme_id": {
@@ -46,7 +46,7 @@
       "values_from": "db",
       "link_to_table": "pm_programmes_tbl",
       "link_to_field": "abbr,name",
-      "order_by": "`name` asc",
+      "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0'),'.',2),'.',-1) AS UNSIGNED) asc, `abbr` asc",
       "where_clause": "",
       "appear_in_list": 1,
       "list_width": 15
@@ -68,7 +68,7 @@
       "no_editor": true
     },
     "kpi": {
-      "title": "Expected KPI"
+      "title": "Expected task"
     },
     "estimated_budget": {
       "title": "Estimated budget (USD)",

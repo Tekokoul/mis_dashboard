@@ -123,10 +123,10 @@ $settings = [
     ],
     "graphs" => [
         "overview_title" => "MIS Key Deliverables — next six months",
-        "members_title" => "Per RCC / Member State",
-        "members_ranking" => "RCC / Member State Ranking",
-        "members_overall_tasks" => "Overall Activities by RCC / Member State",
-        "pillar_title" => "Pillar",
+        "members_title" => "Per RCC / Division User",
+        "members_ranking" => "RCC / Division User Ranking",
+        "members_overall_tasks" => "Overall Activities by RCC / Division User",
+        "pillar_title" => "Goal",
         // Required. Six drill-down views read it for their "Overview" breadcrumb and
         // already prefix "projects_graphs/", so this is the action name alone. Leaving
         // it unset makes the breadcrumb link to /projects_graphs/ and the router

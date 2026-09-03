@@ -42,11 +42,11 @@ $col_width = 12/$columns;
                 <a href="<?= $this->L('projects_graphs/overview'); ?>" class="alert-link">View overview</a>
             </div>
             <?php endif; ?>
-            <p class="afcdc-note mb-3">To mark this activity as done, click <strong>Record delivery</strong> on its KPI,
+            <p class="afcdc-note mb-3">To mark this activity as done, click <strong>Record delivery</strong> on its task,
                 set <strong>Delivery status</strong> to <strong>Delivered</strong> and press <strong>Save delivery</strong>.
                 Every gauge on the dashboard recalculates immediately.</p>
             <div id="project_details" aria-busy="true">
-                <div class="card card-modern"><div class="card-body"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span role="status">Loading KPIs…</span></div></div>
+                <div class="card card-modern"><div class="card-body"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span role="status">Loading tasks…</span></div></div>
             </div>
             </div>
 

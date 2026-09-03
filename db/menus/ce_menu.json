@@ -31,7 +31,7 @@
     "active_for": "1,2,4,5"
   },
   {
-    "title": "Pillars",
+    "title": "Goals",
     "type": "link",
     "link": "core/db_list/pm_pillars",
     "icon": "bx-columns",

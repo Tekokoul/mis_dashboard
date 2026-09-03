@@ -5,7 +5,7 @@ A delivery dashboard for the ten MIS key deliverables of the Africa CDC Division
 Health and Information Systems (DHIS), covering the reporting window **August 2026 – January
 2027**.
 
-The deliverables sit under two lenses:
+The deliverables sit under two goals:
 
 * **Internal Lens** — *One Organisation, One Platform*: WBS 1.1 – 1.5, how Africa CDC runs
   itself as one organisation on one digital platform.
@@ -13,8 +13,8 @@ The deliverables sit under two lenses:
   Member States and the continent.
 
 They are delivered through **55 activities of the FY2026 Annual Workplan (AWP)** — 52 under the
-internal lens, 3 under the external. The dashboard rolls a gauge up from activity to
-deliverable to lens. No percentage is ever typed in: each one is computed as
+internal goal, 3 under the external. The dashboard rolls a gauge up from activity to
+deliverable to goal. No percentage is ever typed in: each one is computed as
 
     rows in pm_progress_tasks_tbl with result = 1
     ÷ sum over tasks of the number of entities each task applies to
@@ -29,7 +29,7 @@ The table names are the platform's generic ones. What they mean *in this deploym
 
 | Table | Rows | Holds |
 |---|---|---|
-| `pm_pillars_tbl` | 2 | The two lenses — Internal, External |
+| `pm_pillars_tbl` | 2 | The two goals — Internal, External |
 | `pm_objectives_tbl` | 10 | The ten MIS key deliverables (`abbr` = WBS code, `name` = deliverable title) |
 | `pm_programmes_tbl` | 6 | Workstreams — one per deliverable that has AWP activity behind it |
 | `pm_projects_tbl` | 55 | The FY2026 AWP activities (`abbr` = AWP code, `kpi` = indicator) |
@@ -45,7 +45,7 @@ Things that surprise people:
   the source workbook, so they get no programme and no activities. They render with a 0.00%
   gauge indefinitely. That is the source data, not a bug.
 * **Ordering is explicit.** Both `pm_pillars_tbl` and `pm_objectives_tbl` have a `position`
-  column; the deliverables are 1–5 within each lens. Without it the WBS would render in
+  column; the deliverables are 1–5 within each goal. Without it the WBS would render in
   whatever order the storage engine felt like.
 * **`pm_projects_tasks_tbl.applies_to` is a JSON array of `pm_members_tbl` ids as *strings***
   (`["1"]`). `JSON_CONTAINS` is called with a quoted value, so bare numbers silently match

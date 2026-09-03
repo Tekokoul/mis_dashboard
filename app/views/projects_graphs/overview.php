@@ -1,7 +1,7 @@
 <?php
 // MIS Key Deliverables overview.
 //
-// Two lenses (pm_pillars_tbl), five key deliverables under each
+// Two goals (pm_pillars_tbl), five key deliverables under each
 // (pm_objectives_tbl), rolled up from the AWP activities beneath them. The
 // data access is unchanged from the legacy build - only the presentation is
 // Africa CDC. Progress is computed in projects_graphs::overview().
@@ -50,8 +50,8 @@ $latest = $data['latest_delivery'] ?? null;
         $lensDone = (int)($lens['completed'] ?? 0);
         $objectives = $lens['objectives'] ?? [];
     ?>
-    <!-- col-lg-6: there are two lenses, so they are peers on one row. The
-         legacy build used col-lg-4 because it had six pillars. -->
+    <!-- col-lg-6: there are two goals, so they are peers on one row. The
+         legacy build used col-lg-4 because it had six goals. -->
     <div class="col-lg-6">
         <section class="card h-100">
             <div class="card-body">
@@ -115,7 +115,7 @@ $latest = $data['latest_delivery'] ?? null;
                         <?php endforeach; ?>
 
                         <?php if (empty($objectives)): ?>
-                            <p class="afcdc-progress-zero mt-2 mb-0">No key deliverables are recorded under this lens yet.</p>
+                            <p class="afcdc-progress-zero mt-2 mb-0">No key deliverables are recorded under this goal yet.</p>
                         <?php endif; ?>
                     </div>
 
@@ -130,7 +130,7 @@ $latest = $data['latest_delivery'] ?? null;
     <div class="col-md-12">
         <p class="afcdc-note">
             Progress is the share of delivery records marked <em>Delivered</em>. Each activity counts once for every
-            RCC or Member State it applies to — today every activity is reported once, centrally, by DHIS HQ, so one
+            RCC or division user it applies to — today every activity is reported once, centrally, by DHIS HQ, so one
             record per activity. Staff record a delivery under <strong>Progress</strong> in the sidebar, on the
             activity's page, with <strong>Record delivery</strong>; every gauge recalculates on the next load.
             A deliverable with no activity count beside it has no Annual Workplan activity under it yet.

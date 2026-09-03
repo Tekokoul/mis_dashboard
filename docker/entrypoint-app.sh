@@ -222,7 +222,7 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
     #    "Estimated Budget" from a column that never existed, so there was no
     #    way to enter one. ADD COLUMN only when absent.
     #    AFTER kpi: the forms follow column order, so the new fields sit under
-    #    "Expected KPI" instead of at the bottom.
+    #    "Expected task" instead of at the bottom.
     for col in "estimated_budget DOUBLE DEFAULT NULL AFTER kpi" "actual_budget DOUBLE DEFAULT NULL AFTER estimated_budget" "notes TEXT DEFAULT NULL AFTER actual_budget"; do
         name=${col%% *}
         if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_projects_tbl' AND COLUMN_NAME='${name}'") || [ -z "$have" ]; then

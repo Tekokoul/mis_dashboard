@@ -110,10 +110,10 @@ $settings = [
     ],
     "graphs" => [
         "overview_title" => "MIS Key Deliverables — next six months",
-        "members_title" => "Per RCC / Member State",
-        "members_ranking" => "RCC / Member State Ranking",
-        "members_overall_tasks" => "Overall Activities by RCC / Member State",
-        "pillar_title" => "Pillar",
+        "members_title" => "Per RCC / Division User",
+        "members_ranking" => "RCC / Division User Ranking",
+        "members_overall_tasks" => "Overall Activities by RCC / Division User",
+        "pillar_title" => "Goal",
         // overview_link was missing entirely. Six drill-down views read it for their
         // "Overview" breadcrumb, so the link rendered as /projects_graphs/ and the
         // router answered 501. The views already prefix "projects_graphs/", so this
@@ -141,4 +141,5 @@ ini_set('display_startup_errors',_DEBUG_MODE);
 // See tools/dev/README.md. Keep settings.local.php out of version control.
 if (file_exists(__DIR__ . DS . "settings.local.php")) {
     require __DIR__ . DS . "settings.local.php";
-}
+}
+

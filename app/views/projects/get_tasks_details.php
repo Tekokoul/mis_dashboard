@@ -16,7 +16,7 @@
                                 <thead>
                                 <tr>
                                     <th width="4%">#</th>
-                                    <th>KPI</th>
+                                    <th>Task</th>
                                     <th width="18%">Status</th>
                                     <th width="22%"></th>
                                 </tr>
@@ -28,7 +28,7 @@
                                 foreach ($data['data'] as $row) {
                                     ?>
                                     <?php
-                                    // A KPI is either delivered or not; say so in words and colour,
+                                    // A task is either delivered or not; say so in words and colour,
                                     // and make the thing to click look like a button. The word alone
                                     // used to be the only control, and nobody found it.
                                     $done  = ((int)($row['result'] ?? 0) === 1);
@@ -64,13 +64,13 @@
                         <?php
                     } else {
                         // Empty because the account's reporting entity is not in this
-                        // activity's KPI "applies to", or the account is linked to no
+                        // activity's task "applies to", or the account is linked to no
                         // entity at all (member_id 0).
                         $ms = $_SESSION['user']['member_state'] ?? null;
                         ?>
                         <p class="text-muted py-4 mb-0">
                         <?php if (empty($ms)): ?>Your account is not linked to a reporting entity yet, so there is nothing to record here. Ask an administrator to link it.
-                        <?php else: ?>No KPI for this activity applies to <?= display($ms['name'] ?? 'your entity'); ?>. If you expected to report on it, ask an administrator to add your entity under the KPI's "Applies to".<?php endif; ?>
+                        <?php else: ?>No task for this activity applies to <?= display($ms['name'] ?? 'your entity'); ?>. If you expected to report on it, ask an administrator to add your entity under the task's "Applies to".<?php endif; ?>
                         </p>
                         <?php
                     }

@@ -93,7 +93,7 @@ ms_chart.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|JS
                 print implode(",", $list).");\n";
 
                 // Names go through json_encode with the HEX flags: addslashes
-                // escapes quotes but not "</script>", so a member named
+                // escapes quotes but not "</script>", so a division user named
                 // `x</script><b>..` used to close the block and inject markup.
                 print "member_labels.push(";
                 $list = [];

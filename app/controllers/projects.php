@@ -25,7 +25,7 @@ class projectsController extends coreController{
         if ($this->member_id > 0) { return; }
         $this->setAnswer(403,
             "Your account is not linked to a reporting entity, so there is nothing to record here. "
-            ."An administrator can add you under Member States, in the Account field.");
+            ."An administrator can add you under Division Users, in the Account field.");
         exit;
 //        debug($this->member_id);
 //        exit();
@@ -387,7 +387,7 @@ class projectsController extends coreController{
                 ],
                 "member_id" => [
                     "type" => "dropdown",
-                    "title" => "Member State",
+                    "title" => "Division user",
                     "values_from" => "db",
                     "link_to_table" => "pm_members_tbl",
                     "link_to_field" => "name",
@@ -398,7 +398,7 @@ class projectsController extends coreController{
                 ],
                 "pillar_id" => [
                     "type" => "dropdown",
-                    "title" => "Pillar",
+                    "title" => "Goal",
                     "values_from" => "db",
                     "link_to_table" => "pm_pillars_tbl",
                     "link_to_field" => "name",
@@ -444,7 +444,7 @@ class projectsController extends coreController{
                 ],
                 "kpi" => [
                     "type" => "varchar",
-                    "title" => "Expected KPI",
+                    "title" => "Expected task",
                     "disabled" => true,
                     "no_update" => true
                 ],
@@ -556,7 +556,7 @@ class projectsController extends coreController{
                     "fetch_in_list" => true
                 ],
                 "name" => [
-                    "title" => "KPI",
+                    "title" => "Task",
                     "type" => "varchar",
                     "order_field" => "ASC",
                     "disabled" => true,
@@ -602,7 +602,7 @@ class projectsController extends coreController{
         ];
         $validated = $this->sanitize($this->parts, $rules);
         // The entity is whoever the signed-in user reports for - not whatever
-        // the URL says. With more than one member state the old form let any
+        // the URL says. With more than one division user the old form let any
         // reporter open (and save) another entity's delivery.
         $validated['member_id'] = $this->member_id;
 
@@ -625,11 +625,11 @@ class projectsController extends coreController{
                     "type" => "int",
                     "hidden" => true
                 ],
-                // One vocabulary everywhere: the KPI table says "Delivered /
+                // One vocabulary everywhere: the task table says "Delivered /
                 // Not delivered", the button says "Record delivery", so the
                 // form does too (it used to say Task / Result / Finished).
                 "task" => [
-                    "title" => "KPI",
+                    "title" => "Task",
                     "type" => "varchar",
                     "order_field" => "ASC",
                     "disabled" => true,

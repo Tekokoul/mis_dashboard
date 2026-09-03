@@ -20,11 +20,11 @@ $projectVersion = defined('_PROJECT_VERSION') ? (string)_PROJECT_VERSION : '';
 // plate and the dark login panel, and would be invisible here.
 $logoOnLight = defined('_WHITELABEL_LOGO_ON_LIGHT') ? _WHITELABEL_LOGO_ON_LIGHT : '';
 
-// Pillar > Objective > Programme > Project, in the same vocabulary the
+// Goal > Objective > Programme > Project, in the same vocabulary the
 // breadcrumbs use (settings.php: graphs.pillar_title ... graphs.project_title).
 $levels = [
-    ['Pillar',    'The lens. Two of them: Internal (WBS 1) and External (WBS 2).'],
-    ['Objective', 'A key deliverable. Five under each lens: WBS 1.1 to 1.5, and 2.1 to 2.5.'],
+    ['Goal',      'A strategic goal, the top of the hierarchy: Internal (WBS 1), External (WBS 2), and any added since.'],
+    ['Objective', 'A key deliverable under a goal: WBS 1.1 to 1.5, 2.1 to 2.5, and so on.'],
     ['Programme', 'A workstream grouping the activities that serve one key deliverable.'],
     ['Project',   'A single FY2026 Annual Workplan activity. 55 in total.'],
 ];
@@ -53,7 +53,7 @@ $levels = [
 
                 <p>Nothing is entered against a key deliverable directly. Each one is measured by the
                     FY2026 Annual Workplan activities that serve it &mdash; 55 activities in all &mdash; so the
-                    figure shown for a deliverable, for a lens, and for the division overall is a roll-up
+                    figure shown for a deliverable, for a goal, and for the division overall is a roll-up
                     of work actually recorded further down.</p>
             </div>
         </section>
@@ -125,7 +125,7 @@ $levels = [
                 <p class="afcdc-note mb-0">
                     Percentages are computed from recorded activity results and roll upward:
                     activities into their programme, programmes into the key deliverable, the
-                    deliverables into their lens, and both lenses into the overall figure. A
+                    deliverables into their goal, and both goals into the overall figure. A
                     deliverable with nothing recorded against it reports 0% because there is nothing
                     to measure yet &mdash; not because it has stalled.
                 </p>

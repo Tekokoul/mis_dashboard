@@ -1,5 +1,5 @@
 $(document).ready(function() {
-    // The KPI panel: a spinner while it loads (markup is in progress_edit.php),
+    // The task panel: a spinner while it loads (markup is in progress_edit.php),
     // the table on success, and a real message with a way out on failure -
     // it used to stay blank forever if the request failed or the session
     // had expired.
@@ -15,7 +15,7 @@ $(document).ready(function() {
             error: function (xhr, status) {
                 var why = (xhr.status === 401 || xhr.status === 403)
                     ? 'Your session has expired. <a href="">Reload the page</a> and sign in again.'
-                    : 'The KPI list could not be loaded (' + (xhr.status || status) + '). <a href="#" class="afcdc-retry">Try again</a>';
+                    : 'The task list could not be loaded (' + (xhr.status || status) + '). <a href="#" class="afcdc-retry">Try again</a>';
                 $("#project_details").html('<div class="card card-modern"><div class="card-body"><p class="mb-0" role="alert">' + why + '</p></div></div>').attr("aria-busy", "false");
             }
         });

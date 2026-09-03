@@ -22,13 +22,13 @@
                                         }
                                     }
                                     ?>
-                                    <th width="5%"><a class="open-task-modal" data-project-id="<?=$data['project_id'];?>" data-id="new" href="#" aria-label="Add a KPI"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
+                                    <th width="5%"><a class="open-task-modal" data-project-id="<?=$data['project_id'];?>" data-id="new" href="#" aria-label="Add a task"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
                                 </tr>
                                 </thead>
                                 <tbody>
                                 <?php
                                 // The table and its wrapper are always closed, whatever the row
-                                // count: an activity with no KPI used to leave them open, and the
+                                // count: an activity with no task used to leave them open, and the
                                 // parser swallowed both modals below into the unclosed table.
                                 // The header stays so the "+" is still there to add the first one.
                                 if(count($data['data'])>0){
@@ -62,7 +62,7 @@
                                     $cols = 2;
                                     foreach ($data['fields'] as $properties) { if (isset($properties['appear_in_list'])) { $cols++; } }
                                     ?>
-                                    <tr><td colspan="<?=$cols;?>" class="text-muted py-4">No KPI yet for this activity. Use the + above to add the first one.</td></tr>
+                                    <tr><td colspan="<?=$cols;?>" class="text-muted py-4">No task yet for this activity. Use the + above to add the first one.</td></tr>
                                     <?php
                                 }
                                 ?>

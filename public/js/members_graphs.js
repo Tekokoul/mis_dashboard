@@ -20,7 +20,7 @@ var AFCDC_PART  = '#1A5632';   /* AU Corporate Green - the completed portion */
 var AFCDC_WHOLE = '#9CC3A6';   /* same hue, light step - the total container  */
 
 /* Categorical series, assigned in this fixed order and never cycled.
-   A fourth member series needs faceting or an "Other" fold, not a new hue. */
+   A fourth division user series needs faceting or an "Other" fold, not a new hue. */
 var AFCDC_SERIES = ['#2E7D3C', '#3A6FD8', '#C9911F'];
 
 Morris.Bar({
@@ -54,9 +54,9 @@ Morris.Line({
     xLabels: 'month',
     parseTime: false,
     /* Morris cycles this array when there are more series than colours. With
-       more than three members on the chart the repeats are indistinguishable,
+       more than three division users on the chart the repeats are indistinguishable,
        so read this chart from its legend and hover labels, not from colour
-       alone - or facet it into small multiples per member. */
+       alone - or facet it into small multiples per division user. */
     lineColors: AFCDC_SERIES,
     hideHover: 'auto'
 });

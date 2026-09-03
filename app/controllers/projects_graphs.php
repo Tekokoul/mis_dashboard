@@ -10,7 +10,7 @@ class projects_graphsController extends coreController{
         $data = [
             'totals' => 0,     // Total assignments across all levels
             'progress' => 0,   // Overall progress percentage
-            'pillars' => []    // Pillar-level details
+            'pillars' => []    // Goal-level details
         ];
     
         foreach ($pillars as $pillar) {
@@ -99,7 +99,7 @@ class projects_graphsController extends coreController{
                 ? round(($pillarProgress / $pillarTotal) * 100, 2) 
                 : 0;
     
-            // Add pillar-level data to `pillars` array
+            // Add goal-level data to `pillars` array
             $data['pillars'][$pillar['id']] = $pillarData;
     
             // Accumulate totals and progress for the entire data structure
@@ -137,13 +137,13 @@ class projects_graphsController extends coreController{
         ];
         $validated = $this->sanitize($this->parts, $rules);
     
-        // Fetch the pillar details
+        // Fetch the goal details
         $query = "SELECT * FROM pm_pillars_tbl WHERE id = " . (int)$validated['id'];
         $pillar = $this->DB->MQ($query, "one");
     
         if (!$pillar) {
             // render() has no 404 mode: the old call produced an empty 200.
-            $this->setAnswer(404, "There is no pillar with that id.");
+            $this->setAnswer(404, "There is no goal with that id.");
             exit;
         }
     
@@ -153,8 +153,8 @@ class projects_graphsController extends coreController{
                 'name' => $pillar['name'],
                 'abbr' => $pillar['abbr'],
                 'description' => $pillar['description'],
-                'totals' => 0,       // Total assignments at the pillar level
-                'progress' => 0,     // Progress percentage at the pillar level
+                'totals' => 0,       // Total assignments at the goal level
+                'progress' => 0,     // Progress percentage at the goal level
                 'objectives' => []   // Nested objectives
             ]
         ];
@@ -162,7 +162,7 @@ class projects_graphsController extends coreController{
         $pillarTotal = 0;
         $pillarProgress = 0;
     
-        // Fetch objectives linked to the pillar
+        // Fetch objectives linked to the goal
         // Same WBS ordering as overview() - see the note there.
         $query = "SELECT id, name, abbr FROM pm_objectives_tbl WHERE pillar_id = " . $pillar['id'] . " ORDER BY position, id";
         $objectives = $this->DB->MQ($query, "all");
@@ -239,7 +239,7 @@ class projects_graphsController extends coreController{
             $pillarProgress += $objectiveProgress;
         }
     
-        // Finalize pillar data
+        // Finalize goal data
         $data['pillar']['totals'] = $pillarTotal;
         $data['pillar']['completed'] = $pillarProgress;
         $data['pillar']['progress'] = ($pillarTotal > 0) 
@@ -308,7 +308,7 @@ class projects_graphsController extends coreController{
                         $taskAssignments = count($appliesTo);
                         $projectTotal += $taskAssignments;
     
-                        // Create a query to get progress per member
+                        // Create a query to get progress per division user
                         $queryPart = implode(",", $appliesTo);
                         $query = "SELECT COUNT(*) as progress 
                                   FROM pm_progress_tasks_tbl 
@@ -403,7 +403,7 @@ class projects_graphsController extends coreController{
                     $taskAssignments = count($appliesTo);
                     $projectTotal += $taskAssignments;
     
-                    // Create a query to get progress per member
+                    // Create a query to get progress per division user
                     $queryPart = implode(",", $appliesTo);
                     $query = "SELECT COUNT(*) as progress 
                               FROM pm_progress_tasks_tbl 
@@ -501,7 +501,7 @@ class projects_graphsController extends coreController{
                         'member_state' => $m,
                         'assigned_tasks' => 0,
                         'completed_tasks' => 0,
-                        'progress' => 0, // Member progress percentage
+                        'progress' => 0, // Division user progress percentage
                         'budget' => 0
                     ];
                 }
@@ -541,7 +541,7 @@ class projects_graphsController extends coreController{
         ? ($completedAssignments / $temp['project']['totals']) * 100 
         : 0;
         
-        // Add members with their states and progress to the response
+        // Add division users with their states and progress to the response
         $temp['project']['completed'] = $completedAssignments;
         $temp['project']['members'] = array_values($memberProgress);
     
@@ -614,8 +614,8 @@ class projects_graphsController extends coreController{
     
     public function projects(){
         // One flat, ordered query instead of the previous four nested loops
-        // (pillars -> objectives -> programmes -> projects, plus a query per
-        // member per project). On 55 activities the old version issued well
+        // (goals -> objectives -> programmes -> projects, plus a query per
+        // division user per project). On 55 activities the old version issued well
         // over a hundred round trips to build the same table.
         $query = "SELECT
                       p.id            AS id,
