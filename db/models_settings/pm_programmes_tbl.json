@@ -14,28 +14,6 @@
         "where_clause": "",
         "add_zero_value": true,
         "sql": "AND `objective_id` IN (SELECT `id` FROM `pm_objectives_tbl` WHERE `pillar_id` = ?)"
-      },
-      {
-        "title": "Choose Objective",
-        "key": "objective_id",
-        "type": "dropdown",
-        "values_from": "db",
-        "link_to_table": "pm_objectives_tbl",
-        "link_to_field": "abbr,name",
-        "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0'),'.',2),'.',-1) AS UNSIGNED) asc, `abbr` asc",
-        "where_clause": "",
-        "add_zero_value": true
-      },
-      {
-        "title": "Status",
-        "key": "active",
-        "type": "dropdown",
-        "values_from": "values_list",
-        "values_list": {
-          "1": "Active",
-          "0": "Inactive"
-        },
-        "add_zero_value": true
       }
     ]
   },

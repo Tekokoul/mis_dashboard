@@ -14,17 +14,6 @@
         "where_clause": "",
         "add_zero_value": true,
         "sql": "AND `project_id` IN (SELECT `id` FROM `pm_projects_tbl` WHERE `pillar_id` = ?)"
-      },
-      {
-        "title": "Choose Activity",
-        "key": "project_id",
-        "type": "dropdown",
-        "values_from": "db",
-        "link_to_table": "pm_projects_tbl",
-        "link_to_field": "abbr,name",
-        "order_by": "`id` asc",
-        "where_clause": "",
-        "add_zero_value": true
       }
     ]
   },
