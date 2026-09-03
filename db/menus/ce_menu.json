@@ -28,7 +28,7 @@
   {
     "title": "Content",
     "type": "label",
-    "active_for": "1,2,4,5"
+    "active_for": "1,2,3"
   },
   {
     "title": "Goals",
