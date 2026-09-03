@@ -250,6 +250,15 @@ the `DB_ROOT_PASSWORD` the database was first started with.
 docker diff "$(docker compose ps -q app)" | grep -E ' /var/www/html/(db|app)/' | grep -v '/app/configuration'
 ```
 
+The production host's reverse proxy is on another machine, so its `.env` must
+carry `HTTP_BIND=0.0.0.0` (the app listens on all interfaces; the repository
+default is loopback). Check it is there — without it the deploy binds to
+127.0.0.1 and the proxy can no longer reach the site:
+
+```bash
+grep -q '^HTTP_BIND=0.0.0.0' .env && echo present || echo "ADD HTTP_BIND=0.0.0.0 to .env first"
+```
+
 Ignore `app/configuration/` — the container writes `settings.local.php` there on
 every start. Anything else listed is a file the live app wrote (or a hand edit
 on the server) and must be dealt with before pulling — copy it out with

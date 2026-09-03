@@ -74,8 +74,11 @@ services:
       TRUSTED_PROXY_CIDR: ${TRUSTED_PROXY_CIDR:-172.16.0.0/12}
       REQUIREMENTS_ALLOW_FROM: ${REQUIREMENTS_ALLOW_FROM:-127.0.0.1}
     ports:
-      # Loopback only. The reverse proxy is the sole public entry point.
-      - "127.0.0.1:${HTTP_PORT:-8081}:80"
+      # Loopback by default: the reverse proxy is the sole public entry point.
+      # When the proxy runs on ANOTHER machine, set HTTP_BIND=0.0.0.0 in .env
+      # (the production host does) instead of editing this file - a hand edit
+      # here blocks every git pull.
+      - "${HTTP_BIND:-127.0.0.1}:${HTTP_PORT:-8081}:80"
     volumes:
       # Uploaded media and the render cache must outlive the container. The code
       # is baked into the image, so a deploy is a rebuild, not a mount.
