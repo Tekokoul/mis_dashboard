@@ -78,5 +78,8 @@ $col_width = 12/$columns;
 
 <script nonce="<?= csp_nonce(); ?>">
     var project_id = <?=$data['data']['id'];?>;
-    var project_type = '<?=$data['data']['type'];?>';
+    // The add form never sets a type; every activity is the task-reported
+    // kind, so an empty type still gets the Tasks panel (and the first save
+    // writes the type - projectsController::ensureDefaultTask).
+    var project_type = '<?= htmlspecialchars((string)(($data['data']['type'] ?? '') !== '' ? $data['data']['type'] : 'pm_projects_tasks'), ENT_QUOTES, 'UTF-8'); ?>';
 </script>
