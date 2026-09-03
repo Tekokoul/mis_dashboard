@@ -95,6 +95,14 @@ cat > /var/www/html/app/configuration/settings.local.php <<PHPEOF
 \$settings['db_master']['db_database'] = $(php_str "$DB_NAME");
 \$settings['db_master']['db_user']     = $(php_str "$DB_USER");
 \$settings['db_master']['db_password'] = base64_encode($(php_str "$DB_PASSWORD"));
+// Sign in with Microsoft (Entra ID). All three empty = feature off. See .env.example.
+define('_SSO_TENANT_ID',       $(php_str "${SSO_TENANT_ID:-}"));
+define('_SSO_CLIENT_ID',       $(php_str "${SSO_CLIENT_ID:-}"));
+define('_SSO_CLIENT_SECRET',   $(php_str "${SSO_CLIENT_SECRET:-}"));
+define('_SSO_DEFAULT_GROUP',   $(php_str "${SSO_DEFAULT_GROUP:-4}"));
+define('_SSO_ALLOWED_DOMAINS', $(php_str "${SSO_ALLOWED_DOMAINS:-africacdc.org}"));
+define('_SSO_AUTHORITY',       $(php_str "${SSO_AUTHORITY:-}"));
+define('_SSO_REDIRECT_URI',    $(php_str "${SSO_REDIRECT_URI:-}"));
 PHPEOF
 chown www-data:www-data /var/www/html/app/configuration/settings.local.php
 chmod 640 /var/www/html/app/configuration/settings.local.php
@@ -235,6 +243,29 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
         fi
     done
 
+    # 3. Sign in with Microsoft: the Entra object id that ties an account to
+    #    its Microsoft identity, and room for a full e-mail address as the
+    #    username (the column was varchar(45)). Both check before changing.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='core_users_tbl' AND COLUMN_NAME='sso_subject'") || [ -z "$have" ]; then
+        die "could not read core_users_tbl columns from information_schema - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "adding core_users_tbl.sso_subject"
+        qddl "ALTER TABLE core_users_tbl ADD COLUMN sso_subject VARCHAR(64) DEFAULT NULL AFTER \`group\`, ADD INDEX idx_core_users_sso_subject (sso_subject)" \
+            || die "could not add core_users_tbl.sso_subject (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
+    fi
+    if ! ulen=$(q "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='core_users_tbl' AND COLUMN_NAME='username'") || [ -z "$ulen" ]; then
+        die "could not read core_users_tbl.username from information_schema - refusing to guess whether the migration is needed"
+    fi
+    if [ "$ulen" -lt 100 ]; then
+        # The column COMMENT drives the users list (appearinlist|orderfield|...) - keep it.
+        ucom=$(q "SELECT COLUMN_COMMENT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='core_users_tbl' AND COLUMN_NAME='username'" || echo "")
+        ucom=$(printf '%s' "$ucom" | tr -cd 'A-Za-z0-9|=_ ')
+        log "widening core_users_tbl.username from varchar(${ulen}) to varchar(100) for e-mail addresses"
+        qddl "ALTER TABLE core_users_tbl MODIFY username VARCHAR(100) DEFAULT NULL COMMENT '${ucom}'" \
+            || die "could not widen core_users_tbl.username (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
+    fi
+
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)
     if [ "${users:-0}" -eq 0 ]; then
         log "NOTE: no accounts exist yet. Create one with:"
@@ -251,7 +282,7 @@ fi
 # The root password was only for schema loading and migrations above; PHP
 # must never inherit it (a worker's environment is readable to anything that
 # can read /proc, and clear_env is not guaranteed).
-unset DB_ROOT_PASSWORD DDL_PASSWORD DDL_USER
+unset DB_ROOT_PASSWORD DDL_PASSWORD DDL_USER SSO_CLIENT_SECRET
 
 log "starting PHP-FPM"
 php-fpm -D

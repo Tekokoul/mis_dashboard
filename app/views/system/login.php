@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . "/../../includes/sso.php";
+$sso_enabled = entraSso::enabled();
 if(defined("_WHITELABEL")&&(_WHITELABEL)){
     // The sign-in column sits on the page's light background - the green panel is
     // the OTHER column - so this needs the coloured mark. _WHITELABEL_LOGO_DARK is
@@ -189,6 +191,16 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                                 </div>
 
                             </form>
+                            <?php if ($sso_enabled): ?>
+                            <div class="afcdc-sso">
+                                <div class="afcdc-sso__or" aria-hidden="true"><span>or</span></div>
+                                <a class="afcdc-sso__btn" href="<?= $this->L("users/sso_login"); ?>">
+                                    <svg width="20" height="20" viewBox="0 0 21 21" aria-hidden="true" focusable="false"><rect x="1" y="1" width="9" height="9" fill="#F25022"/><rect x="11" y="1" width="9" height="9" fill="#7FBA00"/><rect x="1" y="11" width="9" height="9" fill="#00A4EF"/><rect x="11" y="11" width="9" height="9" fill="#FFB900"/></svg>
+                                    <span>Sign in with Microsoft</span>
+                                </a>
+                                <p class="afcdc-sso__hint">Use your Africa CDC account. First time here? An account is created for you automatically.</p>
+                            </div>
+                            <?php endif; ?>
                         </div>
                     </div>
                     <?=$copyright;?>

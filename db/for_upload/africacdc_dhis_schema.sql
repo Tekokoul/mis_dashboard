@@ -65,13 +65,15 @@ CREATE TABLE `core_users_logs_tbl` (
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `core_users_tbl` (
   `id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'hidden|noupdate|',
-  `username` varchar(45) DEFAULT NULL COMMENT 'appearinlist|orderfield|searchfield|',
+  `username` varchar(100) DEFAULT NULL COMMENT 'appearinlist|orderfield|searchfield|',
   `password` varchar(255) DEFAULT NULL,
   `givenname` varchar(45) DEFAULT NULL,
   `sn` varchar(45) DEFAULT NULL,
   `active` tinyint(4) DEFAULT NULL COMMENT 'bool0=No|bool1=Yes|',
   `group` int(11) DEFAULT NULL COMMENT 'appearinlist|linktotable=core_groups_tbl|linktofield=name|',
-  PRIMARY KEY (`id`)
+  `sso_subject` varchar(64) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_core_users_sso_subject` (`sso_subject`)
 ) ENGINE=MyISAM AUTO_INCREMENT=20 DEFAULT CHARSET=utf8mb3 COLLATE=utf8mb3_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

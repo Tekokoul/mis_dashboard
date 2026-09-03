@@ -694,3 +694,13 @@ html .body-sign .text-muted {
 html .body-error .center-error {
     padding-inline: 12px;
 }
+
+/* --- Sign in with Microsoft (login page) ------------------------------------
+   Rendered only when the container has the Entra ID settings. Plain link
+   styled as a secondary button, Microsoft's four-square mark inline. */
+.afcdc-sso { margin-top: 1.25rem; }
+.afcdc-sso__or { display: flex; align-items: center; gap: .75rem; color: #58595B; font-size: .8125rem; text-transform: uppercase; letter-spacing: .08em; margin-bottom: 1rem; }
+.afcdc-sso__or::before, .afcdc-sso__or::after { content: ""; flex: 1; height: 1px; background: #DDDBD2; }
+.afcdc-sso__btn { display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%; min-height: 48px; padding: .75rem 1rem; border: 1px solid #C9C7BF; border-radius: 4px; background: #FFFFFF; color: #1E2A22; font-weight: 600; text-decoration: none; }
+.afcdc-sso__btn:hover, .afcdc-sso__btn:focus-visible { background: #F6F5F0; border-color: #1A5632; color: #1A5632; text-decoration: none; outline: 2px solid #348F41; outline-offset: 2px; }
+.afcdc-sso__hint { margin: .75rem 0 0; font-size: .8125rem; color: #58595B; }

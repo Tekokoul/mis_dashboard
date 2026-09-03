@@ -146,6 +146,38 @@ Open a SQL prompt:
 
 ---
 
+## Sign in with Microsoft (Entra ID)
+
+Off until the three `SSO_*` ids are in the server's `.env` (see `.env.example`
+for the App registration steps). With them set, the sign-in page shows **Sign
+in with Microsoft**. Only `SSO_ALLOWED_DOMAINS` addresses (africacdc.org) are
+accepted, enforced by the app as well as by the tenant. A person who signs in
+that way and has no account gets one in group `SSO_DEFAULT_GROUP` (4, Custom
+Users: dashboards only); an administrator promotes them in Manage users when
+needed. An existing account is linked by e-mail the first time. Password
+sign-in keeps working for everyone who has a password.
+
+Turn it on (no rebuild - the container reads the values at start):
+
+```bash
+grep -q '^SSO_TENANT_ID=.\+' .env && echo configured || echo "add SSO_TENANT_ID, SSO_CLIENT_ID, SSO_CLIENT_SECRET to .env"
+```
+
+```bash
+docker compose up -d
+```
+
+Then open the sign-in page. If the button leads to an error page, the reason
+is in the log:
+
+```bash
+docker compose logs app | grep '\[sso\]'
+```
+
+Turn it off: blank the three ids and `docker compose up -d`. Accounts created
+through Microsoft have no password; to let one of them sign in with a password
+instead, set one in Manage users.
+
 ## Recording delivery
 
 In the app: sidebar → **Progress** → open an activity → click the task →

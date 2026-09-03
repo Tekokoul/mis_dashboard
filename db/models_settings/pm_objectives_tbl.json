@@ -13,6 +13,17 @@
         "order_by": "`position` asc",
         "where_clause": "",
         "add_zero_value": true
+      },
+      {
+        "title": "Status",
+        "key": "active",
+        "type": "dropdown",
+        "values_from": "values_list",
+        "values_list": {
+          "1": "Active",
+          "0": "Inactive"
+        },
+        "add_zero_value": true
       }
     ]
   },

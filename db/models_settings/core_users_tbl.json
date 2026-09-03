@@ -1,8 +1,7 @@
 {
   "meta": {
     "name": "System Users",
-    "actions": [
-    ],
+    "actions": [],
     "filters": [
       {
         "title": "Group",
@@ -13,6 +12,17 @@
         "link_to_field": "name",
         "order_by": "`id` asc",
         "where_clause": "",
+        "add_zero_value": true
+      },
+      {
+        "title": "Status",
+        "key": "active",
+        "type": "dropdown",
+        "values_from": "values_list",
+        "values_list": {
+          "1": "Active",
+          "0": "Inactive"
+        },
         "add_zero_value": true
       }
     ]
@@ -64,6 +74,11 @@
       "where_clause": "",
       "appear_in_list": 3,
       "list_width": 15
+    },
+    "sso_subject": {
+      "hidden": true,
+      "no_update": true,
+      "_note": "Entra ID object id, written only by users::sso_callback."
     }
   }
 }

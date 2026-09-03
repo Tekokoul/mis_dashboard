@@ -73,6 +73,14 @@ services:
       AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
       TRUSTED_PROXY_CIDR: ${TRUSTED_PROXY_CIDR:-172.16.0.0/12}
       REQUIREMENTS_ALLOW_FROM: ${REQUIREMENTS_ALLOW_FROM:-127.0.0.1}
+      # Sign in with Microsoft (Entra ID) - optional; the three ids empty = off.
+      SSO_TENANT_ID: ${SSO_TENANT_ID:-}
+      SSO_CLIENT_ID: ${SSO_CLIENT_ID:-}
+      SSO_CLIENT_SECRET: ${SSO_CLIENT_SECRET:-}
+      SSO_DEFAULT_GROUP: ${SSO_DEFAULT_GROUP:-4}
+      SSO_ALLOWED_DOMAINS: ${SSO_ALLOWED_DOMAINS:-africacdc.org}
+      SSO_AUTHORITY: ${SSO_AUTHORITY:-}
+      SSO_REDIRECT_URI: ${SSO_REDIRECT_URI:-}
     ports:
       # Loopback by default: the reverse proxy is the sole public entry point.
       # When the proxy runs on ANOTHER machine, set HTTP_BIND=0.0.0.0 in .env

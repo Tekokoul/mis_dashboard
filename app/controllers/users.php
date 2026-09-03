@@ -2,7 +2,7 @@
 
 class usersController extends protectedController {
 
-    protected $unprotected = ["login", "logout"];
+    protected $unprotected = ["login", "logout", "sso_login", "sso_callback"];
 
     public function __construct(Registry $registry) {
         parent::__construct($registry);
@@ -69,35 +69,155 @@ class usersController extends protectedController {
 
         if (is_set($user)){
             if($user['active']){
-                // A fresh session id at the authentication boundary, so a
-                // session id planted in the browser before login (fixation)
-                // never becomes an authenticated one; and a fresh CSRF token
-                // for the same reason.
-                session_regenerate_id(true);
-                $_SESSION['token'] = bin2hex(random_bytes(35));
-                $_SESSION['token_expiry'] = time() + _CSRF_EXPIRY;
-                $this->setUser($user);
-                $query = "select * from core_groups_tbl where id = ?";
-                $_SESSION['user']['group'] = $this->DB->MQ($query, "one", [(int)$user['group']]);
-
-                if(file_exists(_USERS_SETTINGS_PATH."user_".$_SESSION['user']['id'].".json")){
-                    $_SESSION['user']['settings'] = readJSONFile(_USERS_SETTINGS_PATH."user_".$_SESSION['user']['id'].".json");
-                }
-                $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'login', ?)", false, [(int)$user['id'], date("Y-m-d H:i:s")]);
-
-                // Land where the user asked to (Profile > Settings), default the
-                // overview - the page the monitor exists for - rather than the
-                // near-empty "Hello" dashboard card. Allow-listed: the value is
-                // read from a file the user's own settings form writes.
-                $landing = (string)($_SESSION['user']['settings']['landing_page'] ?? '');
-                $allowed = ['projects_graphs/overview', 'dashboard', 'projects/progress_list', 'projects_graphs/projects'];
-                redirect($this->L(in_array($landing, $allowed, true) ? $landing : 'projects_graphs/overview'));
+                $this->establishSession($user);
             } else {
                 $this->setAnswer(401, "You do not have permission to login.");
             }
         } else {
             $this->setAnswer(401, "Invalid credentials.");
         }
+    }
+
+    /**
+     * The authenticated session, shared by the password login and the
+     * Microsoft sign-in. $user is the core_users_tbl row (with id AS user_id).
+     */
+    private function establishSession(array $user) {
+        // A fresh session id at the authentication boundary, so a session id
+        // planted in the browser before login (fixation) never becomes an
+        // authenticated one; and a fresh CSRF token for the same reason.
+        session_regenerate_id(true);
+        $_SESSION['token'] = bin2hex(random_bytes(35));
+        $_SESSION['token_expiry'] = time() + _CSRF_EXPIRY;
+        unset($_SESSION['sso']);
+        $this->setUser($user);
+        $query = "select * from core_groups_tbl where id = ?";
+        $_SESSION['user']['group'] = $this->DB->MQ($query, "one", [(int)$user['group']]);
+
+        if(file_exists(_USERS_SETTINGS_PATH."user_".$_SESSION['user']['id'].".json")){
+            $_SESSION['user']['settings'] = readJSONFile(_USERS_SETTINGS_PATH."user_".$_SESSION['user']['id'].".json");
+        }
+        $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'login', ?)", false, [(int)$user['id'], date("Y-m-d H:i:s")]);
+
+        // Land where the user asked to (Profile > Settings), default the
+        // overview - the page the monitor exists for - rather than the
+        // near-empty "Hello" dashboard card. Allow-listed: the value is
+        // read from a file the user's own settings form writes.
+        $landing = (string)($_SESSION['user']['settings']['landing_page'] ?? '');
+        $allowed = ['projects_graphs/overview', 'dashboard', 'projects/progress_list', 'projects_graphs/projects'];
+        redirect($this->L(in_array($landing, $allowed, true) ? $landing : 'projects_graphs/overview'));
+    }
+
+    private function ssoRedirectUri() {
+        if (defined('_SSO_REDIRECT_URI') && trim((string)_SSO_REDIRECT_URI) !== '') {
+            return trim((string)_SSO_REDIRECT_URI);
+        }
+        return _PROJECT_URL . $this->L("users/sso_callback");
+    }
+
+    /** Step 1 of "Sign in with Microsoft": send the browser to Entra ID. */
+    public function sso_login() {
+        $this->checkMethod("GET");
+        require_once __DIR__ . "/../includes/sso.php";
+        $cfg = entraSso::config();
+        if ($cfg === null) {
+            $this->setAnswer(404, "Microsoft sign-in is not set up on this installation.");
+            exit;
+        }
+        if ($this->isLoggedIn()) {
+            redirect($this->L("projects_graphs/overview"));
+        }
+        $url = entraSso::beginLogin($cfg, $this->ssoRedirectUri());
+        if ($url === false) {
+            error_log("[sso] discovery document unavailable at " . $cfg['authority']);
+            $this->setAnswer(503, "Microsoft sign-in is temporarily unavailable. Try again in a minute, or sign in with your password.");
+            exit;
+        }
+        redirect($url);
+    }
+
+    /**
+     * Step 2: Entra ID sends the browser back here with a code. The code is
+     * exchanged and the ID token fully verified (entraSso::completeLogin)
+     * before anything is looked up. Only addresses in SSO_ALLOWED_DOMAINS
+     * (africacdc.org) are accepted. A verified identity is matched to an
+     * account by Entra object id, then by e-mail; with no match a new account
+     * is created in the default group (SSO_DEFAULT_GROUP, 4 = Custom Users:
+     * dashboards only) and an administrator promotes it later if needed.
+     */
+    public function sso_callback() {
+        $this->checkMethod("GET");
+        require_once __DIR__ . "/../includes/sso.php";
+        $cfg = entraSso::config();
+        if ($cfg === null) {
+            $this->setAnswer(404, "Microsoft sign-in is not set up on this installation.");
+            exit;
+        }
+        $q = $this->query;
+        if (!empty($q['error'])) {
+            unset($_SESSION['sso']);
+            $desc = trim(preg_replace('/\s+/', ' ', (string)($q['error_description'] ?? $q['error'])));
+            error_log("[sso] refused by the identity provider: " . substr($desc, 0, 200));
+            $this->setAnswer(401, "Microsoft did not sign you in: " . substr($desc, 0, 300));
+            exit;
+        }
+        if (empty($q['code']) || empty($q['state']) || !is_string($q['code']) || !is_string($q['state'])) {
+            $this->setAnswer(400, "The sign-in response was incomplete. Start again from the sign-in page.");
+            exit;
+        }
+        $claims = entraSso::completeLogin($cfg, $this->ssoRedirectUri(), $q['code'], $q['state']);
+        if (!is_array($claims)) {
+            error_log("[sso] sign-in rejected: " . $claims);
+            $this->setAnswer(401, "Microsoft sign-in could not be verified. Start again from the sign-in page.");
+            exit;
+        }
+        list($subject, $email, $given, $family) = entraSso::identity($claims);
+        if ($email === '' || strpos($email, '@') === false) {
+            $this->setAnswer(401, "Your Microsoft account did not provide an e-mail address, so it cannot be matched to a dashboard account.");
+            exit;
+        }
+        $domain = substr(strrchr($email, '@'), 1);
+        if (empty($cfg['domains']) || !in_array($domain, $cfg['domains'], true)) {
+            error_log("[sso] domain not permitted: " . $domain);
+            $this->setAnswer(403, "Only Africa CDC accounts (" . implode(", ", $cfg['domains']) . ") can sign in here. Your account is " . $domain . ".");
+            exit;
+        }
+
+        $select = "SELECT *, core_users_tbl.id AS user_id FROM core_users_tbl WHERE ";
+        $user = $this->DB->MQ($select . "sso_subject = ?", "one", [$subject]);
+        if (!is_set($user)) {
+            // First Microsoft sign-in of an account that already exists: link it.
+            $user = $this->DB->MQ($select . "LOWER(username) = ?", "one", [$email]);
+            if (is_set($user)) {
+                if (!empty($user['sso_subject']) && (string)$user['sso_subject'] !== $subject) {
+                    error_log("[sso] e-mail " . $email . " already linked to another Microsoft account");
+                    $this->setAnswer(403, "This e-mail address is already linked to a different Microsoft account. Ask an administrator.");
+                    exit;
+                }
+                $this->DB->MQ("UPDATE core_users_tbl SET sso_subject = ? WHERE id = ?", false, [$subject, (int)$user['id']]);
+            }
+        }
+        if (!is_set($user)) {
+            $group = (int)$cfg['group'];
+            $known = $this->DB->MQ("SELECT id FROM core_groups_tbl WHERE id = ?", "one", [$group]);
+            if (!is_set($known)) { $group = 4; }
+            $this->DB->MQ(
+                "INSERT INTO core_users_tbl (`username`, `password`, `givenname`, `sn`, `active`, `group`, `sso_subject`) VALUES (?, NULL, ?, ?, 1, ?, ?)",
+                false, [$email, $given, $family, $group, $subject]
+            );
+            $user = $this->DB->MQ($select . "sso_subject = ?", "one", [$subject]);
+            if (!is_set($user)) {
+                error_log("[sso] could not create an account for " . $email);
+                $this->setAnswer(500, "Your account could not be created. Ask an administrator.");
+                exit;
+            }
+            $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'sso_created', ?)", false, [(int)$user['id'], date("Y-m-d H:i:s")]);
+        }
+        if (!(int)$user['active']) {
+            $this->setAnswer(401, "Your dashboard account is disabled. Ask an administrator.");
+            exit;
+        }
+        $this->establishSession($user);
     }
 
     public function logout(){

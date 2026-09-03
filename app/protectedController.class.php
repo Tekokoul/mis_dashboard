@@ -23,6 +23,8 @@ class protectedController extends vanillaController {
         'users/settings_update'         => [1, 2, 3, 4, 5],
         'users/password_update'         => [1, 2, 3, 4, 5],
         'users/logout'                  => [1, 2, 3, 4, 5],
+        'users/sso_login'               => [1, 2, 3, 4, 5],
+        'users/sso_callback'            => [1, 2, 3, 4, 5],
         // Recording delivery
         'projects/progress_list'        => [1, 2, 3],
         'projects/progress_edit'        => [1, 2, 3],

@@ -163,6 +163,19 @@ function filter_DropDown($name, $field, $data = []) {
         }
         $html .= '</select>';
     }
+    if($field['values_from']=="values_list"){
+        // A fixed list (e.g. Active: Yes/No). "%" means All; the value is
+        // compared as a string so "0" (No) is not mistaken for "no choice".
+        $current = is_array($data) ? '' : (string)$data;
+        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
+        if(isset($field['add_zero_value'])) {
+            $html .= "<option value='%'".(($current === '' || $current === '%') ? ' selected' : '').">All</option>";
+        }
+        foreach ((array)($field['values_list'] ?? []) as $value => $label) {
+            $html .= "<option value='".display($value)."'".(($current !== '' && $current !== '%' && $current === (string)$value) ? ' selected' : '').">".display($label)."</option>";
+        }
+        $html .= '</select>';
+    }
     if($field['values_from']=="file"){
         $linkedresult = readJSONFile(_JSON_MODELS_PATH.$field['link_to_table']);
         $link_to_table = $field['link_to_table'];
@@ -229,17 +242,6 @@ function filter_DropDown($name, $field, $data = []) {
                 $html .= ($json_value[$option_field] == $data) ? "selected" : "";
             }
             $html .= ">".display($json_value[$option_field])."</option>";
-        }
-        $html .= '</select>';
-    }
-    if($field['values_from']=="values_list"){
-        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
-        foreach ($field[$field['values_from']] as $key => $value){
-            $html .= '<option value="'.display($key).'"';
-            if($key==$data){
-                $html .= ' selected ';
-            }
-            $html .= '>'.display($value).'</option>';
         }
         $html .= '</select>';
     }
