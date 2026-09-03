@@ -268,7 +268,12 @@ maybe_create_admin() {
 summary() {
     local port="${HTTP_PORT:-8081}"
     head_ "Ready"
-    say "  The app is listening on 127.0.0.1:${port} — loopback only, by design."
+    if [ "${HTTP_BIND:-127.0.0.1}" = "127.0.0.1" ]; then
+        say "  The app is listening on 127.0.0.1:${HTTP_PORT:-8081} — loopback only, by design."
+    else
+        say "  The app is listening on ${HTTP_BIND}:${HTTP_PORT:-8081} (HTTP_BIND in .env) — the reverse"
+        say "  proxy is on another machine; keep that port firewalled to the proxy's address."
+    fi
     say "  Point your TLS-terminating reverse proxy at it and forward these headers:"
     say ""
     say "      proxy_set_header Host              \$host;"
