@@ -249,6 +249,9 @@ class projectsController extends coreController{
             "id" => FILTER_UNSAFE_RAW
         ];
         $validated = $this->sanitize($this->query, $rules);
+        // A task counts only where it applies. Nothing chosen used to store
+        // NULL, which hid the task from Progress and from every gauge.
+        $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
         if($validated['id']!=""){
             $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         } else {

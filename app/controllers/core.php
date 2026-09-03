@@ -131,6 +131,10 @@ class coreController extends protectedController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        if ($validated['tablename'] === 'pm_projects_tasks') {
+            // A task applies to every active reporting entity unless chosen otherwise (see library.php).
+            $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
+        }
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             $id_part = ($this->update_redirect=="db_edit") ? "/".$executed['common'] : "";
@@ -167,6 +171,10 @@ class coreController extends protectedController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        if ($validated['tablename'] === 'pm_projects_tasks') {
+            // A task applies to every active reporting entity unless chosen otherwise (see library.php).
+            $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
+        }
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");

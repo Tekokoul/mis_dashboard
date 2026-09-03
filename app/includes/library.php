@@ -673,3 +673,20 @@ function isactive($service)
         return false;
     }
 }
+
+/**
+ * "Applies to" for a task: the reporting entities it counts for. An empty
+ * choice means every active entity - a task that applies to nobody would be
+ * invisible on Progress and count for nothing on the gauges.
+ * $chosen is the posted value (array of ids, or null); returns an array of
+ * string ids, the shape every seeded row uses (["1"]).
+ */
+function default_applies_to($db, $chosen) {
+    $ids = [];
+    if (is_array($chosen)) {
+        foreach ($chosen as $v) { if ((string)$v !== '' && (int)$v > 0) { $ids[] = (string)(int)$v; } }
+    }
+    if ($ids) { return array_values(array_unique($ids)); }
+    foreach ((array)$db->MQ("SELECT id FROM pm_members_tbl WHERE active = 1", "all") as $m) { $ids[] = (string)(int)$m['id']; }
+    return $ids;
+}
