@@ -269,9 +269,9 @@ summary() {
     local port="${HTTP_PORT:-8081}"
     head_ "Ready"
     if [ "${HTTP_BIND:-127.0.0.1}" = "127.0.0.1" ]; then
-        say "  The app is listening on 127.0.0.1:${HTTP_PORT:-8081} — loopback only, by design."
+        say "  The app is listening on 127.0.0.1:${port} — loopback only, by design."
     else
-        say "  The app is listening on ${HTTP_BIND}:${HTTP_PORT:-8081} (HTTP_BIND in .env) — the reverse"
+        say "  The app is listening on ${HTTP_BIND}:${port} (HTTP_BIND in .env) — the reverse"
         say "  proxy is on another machine; keep that port firewalled to the proxy's address."
     fi
     say "  Point your TLS-terminating reverse proxy at it and forward these headers:"
@@ -279,7 +279,7 @@ summary() {
     say "      proxy_set_header Host              \$host;"
     say "      proxy_set_header X-Forwarded-For   \$proxy_add_x_forwarded_for;"
     say "      proxy_set_header X-Forwarded-Proto \$scheme;"
-    say "      proxy_pass       http://127.0.0.1:${port};"
+    say "      proxy_pass       http://${HTTP_BIND:-127.0.0.1}:${port};   # this host's address when the proxy is elsewhere"
     say ""
     say "  X-Forwarded-Proto matters: public/.htaccess redirects http to https, and"
     say "  without that header the container never sees https and will redirect to"
