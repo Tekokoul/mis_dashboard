@@ -70,7 +70,7 @@ $latest = $data['latest_delivery'] ?? null;
                         <canvas class="gaugeBasic" width="300" height="150"
                                 data-value="<?= $lensPct; ?>"
                                 role="img"
-                                aria-label="<?= $lensName; ?>: <?= pct($lensPct); ?> percent complete, <?= $lensDone; ?> of <?= $lensAll; ?> activities delivered"></canvas>
+                                aria-label="<?= $lensName; ?>: <?= pct($lensPct); ?> percent complete<?= ($lensAll > 0) ? ", {$lensDone} of {$lensAll} activities delivered" : ", no activities yet"; ?>"></canvas>
                         <label class="gaugeBasicTextfield"><?= pct($lensPct); ?>%</label>
                         <?php if ($lensAll > 0): ?><span class="afcdc-progress-zero d-block"><?= $lensDone; ?> of <?= $lensAll; ?> activities delivered</span><?php endif; ?>
                     </div>

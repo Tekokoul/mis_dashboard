@@ -491,11 +491,13 @@ class projectsController extends coreController{
         ];
         $validated = $this->sanitize($this->query, $rules);
         $data = $this->query;
-        $data['member_id'] = $this->member_id;
-        $data['project_id'] = $data['id'];
-        unset($data['id']);
+        // Only the sanitised, integer-cast ids reach the SQL below. The raw
+        // POST id used to be interpolated straight into the WHERE clause.
+        $data['member_id'] = (int)$this->member_id;
+        $data['project_id'] = (int)$validated['id'];
+        unset($data['id'], $data['csrf'], $data['tablename']);
 
-        $query = "select * from ".$this->model->get_table_name($validated['tablename'])." where member_id=".$data['member_id']." and project_id=".$data['project_id'];
+        $query = "select * from ".$this->model->get_table_name($validated['tablename'])." where member_id=".(int)$data['member_id']." and project_id=".(int)$data['project_id'];
         $exists = $this->DB->MQ($query, "one");
 
         if(is_set($exists)){
@@ -506,7 +508,7 @@ class projectsController extends coreController{
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");
         } else {
-            $new_id = $validated['id'];
+            $new_id = (int)$validated['id'];
             $id_part = "progress_edit/".$new_id;
 
             redirect($this->L("projects/".$id_part));

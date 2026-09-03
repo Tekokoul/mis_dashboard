@@ -46,7 +46,7 @@ Add another account (locked until a password is set):
 List accounts and whether each has a usable password:
 
 ```bash
-/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT id, username, givenname, sn, \`group\`, active, IF(password REGEXP '^[0-9a-f]{32}$','set','LOCKED') AS password FROM core_users_tbl ORDER BY id;"
+/opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT id, username, givenname, sn, \`group\`, active, CASE WHEN password LIKE '\$argon2id\$%' THEN 'set' WHEN password REGEXP '^[0-9a-f]{32}$' THEN 'set (legacy hash, upgrades at next sign-in)' ELSE 'LOCKED' END AS password FROM core_users_tbl ORDER BY id;"
 ```
 
 Groups: `1` System Administrators · `2` Executive · `3` Power · `4` Custom ·
@@ -224,12 +224,36 @@ git status --short
 ```
 
 ```bash
-docker diff "$(docker compose ps -q app)" | grep -E ' /var/www/html/(db|app)/'
+git rev-parse --short HEAD
 ```
 
-Any hand edits on the server (first command) or files the live app wrote
-(second) must be dealt with before pulling — copy them out with
-`docker compose cp app:/var/www/html/db ./db-live`, or commit them.
+Write that commit id down: it is what you roll back to (see **Rolling back**).
+
+```bash
+docker compose ps
+```
+
+Exactly `db` and `app`, both `(healthy)`. A stray `web` container from the very
+first compose file would keep port 8081 busy — the deploy removes orphans, but
+look before, not after.
+
+```bash
+docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "SELECT 1"'
+```
+
+Must print `1`. The container that starts after the deploy changes the schema
+as root (it widens the password column and adds the budget columns); if root
+cannot sign in, the site stays down with a clear message. `.env` must still hold
+the `DB_ROOT_PASSWORD` the database was first started with.
+
+```bash
+docker diff "$(docker compose ps -q app)" | grep -E ' /var/www/html/(db|app)/' | grep -v '/app/configuration'
+```
+
+Ignore `app/configuration/` — the container writes `settings.local.php` there on
+every start. Anything else listed is a file the live app wrote (or a hand edit
+on the server) and must be dealt with before pulling — copy it out with
+`docker compose cp app:/var/www/html/db ./db-live`, or commit it.
 
 ```bash
 ./setup-production.sh backup
@@ -240,12 +264,45 @@ git pull && ./setup-production.sh deploy
 ```
 
 ```bash
-docker compose logs app | grep -i "schema\|content"
+docker compose logs app | grep -i "schema\|content\|DDL\|widening\|adding"
 ```
 
-The last line must say `leaving schema and content alone`. Then re-run the
-count query from **Checks worth running** against the server and confirm no
-number fell.
+The line must say `leaving schema and content alone`; on this release it is
+followed by `widening core_users_tbl.password` and three `adding
+pm_projects_tbl.…` lines (once, never again). Then confirm no number fell:
+
+```bash
+docker compose exec -T db sh -c 'exec mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SELECT (SELECT COUNT(*) FROM pm_pillars_tbl) AS lenses, (SELECT COUNT(*) FROM pm_objectives_tbl) AS deliverables, (SELECT COUNT(*) FROM pm_programmes_tbl) AS workstreams, (SELECT COUNT(*) FROM pm_projects_tbl) AS activities, (SELECT COUNT(*) FROM pm_projects_tasks_tbl) AS tickable_tasks, (SELECT COUNT(*) FROM pm_progress_tasks_tbl) AS progress_records;"'
+```
+
+(The `/opt/homebrew/bin/mariadb` commands elsewhere in this file talk to the
+Mac's own database — they do not work on the server.)
+
+Open the site: the first request shows the sign-in page (old sessions are
+gone), then the Overview. Per-user list preferences (rows per page and the
+like) start from the defaults once, because this release moves them into a
+volume; the old files are inside `backups/appdata_<stamp>.tar.gz` under
+`users_settings/` if anyone wants theirs back:
+
+```bash
+tar -xzf backups/appdata_<stamp>.tar.gz && docker compose cp appdata_<stamp>/users_settings/. app:/var/www/html/db/users_settings/ && docker compose exec -T app chown -R www-data:www-data /var/www/html/db/users_settings && rm -r appdata_<stamp>
+```
+
+### Rolling back
+
+Code: check out the previous commit and deploy it again — the widened password
+column and the three added columns do not bother the old code.
+
+```bash
+git checkout <previous commit> && ./setup-production.sh deploy
+```
+
+Data, only if something was written that has to go: restore the dump the deploy
+took first (it runs as root, so it works after the privilege step below too).
+
+```bash
+./setup-production.sh restore backups/afcdc_dhis_<stamp>.sql.gz
+```
 
 ### One-time steps for the 2 September 2026 release
 
@@ -264,11 +321,24 @@ grep -q '^DB_ROOT_PASSWORD=' .env && echo "present" || echo "ADD DB_ROOT_PASSWOR
 once, on the server (`afcdc` is the default `DB_USER`; check `.env`):
 
 ```bash
-docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "REVOKE ALL PRIVILEGES ON \`$MARIADB_DATABASE\`.* FROM \"$MARIADB_USER\"@\"%\"; GRANT SELECT, INSERT, UPDATE, DELETE ON \`$MARIADB_DATABASE\`.* TO \"$MARIADB_USER\"@\"%\"; FLUSH PRIVILEGES; SHOW GRANTS FOR \"$MARIADB_USER\"@\"%\";"'
+docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "REVOKE ALL PRIVILEGES, GRANT OPTION FROM \"$MARIADB_USER\"@\"%\"; GRANT SELECT, INSERT, UPDATE, DELETE ON \`$MARIADB_DATABASE\`.* TO \"$MARIADB_USER\"@\"%\"; FLUSH PRIVILEGES; SHOW GRANTS FOR \"$MARIADB_USER\"@\"%\";"'
 ```
 
-Reversible with `GRANT ALL PRIVILEGES ON <db>.* TO ...`. Nothing in the
-application issues DDL at runtime; only the entrypoint does, as root.
+The last line printed must read `GRANT SELECT, INSERT, UPDATE, DELETE ON
+\`afcdc_dhis\`.* TO \`afcdc\`@\`%\``. (The form `REVOKE … ON afcdc_dhis.*`
+fails with "no such grant" on this MariaDB image, because the image created
+the original grant with the underscore escaped; revoking everything from the
+user first sidesteps that.) Then sign in once and open a list page to confirm
+the site still works — reads and writes need nothing more than these four.
+
+To reverse it:
+
+```bash
+docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "GRANT ALL PRIVILEGES ON \`$MARIADB_DATABASE\`.* TO \"$MARIADB_USER\"@\"%\"; FLUSH PRIVILEGES; SHOW GRANTS FOR \"$MARIADB_USER\"@\"%\";"'
+```
+
+Nothing in the application issues DDL at runtime; only the container start
+does, as root — and `backup` / `restore` run as root too.
 
 **3. Everyone signs in again once.** Sessions from before the release do not
 carry the new CSRF token; the first request after the deploy shows the login
@@ -304,8 +374,9 @@ grep -rniI "sadc\|crystalengine\|crystalweb\|crwb\|starfan\|brainregain" app/ pu
   (`pm_progress_tasks_tbl.actual_budget`).
 - AWP line `4.2.4.06.08` (Zoom, $60,000) is not mapped to any deliverable in the
   source workbook, so it is not seeded.
-- Passwords are `MD5(MD5(password))`, unsalted — `app/models/core.php:479`.
-  Worth replacing with `password_hash()`/`password_verify()`.
+- Passwords: `password_hash()` (Argon2id) since the 2 September 2026 release;
+  an account still carrying the old unsalted `MD5(MD5())` hash is upgraded
+  the first time it signs in.
 - Four external-lens deliverables (2.1, 2.3, 2.4, 2.5) have no AWP activity
   behind them, so they have nothing to tick and will read 0% indefinitely. That
   is the source data, not a bug.

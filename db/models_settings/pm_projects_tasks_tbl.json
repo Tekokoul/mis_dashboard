@@ -1,7 +1,20 @@
 {
   "meta": {
     "name": "Multiple KPIs",
-    "actions": [
+    "actions": [],
+    "filters": [
+      {
+        "title": "Choose Pillar",
+        "key": "pillar_id",
+        "type": "dropdown",
+        "values_from": "db",
+        "link_to_table": "pm_pillars_tbl",
+        "link_to_field": "name",
+        "order_by": "`position` asc",
+        "where_clause": "",
+        "add_zero_value": true,
+        "sql": "AND `project_id` IN (SELECT `id` FROM `pm_projects_tbl` WHERE `pillar_id` = ?)"
+      }
     ]
   },
   "fields": {

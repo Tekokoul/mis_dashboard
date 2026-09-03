@@ -1,18 +1,23 @@
 <?php
 //debug($data);
 $page_link_prefix = "core/db_list/" . $data['model_name'];
+// The search term and filter values come straight from the request and go
+// back out inside href="" on every pagination link, so they are URL-encoded
+// here and the whole suffix is HTML-escaped once ($this->L() escapes nothing).
 $suffix_terms = [];
 if (isset($data['search']) && ($data['search'] != "")) {
-    $suffix_terms[] = "search-term=" . $data['search'];
+    $suffix_terms['search-term'] = (string)$data['search'];
 }
 if (!empty($data['filter_data'])) {
     foreach ($data['filter_data'] as $filter_data => $value) {
         if ($value != "") {
-            $suffix_terms[] = $filter_data . "=" . $value;
+            $suffix_terms[(string)$filter_data] = (string)$value;
         }
     }
 }
-$page_link_suffix = (count($suffix_terms) > 0) ? "?" . implode("&", $suffix_terms) : "";
+$page_link_suffix = (count($suffix_terms) > 0)
+    ? htmlspecialchars("?" . http_build_query($suffix_terms), ENT_QUOTES, 'UTF-8')
+    : "";
 ?>
 <header class="page-header page-header-left-inline-breadcrumb">
     <h2 class="font-weight-bold text-6"><?= display($data['meta_name']); ?></h2>

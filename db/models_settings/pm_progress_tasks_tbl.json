@@ -1,8 +1,7 @@
 {
   "meta": {
     "name": "Progress Multiple KPIs",
-    "actions": [
-    ]
+    "actions": []
   },
   "fields": {
     "id": {
@@ -17,7 +16,9 @@
       "type": "dropdown",
       "title": "Task",
       "values_from": "json",
-      "option_field": "name"
+      "option_field": "name",
+      "no_update": true,
+      "_note": "Virtual: options come from the activity's KPI JSON; there is no DB column named task (the column is task_id, written by task_progress_update). no_update keeps add_data()/update_data() from sending it."
     },
     "result": {
       "type": "dropdown",

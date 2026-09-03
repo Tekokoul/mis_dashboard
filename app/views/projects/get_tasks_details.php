@@ -23,7 +23,8 @@
                                 </thead>
                                 <tbody>
                                 <?php
-                                $aa = (($data['page']-1)*$data['items'])+1;
+                                // The partial is not paginated; page/items are only set on list pages.
+                                $aa = (((int)($data['page'] ?? 1)) - 1) * ((int)($data['items'] ?? 0)) + 1;
                                 foreach ($data['data'] as $row) {
                                     ?>
                                     <?php

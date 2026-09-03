@@ -103,7 +103,7 @@ class usersController extends protectedController {
     public function logout(){
         $this->DB->MQ("INSERT INTO `core_users_logs_tbl` (`core_users_id`, `action`, `log_date`) VALUES (?, 'logout', ?)", false, [(int)($_SESSION['user']['id'] ?? 0), date("Y-m-d H:i:s")]);
         unset($_SESSION['user']);
-        session_start();
+        if (session_status() !== PHP_SESSION_ACTIVE) { session_start(); }
         session_destroy();
         clear_cache();
         redirect($this->L(""));
@@ -228,7 +228,17 @@ class usersController extends protectedController {
         }
 
         $data['model'] = $model;
-        $data['data'] = readJSONFile($data_file);
+        // The form shows the effective value, not the first option: a setting
+        // that was never saved falls back to the option the model labels
+        // "(Default)" - the same value the rest of the app applies.
+        $defaults = [];
+        foreach (($model["common"] ?? []) as $field => $def) {
+            foreach ((array)($def['values_list'] ?? []) as $key => $label) {
+                if (stripos((string)$label, '(default)') !== false) { $defaults[$field] = (string)$key; break; }
+            }
+        }
+        $saved = file_exists($data_file) ? (array)readJSONFile($data_file) : [];
+        $data['data'] = array_merge($defaults, array_filter($saved, 'is_scalar'));
         $this->prepare_edit_mode();
         $data['user']['username'] = $_SESSION['user']['username'];
         $data['user']['name'] = $_SESSION['user']['givenname']." ".$_SESSION['user']['sn'];
@@ -241,7 +251,19 @@ and '".date("Y-m-d H:i:s")."' and core_users_id=".$_SESSION['user']['id']." orde
     public function settings_update(){
         $this->checkMethod("POST");
 
-        $values = $this->R->url['query'];
+        // Keep only the settings the form defines (db/json_models/
+        // table.user_settings.json), each as a short string. The whole
+        // request used to be stored, which put the CSRF token and the session
+        // cookie into the settings file on disk.
+        $allowed = [];
+        $model = @json_decode((string)@file_get_contents(_JSON_MODELS_PATH."table.user_settings.json"), true);
+        if (is_array($model)) { $allowed = array_keys($model); }
+        $values = [];
+        foreach ($allowed as $key) {
+            if (isset($this->R->url['query'][$key]) && is_scalar($this->R->url['query'][$key])) {
+                $values[$key] = mb_substr((string)$this->R->url['query'][$key], 0, 64);
+            }
+        }
         $_SESSION['user']['settings'] = $values;
 
         $json_table = fopen(_USERS_SETTINGS_PATH."user_".$_SESSION['user']['id'].".json", "w") or die(__FILE__." Unable to open file for saving");

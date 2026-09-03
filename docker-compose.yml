@@ -2,7 +2,7 @@
 #
 #   ./setup-production.sh          first install
 #   docker compose up -d           start
-#   docker compose logs -f web app follow
+#   docker compose logs -f app     follow
 #   docker compose down            stop (data survives in the named volumes)
 #
 # Two services, tuned for a 16 GB / 4 CPU host (tier M of the enterprise

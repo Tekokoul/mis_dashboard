@@ -195,28 +195,6 @@ class coreController extends protectedController{
         }
     }
 
-    public function db_rows(){
-        $this->checkMethod("GET");
-        $this->mapRoute("model/page");
-        $this->checkRequired(["model"], $this->parts);
-        $rules = [
-            "search-term" => FILTER_UNSAFE_RAW,
-            "model" => FILTER_UNSAFE_RAW,
-            "page" => FILTER_SANITIZE_NUMBER_INT
-        ];
-        $validated = $this->sanitize(array_merge($this->parts, $this->query), $rules);
-        $page = $validated['page'] ?? 1;
-        $items_per_page = $_SESSION['user']['settings']['table_rows'] ?? _PAGINATION;
-
-        $data['model_name'] = $validated['model'];
-        $data['data'] = $this->model->get_all_data($validated['model'], $page, $items_per_page, $this->langid);
-        if(is_set($data['data'])){
-            $this->setAnswer(200, "Found ".count($data['data'])." records.", $data, "json");
-        } else {
-            $this->setAnswer(404, "No records found.", [], "json");
-        }
-    }
-
     public function password_update(){
         $this->checkMethod("POST");
         // Was `debug($_REQUEST)`, which echoed the submitted password in

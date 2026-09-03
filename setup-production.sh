@@ -100,7 +100,7 @@ preflight() {
     ok "docker $("$DOCKER" version --format '{{.Server.Version}}' 2>/dev/null || echo present)"
     ok "compose $("${COMPOSE[@]}" version --short 2>/dev/null || echo present)"
 
-    for f in Dockerfile docker-compose.yml docker/entrypoint-app.sh docker/entrypoint-web.sh \
+    for f in Dockerfile docker-compose.yml docker/entrypoint-app.sh \
              docker/nginx.conf.tpl docker/nginx-site.conf.tpl docker/php.ini.tpl \
              docker/php-fpm-pool.conf docker/opcache.ini docker/mysqld-tuning.cnf \
              db/for_upload/africacdc_dhis_schema.sql \
@@ -201,7 +201,7 @@ build_and_start() {
     ok "image built (build ${BUILD_ID})"
 
     head_ "Starting"
-    dc up -d
+    dc up -d --remove-orphans
     ok "containers started"
 }
 
@@ -323,8 +323,10 @@ cmd_backup() {
     svc_running db || die "the database container is not running - start the stack first: ./setup-production.sh"
     mkdir -p backups
     local out="backups/afcdc_dhis_$(date -u +%Y%m%d_%H%M%S).sql"
+    # As root: after the release the application user holds only
+    # SELECT/INSERT/UPDATE/DELETE, and a restore needs DROP/CREATE anyway.
     dc exec -T db sh -c \
-        'exec mariadb-dump -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" \
+        'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" \
               --single-transaction --default-character-set=utf8mb4 "$MARIADB_DATABASE"' \
         > "$out"
     [ -s "$out" ] || { rm -f "$out"; die "the dump came back empty — nothing was written"; }
@@ -363,10 +365,10 @@ cmd_restore() {
     cmd_backup quiet
     if [ "${file##*.}" = "gz" ]; then
         gunzip -c "$file" | dc exec -T db sh -c \
-            'exec mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" --default-character-set=utf8mb4 "$MARIADB_DATABASE"'
+            'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" --default-character-set=utf8mb4 "$MARIADB_DATABASE"'
     else
         dc exec -T db sh -c \
-            'exec mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" --default-character-set=utf8mb4 "$MARIADB_DATABASE"' \
+            'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" --default-character-set=utf8mb4 "$MARIADB_DATABASE"' \
             < "$file"
     fi
     ok "restored from $file"
@@ -405,8 +407,8 @@ cmd_stop()    { find_docker; dc down; ok "stopped — data kept in the named vol
 cmd_destroy() {
     find_docker
     say ""
-    warn "This deletes the containers AND all three volumes: the database, uploaded media"
-    warn "and the render cache. All recorded progress and every upload is lost."
+    warn "This deletes the containers AND all four volumes: the database, uploaded media,"
+    warn "the render cache and the per-user settings. All recorded progress and every upload is lost."
     read -r -p "  Type DESTROY to confirm: " confirm
     [ "$confirm" = "DESTROY" ] || die "aborted — nothing changed"
     dc down -v

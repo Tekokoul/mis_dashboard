@@ -43,6 +43,15 @@ class protectedController extends vanillaController {
         } elseif ($this->allowed()) {
             parent::__construct($registry);
         } else {
+            // A person following a bookmark or an expired session gets the
+            // sign-in form; scripts (AJAX, POST) still get a plain 401.
+            $isXhr  = strtolower((string)($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'xmlhttprequest';
+            $isGet  = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET';
+            $wantsHtml = stripos((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'text/html') !== false;
+            if ($isGet && !$isXhr && $wantsHtml && !headers_sent()) {
+                header("Location: " . $this->L("login"), true, 302);
+                exit;
+            }
             $this->setAnswer(401, "You do not have permission to view this.");
         }
     }

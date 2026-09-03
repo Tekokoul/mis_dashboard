@@ -142,8 +142,9 @@ class projects_graphsController extends coreController{
         $pillar = $this->DB->MQ($query, "one");
     
         if (!$pillar) {
-            $this->render(["error" => "Pillar not found"], 404);
-            return;
+            // render() has no 404 mode: the old call produced an empty 200.
+            $this->setAnswer(404, "There is no pillar with that id.");
+            exit;
         }
     
         $data = [
@@ -263,6 +264,12 @@ class projects_graphsController extends coreController{
         // Fetch the objective details
         $query = "SELECT * FROM pm_objectives_tbl WHERE id = " . (int)$validated['id'];
         $objective = $this->DB->MQ($query, "one");
+        if (!$objective) {
+            // Without this an empty id was interpolated below and the page
+            // showed "Database unavailable" for any unknown objective.
+            $this->setAnswer(404, "There is no deliverable with that id.");
+            exit;
+        }
         $data['objective'] = $objective;
     
         $objectiveTotal = 0;
@@ -367,6 +374,10 @@ class projects_graphsController extends coreController{
         // Fetch the programme details
         $query = "SELECT * FROM pm_programmes_tbl WHERE id = " . (int)$validated['id'];
         $programme = $this->DB->MQ($query, "one");
+        if (!$programme) {
+            $this->setAnswer(404, "There is no workstream with that id.");
+            exit;
+        }
         $data['programme'] = $programme;
     
         $programmeTotal = 0;
@@ -451,9 +462,13 @@ class projects_graphsController extends coreController{
         // Fetch project details
         $query = "SELECT * FROM pm_projects_tbl WHERE id=" . (int)$validated['id'];
         $project = $this->DB->MQ($query, "one");
-    
+        if (!$project) {
+            $this->setAnswer(404, "There is no activity with that id.");
+            exit;
+        }
+
         // Fetch all tasks for the project
-        $query = "SELECT * FROM pm_projects_tasks_tbl WHERE project_id=" . $project['id'];
+        $query = "SELECT * FROM pm_projects_tasks_tbl WHERE project_id=" . (int)$project['id'];
         $tasks = $this->DB->MQ($query, "all");
     
         $temp['project'] = $project;

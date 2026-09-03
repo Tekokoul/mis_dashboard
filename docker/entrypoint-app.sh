@@ -71,8 +71,8 @@ if [ "$APP_SCHEME" = "http" ]; then
     sed -i 's/^session.cookie_secure.*/session.cookie_secure = 0/' \
         /usr/local/etc/php/conf.d/zz-africacdc.ini
 
-    # The matching https-redirect suppression lives in the web container's
-    # entrypoint, which owns the Apache config.
+    # (nginx does not redirect to https itself; the reverse proxy in front
+    # of this container terminates TLS.)
     log "WARNING: APP_URL is http, so the session cookie is not Secure."
     log "         Use https in production."
 fi
@@ -164,8 +164,21 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
     # works only while that user still holds ALTER/CREATE.
     DDL_USER="$DB_USER"; DDL_PASSWORD="$DB_PASSWORD"
     if [ -n "${DB_ROOT_PASSWORD:-}" ]; then DDL_USER="root"; DDL_PASSWORD="$DB_ROOT_PASSWORD"; fi
-    qddl() { "$MYSQL_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DDL_USER" -p"$DDL_PASSWORD" \
-                --default-character-set=utf8mb4 -N -B -e "$1" "$DB_NAME" 2>/dev/null; }
+    log "schema changes (DDL) run as ${DDL_USER}"
+    # Errors are shown, not swallowed: an operator has to see WHY an ALTER
+    # failed (wrong root password, missing grant) rather than a generic line.
+    qddl() {
+        local out
+        if ! out=$("$MYSQL_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DDL_USER" -p"$DDL_PASSWORD" \
+                      --default-character-set=utf8mb4 -N -B -e "$1" "$DB_NAME" 2>&1); then
+            log "DDL as ${DDL_USER} failed: ${out}"
+            return 1
+        fi
+        [ -z "$out" ] || printf '%s\n' "$out"
+    }
+    if [ "$DDL_USER" = "root" ]; then
+        qddl "SELECT 1" >/dev/null || die "cannot sign in to MariaDB as root with DB_ROOT_PASSWORD - the database took its root password on its FIRST start and a later edit of .env does not change it; put the original value back in .env (or reset the root password inside the db container) and start again"
+    fi
     load() { "$MYSQL_BIN" -h"$DB_HOST" -P"$DB_PORT" -u"$DDL_USER" -p"$DDL_PASSWORD" \
                    --default-character-set=utf8mb4 "$DB_NAME" < "$1" >/dev/null; }
     D=/var/www/html/db/for_upload
@@ -196,11 +209,13 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
     #
     # 1. Password hashes moved from unsalted md5(md5()) (32 chars) to
     #    password_hash() (up to 97 for Argon2id). The column was varchar(45).
-    pwlen=$(q "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='core_users_tbl' AND COLUMN_NAME='password'" || echo "")
-    if [ -n "$pwlen" ] && [ "$pwlen" -lt 255 ]; then
+    if ! pwlen=$(q "SELECT CHARACTER_MAXIMUM_LENGTH FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='core_users_tbl' AND COLUMN_NAME='password'") || [ -z "$pwlen" ]; then
+        die "could not read core_users_tbl.password from information_schema - refusing to guess whether the migration is needed"
+    fi
+    if [ "$pwlen" -lt 255 ]; then
         log "widening core_users_tbl.password from varchar(${pwlen}) to varchar(255) for password_hash()"
         qddl "ALTER TABLE core_users_tbl MODIFY password VARCHAR(255) DEFAULT NULL" \
-            || die "could not widen core_users_tbl.password - set DB_ROOT_PASSWORD for the app service, or run the ALTER by hand"
+            || die "could not widen core_users_tbl.password (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
     fi
 
     # 2. Activities carry a budget and notes. The project page always printed
@@ -210,11 +225,13 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
     #    "Expected KPI" instead of at the bottom.
     for col in "estimated_budget DOUBLE DEFAULT NULL AFTER kpi" "actual_budget DOUBLE DEFAULT NULL AFTER estimated_budget" "notes TEXT DEFAULT NULL AFTER actual_budget"; do
         name=${col%% *}
-        have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_projects_tbl' AND COLUMN_NAME='${name}'" || echo "")
+        if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_projects_tbl' AND COLUMN_NAME='${name}'") || [ -z "$have" ]; then
+            die "could not read pm_projects_tbl columns from information_schema - refusing to guess whether the migration is needed"
+        fi
         if [ "$have" = "0" ]; then
             log "adding pm_projects_tbl.${name}"
             qddl "ALTER TABLE pm_projects_tbl ADD COLUMN ${col}" \
-                || die "could not add pm_projects_tbl.${name} - set DB_ROOT_PASSWORD for the app service, or run the ALTER by hand"
+                || die "could not add pm_projects_tbl.${name} (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
         fi
     done
 

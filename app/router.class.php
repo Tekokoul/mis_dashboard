@@ -84,21 +84,15 @@ class Router {
         } else {
 			include _CONTROLLERS_PATH . "error" . ".php";
 			$controller = new errorController($registry);
-            $error = [
-                "code" => 501,
-                "message" => "controller '".$registry->url['controller']."' is not implemented"
-            ];
-			$controller->index($error);
+            // A generic 404: the requested path is not echoed back.
+            $controller->index(["code" => 404, "message" => "The page you asked for does not exist."]);
         }
 
         if (!method_exists($controller, $registry->url['action'])){
 			include _CONTROLLERS_PATH . "error" . ".php";
 			$controller = new errorController($registry);
-            $error = [
-                "code" => 501,
-                "message" => "method '".$registry->url['action']."' is not implemented"
-            ];
-            $controller->index($error);
+            // A generic 404: the requested path is not echoed back.
+            $controller->index(["code" => 404, "message" => "The page you asked for does not exist."]);
         }
         $controller->{$registry->url['action']}();
     }

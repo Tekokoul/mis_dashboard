@@ -17,6 +17,10 @@
         stateSave: true,
         stateDuration: -1,    // sessionStorage: survives Back and reload, gone when the tab closes
         pageLength: rows,
+        // The saved state remembers filters, search and sort - but the page
+        // length always follows the profile setting, otherwise a state saved
+        // before the setting changed kept showing the old row count.
+        stateLoadParams: function (settings, data) { data.length = rows; },
         lengthMenu: [[10, 25, 50, 100, -1], [10, 25, 50, 100, 'All']],
         // The leading column is a row counter, not data: never sort by it, and
         // renumber it after every sort/filter/page so it always reads 1..n for

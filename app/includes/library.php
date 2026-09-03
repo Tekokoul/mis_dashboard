@@ -304,7 +304,7 @@ function csp_nonce(){
 function display_weight($text = "", $in="kg"){
     $answer = "N/A";
     if($in=="kg"){
-        $answer = round((double)$text/1000, 2, PHP_ROUND_HALF_UP)." kg";
+        $answer = round((float)$text/1000, 2, PHP_ROUND_HALF_UP)." kg";
     } else {
         $answer = $text. " gr";
     }
@@ -654,6 +654,8 @@ function ce_compare_values($value1, $operator, $value2) {
 }
 
 function db_error($query, $error){
+    // Monitoring and scripts must see the failure; the page itself stays generic.
+    if (!headers_sent()) { http_response_code(500); }
     include _TEMPLATE_PATH."db_error.php";
     exit();
 }
