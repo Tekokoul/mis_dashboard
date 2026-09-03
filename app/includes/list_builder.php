@@ -19,6 +19,20 @@ function display_list_element($field, $data, $active){
         case "dropdown":
             if($field['values_from']=="db"){
                 $from_field = $field['link_from_field'] ?? "id";
+                // A multiselect column holds "3,7,12". Resolving that as one
+                // value made MySQL cast it to 3 and the column showed a single
+                // name, hiding everyone else on the list.
+                if (get_field_property("multiselect", $field) && strpos((string)$data, ",") !== false) {
+                    $names = [];
+                    foreach (explode(",", (string)$data) as $one) {
+                        $one = trim($one);
+                        if ($one === "") { continue; }
+                        $names[] = display_list_element($field, $one, $active);
+                    }
+                    $answer = implode(", ", array_filter($names, function($n){ return $n !== "" && $n !== "None"; }));
+                    if ($answer === "") { $answer = "None"; }
+                    break;
+                }
                 $link_to_table_part = substr($field['link_to_table'], 0, strlen($field['link_to_table']) - 4);
 
                 $has_languages = $registry->db_master->MQ("SHOW TABLES LIKE '" . $link_to_table_part . $language_suffix."_tbl'", "all");

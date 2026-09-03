@@ -1,8 +1,7 @@
 {
   "meta": {
     "name": "Member States",
-    "actions": [
-    ]
+    "actions": []
   },
   "fields": {
     "id": {
@@ -20,14 +19,16 @@
       "no_editor": true
     },
     "account": {
-      "title": "Account",
+      "title": "Accounts allowed to record delivery",
       "type": "dropdown",
+      "multiselect": true,
+      "comma_separated": true,
+      "_note": "Stored as a comma-separated list of core_users_tbl ids; projectsController resolves the signed-in user with FIND_IN_SET. It MUST stay a multiselect - as a single dropdown, saving this form silently reduced the list to one person and locked everyone else out of Progress.",
       "values_from": "db",
       "link_to_table": "core_users_tbl",
       "link_to_field": "givenname,sn,username",
       "order_by": "`username` asc",
-      "add_zero_value": true,
-      "where_clause": "",
+      "where_clause": "and `active`=1",
       "appear_in_list": 1,
       "list_width": 40
     },

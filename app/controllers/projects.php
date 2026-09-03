@@ -13,7 +13,20 @@ class projectsController extends coreController{
         $query = "select * from pm_members_tbl where FIND_IN_SET(".(int)$_SESSION['user']['user_id'].", `account`)";
 //        debug($query);
         $_SESSION['user']['member_state'] = $this->DB->MQ($query, "one");
-        $this->member_id = $_SESSION['user']['member_state']['id'] ?? 0;
+        $this->member_id = (int)($_SESSION['user']['member_state']['id'] ?? 0);
+    }
+
+    /**
+     * Every reporting page and every delivery write belongs to ONE entity: the
+     * one whose `account` list contains the signed-in user. An account that is
+     * on no list has nothing to report, and used to get a silently empty page.
+     */
+    private function requireMember(){
+        if ($this->member_id > 0) { return; }
+        $this->setAnswer(403,
+            "Your account is not linked to a reporting entity, so there is nothing to record here. "
+            ."An administrator can add you under Member States, in the Account field.");
+        exit;
 //        debug($this->member_id);
 //        exit();
     }
@@ -259,6 +272,7 @@ class projectsController extends coreController{
     }
 
     public function progress_list(){
+        $this->requireMember();
         $this->checkMethod("GET");
         $this->mapRoute("page");
         $rules = [
@@ -353,6 +367,7 @@ class projectsController extends coreController{
     }
 
     public function progress_edit(){
+        $this->requireMember();
         $this->checkMethod("GET");
         $this->mapRoute("id");
         $this->checkRequired(["id"], $this->parts);
@@ -484,6 +499,7 @@ class projectsController extends coreController{
     }
 
     public function progress_edit_update(){
+        $this->requireMember();
         $this->checkMethod("POST");
         $rules = [
             "tablename" => FILTER_UNSAFE_RAW,
@@ -516,6 +532,7 @@ class projectsController extends coreController{
     }
 
     public function get_tasks_details(){
+        $this->requireMember();
         $this->checkMethod("GET");
         $this->mapRoute("project_id");
         $this->checkRequired(["project_id"], $this->parts);
@@ -574,6 +591,7 @@ class projectsController extends coreController{
     }
 
     public function get_task_details(){
+        $this->requireMember();
         $this->checkMethod("GET");
         $this->mapRoute("id/project_id/member_id");
         $this->checkRequired(["id", "project_id", "member_id"], $this->parts);
@@ -583,6 +601,10 @@ class projectsController extends coreController{
             "member_id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->parts, $rules);
+        // The entity is whoever the signed-in user reports for - not whatever
+        // the URL says. With more than one member state the old form let any
+        // reporter open (and save) another entity's delivery.
+        $validated['member_id'] = $this->member_id;
 
         $data['model_name'] = "pm_progress_tasks";
         $data["model"] = [
@@ -664,6 +686,7 @@ class projectsController extends coreController{
     }
 
     public function task_progress_update(){
+        $this->requireMember();
         $this->checkMethod("POST");
         $rules = [
             "project_id" => FILTER_SANITIZE_NUMBER_INT,
@@ -675,6 +698,9 @@ class projectsController extends coreController{
             "progress_date" => FILTER_UNSAFE_RAW
         ];
         $validated = $this->sanitize($this->query, $rules);
+        // As in get_task_details: the entity comes from the session, so a
+        // posted member_id cannot record delivery for someone else.
+        $validated['member_id'] = $this->member_id;
 
         // actual_budget is optional. It was previously interpolated bare, so
         // leaving the field blank produced "VALUES (..., )" - a syntax error on
