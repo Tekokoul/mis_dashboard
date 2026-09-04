@@ -39,54 +39,58 @@ $(document).ready(function() {
     //     });
     // });
 
-// Use the name attribute directly for 'pillar_id'
+// Goal -> objective -> programme. Each reload of a dropdown's options keeps
+// the choice named in window.afcdcPreselect (set by the filing-by-content
+// code in custom.js, which reads the name and description) when it is among
+// the new options; otherwise the first option is selected, as before. The
+// objective's change fires once per reload (it fired once per option), and
+// the programme's fires too, so the code box follows the programme shown.
+function afcdcPreselect($select, key) {
+    var pre = window.afcdcPreselect || {};
+    if (pre[key] !== undefined && $select.find('option[value="' + pre[key] + '"]').length) {
+        $select.val(String(pre[key]));
+    }
+    delete pre[key];
+}
+
 $('select[name="pillar_id"]').change(function(){
-    // Get the selected value
-    var selectedValue = $(this).val();
-    // Make AJAX call to server to retrieve JSON data
     $.ajax({
-        url: lang_prefix + "/projects/get_objectives/" + selectedValue,
+        url: lang_prefix + "/projects/get_objectives/" + $(this).val(),
         dataType: "json",
         success: function(data){
-            // Clear options from the second dropdown
-            $('select[name="objective_id"]').empty();
+            var $objective = $('select[name="objective_id"]');
+            $objective.empty();
             $('select[name="programme_id"]').empty();
-
-            // Populate options in the second dropdown based on selected value
             $.each(data.data, function(key, element){
-                $('select[name="objective_id"]').append($("<option></option>")
+                $objective.append($("<option></option>")
                     .attr("value", element.id)
                     .text(element.abbr + ' ' + element.name));
-
-                $('select[name="objective_id"]').trigger("change");
             });
+            afcdcPreselect($objective, 'objective_id');
+            $objective.trigger("change");
         }
     });
 });
 
-// Use the name attribute directly for 'objective_id'
 $('select[name="objective_id"]').change(function(){
-    // Get the selected value
-    var selectedValue = $(this).val();
-    // Make AJAX call to server to retrieve JSON data
-    console.log(lang_prefix + "/projects/get_programmes/" + selectedValue);
     $.ajax({
-        url: lang_prefix + "/projects/get_programmes/" + selectedValue,
+        url: lang_prefix + "/projects/get_programmes/" + $(this).val(),
         dataType: "json",
         success: function(data){
-            // Clear options from the second dropdown
-            $('select[name="programme_id"]').empty();
-            // Populate options in the second dropdown based on selected value
+            var $programme = $('select[name="programme_id"]');
+            $programme.empty();
             $.each(data.data, function(key, element){
-                $('select[name="programme_id"]').append($("<option></option>")
+                $programme.append($("<option></option>")
                     .attr("value", element.id)
                     .text(element.abbr + ' ' + element.name));
             });
+            afcdcPreselect($programme, 'programme_id');
+            $programme.trigger("change");
         }
     });
 });
 
-// Trigger the change event for 'pillar_id' dynamically
+// A new activity starts from the first goal's objectives and programmes.
 if(project_id === 0){
     $('select[name="pillar_id"]').trigger("change");
 }

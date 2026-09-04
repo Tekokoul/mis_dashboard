@@ -212,6 +212,26 @@ class coreController extends protectedController{
         $this->setAnswer(200, "OK", ["code" => auto_wbs_code($this->DB, $model, $row)], "json");
     }
 
+    /**
+     * GET core/suggest_parent/<model>?text=...&exclude=<row id>
+     *   -> {"candidates": [{pillar_id, objective_id, programme_id, label, score}, ...], "confident": true}
+     * Where an item with these words belongs, best first; see
+     * suggest_parent() in library.php. Read-only, hence a GET. The forms
+     * call it as the name and description are typed.
+     */
+    public function suggest_parent(){
+        $this->checkMethod("GET");
+        $this->mapRoute("model");
+        $model = (string)($this->parts['model'] ?? '');
+        if (!in_array($model, ['pm_objectives', 'pm_programmes', 'pm_projects'], true)) {
+            $this->setAnswer(404, "Unknown model.", [], "json");
+            exit;
+        }
+        $text    = mb_substr(trim((string)($this->query['text'] ?? '')), 0, 4000);
+        $exclude = (int)($this->query['exclude'] ?? 0);
+        $this->setAnswer(200, "OK", suggest_parent($this->DB, $model, $text, 3, $exclude), "json");
+    }
+
     public function db_delete() {
         // POST only: as a GET, an <img src="/core/db_delete/pm_projects/5"> on
         // any page an administrator opened deleted the row.

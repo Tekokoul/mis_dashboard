@@ -320,7 +320,7 @@ class projectsController extends coreController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->parts, $rules);
-        $query = "select id, name, abbr from pm_objectives_tbl where pillar_id = ".$validated['id']." and active=1";
+        $query = "select id, name, abbr from pm_objectives_tbl where pillar_id = ".$validated['id']." and active=1 order by " . coreModel::natural_order_sql('abbr');
         $data = $this->DB->MQ($query, "all");
         $this->setAnswer(200, "Got ".count($data)." objectives", $data, "json");
     }
@@ -333,7 +333,7 @@ class projectsController extends coreController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->parts, $rules);
-        $query = "select id, name, abbr from pm_programmes_tbl where objective_id = ".$validated['id']." and active=1";
+        $query = "select id, name, abbr from pm_programmes_tbl where objective_id = ".$validated['id']." and active=1 order by " . coreModel::natural_order_sql('abbr');
         $data = $this->DB->MQ($query, "all");
         $this->setAnswer(200, "Got ".count($data)." programmes", $data, "json");
     }

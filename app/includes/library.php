@@ -744,3 +744,223 @@ function normalise_number($value, $integer = false) {
     if ($s === '' || $s === '-' || $s === '.' || !is_numeric($s)) { return ''; }
     return $integer ? (string)(int)$s : $s;
 }
+
+/**
+ * Where does an item with these words belong? The add and edit forms ask
+ * this as the name and description are typed, so the goal, objective and
+ * programme dropdowns follow the CONTENT instead of staying at the first
+ * option. (The code is numbered separately, from the place chosen.)
+ *
+ * Every place the item could sit is described by its words: its own name
+ * and description, its parent's name, and the names and descriptions of
+ * everything already filed under it. That last part is what makes this
+ * accurate on this data - "SIEM", "CPHIA", "Starlink" each live in one
+ * corner of the tree - and it gets better as staff file more. A word is
+ * weighted by how rare it is among the candidates (one found in every
+ * objective decides nothing), by where it occurs (a candidate's own name
+ * counts most), and acronyms count double. A candidate whose whole name is
+ * covered by the text gets a bonus. Both sides are lightly stemmed, so
+ * "registrations" meets "registration" and "operating" meets "operations".
+ *
+ *   pm_objectives -> a goal
+ *   pm_programmes -> an objective (with its goal)
+ *   pm_projects   -> an objective and one of ITS programmes (with the goal)
+ *
+ * Returns ['candidates' => [best first: the ids to select, a label, the
+ * score], 'confident' => bool]: confident when the best is clearly ahead of
+ * the runner-up. $exclude is the id of the row being edited, whose own
+ * words must not vote for where it already sits.
+ */
+function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
+    static $stop = null;
+    if ($stop === null) {
+        $stop = array_flip(explode(' ', 'a an the and or of to in on at by for with from as is are was were be been '
+            . 'being it its this that these those there their they them we our us you your he she his her not no nor '
+            . 'but if then than so such into onto over under within without between across through during before '
+            . 'after above below up down out off again further once here where when why how all any both each few '
+            . 'more most other some own same only very can could may might shall should will would just also per via '
+            . 'etc use using used new one two three four five ensure ensuring support supporting develop developing '
+            . 'development establish establishing implement implementing implementation conduct conducting provide '
+            . 'providing define defining deliver delivering deploy deploying design designing build building prepare '
+            . 'preparing organize organise strengthen enhance maintain improve review plan planning activity '
+            . 'activities programme programmes program programs project projects objective objectives task tasks '
+            . 'goal goals key deliverable deliverables africa cdc afcdc member members state states least selected '
+            . 'relevant related based including include includes'));
+    }
+    $stem = function ($w) {
+        if (strlen($w) > 6 && substr($w, -2) === 'al') { $w = substr($w, 0, -2); }
+        if (preg_match('/^(.{3,})(ations|ation|ating|ated|ates|ate)$/', $w, $m)) { return $m[1] . 'at'; }
+        if (strlen($w) > 5 && substr($w, -3) === 'ies') { return substr($w, 0, -3) . 'y'; }
+        if (strlen($w) > 5 && substr($w, -3) === 'ing') { return substr($w, 0, -3); }
+        if (strlen($w) > 4 && substr($w, -2) === 'ed') { return substr($w, 0, -2); }
+        if (strlen($w) > 3 && substr($w, -1) === 's' && substr($w, -2) !== 'ss') { return substr($w, 0, -1); }
+        return $w;
+    };
+    $words = function ($s) use ($stop, $stem) {
+        $s = html_entity_decode(strip_tags((string)$s), ENT_QUOTES, 'UTF-8');
+        $s = preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($s, 'UTF-8'));
+        $out = [];
+        foreach (preg_split('/\s+/', trim((string)$s)) as $w) {
+            if ($w === '' || mb_strlen($w) < 2 || ctype_digit($w) || isset($stop[$w])) { continue; }
+            $out[$stem($w)] = true;
+        }
+        return array_keys($out);
+    };
+    $acronyms = [];
+    $noteAcronyms = function ($s) use (&$acronyms, $stem) {
+        if (preg_match_all('/\b[A-Z][A-Z0-9]+(?=s?\b)/', strip_tags((string)$s), $m)) {
+            foreach ($m[0] as $a) { if ($a !== 'IT') { $acronyms[$stem(strtolower($a))] = true; } }
+        }
+    };
+    // doc: token => weight (the strongest place the word occurs in)
+    $add = function (array &$doc, $s, $w) use ($words, $noteAcronyms) {
+        $noteAcronyms($s);
+        foreach ($words($s) as $t) { if (!isset($doc[$t]) || $doc[$t] < $w) { $doc[$t] = $w; } }
+    };
+    $score = function (array $docs, array $names, array $query) use (&$acronyms) {
+        $n = count($docs); $df = [];
+        foreach ($docs as $d) { foreach ($d as $t => $w) { $df[$t] = ($df[$t] ?? 0) + 1; } }
+        $out = [];
+        foreach ($docs as $id => $d) {
+            $s = 0.0;
+            foreach ($query as $t) {
+                if (!isset($d[$t])) { continue; }
+                $s += log(1 + $n / $df[$t]) * $d[$t] * (isset($acronyms[$t]) ? 2 : 1);
+            }
+            if ($s > 0 && count($names[$id]) >= 2 && !array_diff($names[$id], $query)) { $s += 3; }
+            $out[$id] = $s;
+        }
+        arsort($out);
+        return $out;
+    };
+    $label = function ($row) { return trim((string)($row['abbr'] ?? '') . ' ' . (string)($row['name'] ?? '')); };
+    // Clearly ahead: above a floor (a lone weak word is not a filing) and
+    // well clear of the runner-up.
+    $ahead = function ($best, $second, $floor = 8) { return $best >= $floor && ($second <= 0 || $best >= 1.3 * $second); };
+
+    $query = $words($text);
+    $none  = ['candidates' => [], 'confident' => false];
+    if (!$query) { return $none; }
+    $exclude = (int)$exclude;
+
+    $pillars    = (array)$db->MQ("SELECT id, name, abbr, description FROM pm_pillars_tbl WHERE active = 1", "all");
+    $objectives = (array)$db->MQ("SELECT id, pillar_id, name, abbr, description, outcomes FROM pm_objectives_tbl WHERE active = 1", "all");
+    $programmes = (array)$db->MQ("SELECT id, objective_id, name, abbr, description FROM pm_programmes_tbl WHERE active = 1", "all");
+    $activities = (array)$db->MQ("SELECT id, objective_id, programme_id, name, description, kpi FROM pm_projects_tbl", "all");
+    $byId = function (array $rows) { $o = []; foreach ($rows as $r) { $o[(int)$r['id']] = $r; } return $o; };
+    $pillarById = $byId($pillars); $objectiveById = $byId($objectives);
+
+    if ($model === 'pm_objectives') {
+        $docs = []; $names = [];
+        foreach ($pillars as $p) {
+            $d = []; $add($d, $p['name'], 3); $add($d, $p['description'], 2);
+            $docs[(int)$p['id']] = $d; $names[(int)$p['id']] = $words($p['name']);
+        }
+        foreach ($objectives as $o) {
+            if ((int)$o['id'] === $exclude || !isset($docs[(int)$o['pillar_id']])) { continue; }
+            $add($docs[(int)$o['pillar_id']], $o['name'], 1.5);
+            $add($docs[(int)$o['pillar_id']], $o['description'] . ' ' . $o['outcomes'], 1);
+        }
+        foreach ($programmes as $p) {
+            $o = $objectiveById[(int)$p['objective_id']] ?? null;
+            if ($o && (int)$o['id'] !== $exclude && isset($docs[(int)$o['pillar_id']])) { $add($docs[(int)$o['pillar_id']], $p['name'], 0.75); }
+        }
+        $scores = $score($docs, $names, $query);
+        $out = [];
+        foreach ($scores as $id => $s) {
+            if ($s <= 0 || count($out) >= $limit) { break; }
+            $out[] = ['pillar_id' => $id, 'label' => $label($pillarById[$id]), 'score' => round($s, 2)];
+        }
+        $v = array_values($scores);
+        return ['candidates' => $out, 'confident' => $ahead($v[0] ?? 0, $v[1] ?? 0, 4)];
+    }
+
+    // Objective docs (used by both remaining models).
+    $odocs = []; $onames = [];
+    foreach ($objectives as $o) {
+        $d = []; $add($d, $o['name'], 3); $add($d, $o['description'] . ' ' . $o['outcomes'], 2);
+        if (isset($pillarById[(int)$o['pillar_id']])) { $add($d, $pillarById[(int)$o['pillar_id']]['name'], 0.5); }
+        $odocs[(int)$o['id']] = $d; $onames[(int)$o['id']] = $words($o['name']);
+    }
+    foreach ($programmes as $p) {
+        if ($model === 'pm_programmes' && (int)$p['id'] === $exclude) { continue; }
+        if (!isset($odocs[(int)$p['objective_id']])) { continue; }
+        $add($odocs[(int)$p['objective_id']], $p['name'], 1.5);
+        $add($odocs[(int)$p['objective_id']], $p['description'], 1);
+    }
+    foreach ($activities as $a) {
+        if ($model === 'pm_projects' && (int)$a['id'] === $exclude) { continue; }
+        if (!isset($odocs[(int)$a['objective_id']])) { continue; }
+        $add($odocs[(int)$a['objective_id']], $a['name'], 1.2);
+        $add($odocs[(int)$a['objective_id']], $a['description'] . ' ' . $a['kpi'], 0.8);
+    }
+    $oscores = $score($odocs, $onames, $query);
+    $olabel = function ($id) use ($objectiveById, $label) { return $label($objectiveById[$id]); };
+
+    if ($model === 'pm_programmes') {
+        $out = [];
+        foreach ($oscores as $id => $s) {
+            if ($s <= 0 || count($out) >= $limit) { break; }
+            $out[] = ['pillar_id' => (int)$objectiveById[$id]['pillar_id'], 'objective_id' => $id, 'label' => $olabel($id), 'score' => round($s, 2)];
+        }
+        $v = array_values($oscores);
+        return ['candidates' => $out, 'confident' => $ahead($v[0] ?? 0, $v[1] ?? 0)];
+    }
+
+    // pm_projects: programme docs hold only the activities filed consistently
+    // under them (same objective), so the loose seeded grouping - objective-3
+    // activities inside "1.x PRG" programmes - cannot pull a new activity into
+    // the wrong objective.
+    $pdocs = []; $pnames = []; $programmeById = $byId($programmes);
+    foreach ($programmes as $p) {
+        $d = []; $add($d, $p['name'], 3); $add($d, $p['description'], 2);
+        $pdocs[(int)$p['id']] = $d; $pnames[(int)$p['id']] = $words($p['name']);
+    }
+    foreach ($activities as $a) {
+        if ((int)$a['id'] === $exclude) { continue; }
+        $p = $programmeById[(int)$a['programme_id']] ?? null;
+        if (!$p || (int)$p['objective_id'] !== (int)$a['objective_id']) { continue; }
+        $add($pdocs[(int)$p['id']], $a['name'], 1.5);
+        $add($pdocs[(int)$p['id']], $a['description'] . ' ' . $a['kpi'], 1);
+    }
+    $pscores = $score($pdocs, $pnames, $query);
+    // The best programme of each objective (ties broken by code order), and
+    // the runner-up's score so the choice within the objective can be judged.
+    $byObjective = [];
+    foreach ($programmes as $p) { $byObjective[(int)$p['objective_id']][] = $p; }
+    $bestPrg = []; $secondPrg = [];
+    foreach ($byObjective as $o => $list) {
+        usort($list, function ($a, $b) use ($pscores) {
+            $d = ($pscores[(int)$b['id']] ?? 0) <=> ($pscores[(int)$a['id']] ?? 0);
+            return $d ?: strnatcmp((string)$a['abbr'], (string)$b['abbr']);
+        });
+        $bestPrg[$o]   = $list[0];
+        $secondPrg[$o] = isset($list[1]) ? ($pscores[(int)$list[1]['id']] ?? 0) : null;
+    }
+    $pairs = [];
+    foreach ($oscores as $o => $s) {
+        if (isset($bestPrg[$o])) { $pairs[$o] = $s + ($pscores[(int)$bestPrg[$o]['id']] ?? 0); }
+    }
+    arsort($pairs);
+    $out = [];
+    foreach ($pairs as $o => $s) {
+        if ($s <= 0 || count($out) >= $limit) { break; }
+        $p = $bestPrg[$o];
+        $out[] = [
+            'pillar_id'    => (int)$objectiveById[$o]['pillar_id'],
+            'objective_id' => $o,
+            'programme_id' => (int)$p['id'],
+            'label'        => $olabel($o) . ' › ' . $label($p),
+            'score'        => round($s, 2),
+        ];
+    }
+    $v = array_values($pairs); $top = array_key_first($pairs);
+    $confident = false;
+    if ($top !== null && $ahead($v[0], $v[1] ?? 0)) {
+        $best = $pscores[(int)$bestPrg[$top]['id']] ?? 0;
+        // Clear within the objective too: the programme is the only one, or
+        // it is clearly ahead of the next.
+        $confident = ($secondPrg[$top] === null) || ($best > 0 && $ahead($best, $secondPrg[$top]));
+    }
+    return ['candidates' => $out, 'confident' => $confident];
+}

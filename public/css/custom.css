@@ -704,3 +704,10 @@ html .body-error .center-error {
 .afcdc-sso__btn { display: flex; align-items: center; justify-content: center; gap: .6rem; width: 100%; min-height: 48px; padding: .75rem 1rem; border: 1px solid #C9C7BF; border-radius: 4px; background: #FFFFFF; color: #1E2A22; font-weight: 600; text-decoration: none; }
 .afcdc-sso__btn:hover, .afcdc-sso__btn:focus-visible { background: #F6F5F0; border-color: #1A5632; color: #1A5632; text-decoration: none; outline: 2px solid #348F41; outline-offset: 2px; }
 .afcdc-sso__hint { margin: .75rem 0 0; font-size: .8125rem; color: #58595B; }
+
+/* Filing by content: the note under the goal / objective / programme dropdown on the add and edit forms. */
+.afcdc-suggest { margin-top: .4rem; font-size: .8125rem; line-height: 1.45; color: #58595B; }
+.afcdc-suggest:empty { display: none; }
+.afcdc-suggest strong { color: #1E2A22; font-weight: 600; }
+.afcdc-suggest a { color: #1A5632; text-decoration: underline; }
+.afcdc-suggest a:hover, .afcdc-suggest a:focus-visible { color: #348F41; }
