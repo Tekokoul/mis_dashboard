@@ -17,3 +17,31 @@ $(function () {
         e.preventDefault();
     });
 });
+
+/* Abbreviation autofill on the add/edit forms of objectives, programmes and
+ * activities: while the box is empty (or still holds a value this script
+ * put there), it shows the next code for the place the item sits, and
+ * follows the parent dropdown. Anything typed by hand is left alone; the
+ * server fills an empty code the same way on save. */
+$(function () {
+    var $abbr = $('input[name="abbr"]'), $model = $('input[name="tablename"]');
+    if (!$abbr.length || !$model.length) { return; }
+    var model = $model.val();
+    if (['pm_objectives', 'pm_programmes', 'pm_projects'].indexOf(model) < 0) { return; }
+    var parentSel = model === 'pm_programmes' ? 'select[name="objective_id"]'
+                  : model === 'pm_projects'   ? 'select[name="programme_id"]' : null;
+    var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
+    function fill() {
+        if ($abbr.val() !== '' && $abbr.attr('data-auto') !== '1') { return; }
+        var parent = parentSel ? parseInt($(parentSel).val(), 10) || 0 : 0;
+        if (parentSel && !parent) { return; }
+        $.getJSON(prefix + '/core/next_code/' + model + '/' + parent, function (r) {
+            var d = (r && r.data) ? r.data : r;
+            if (!d || !d.code) { return; }
+            $abbr.val(d.code).attr('data-auto', '1');
+        });
+    }
+    $abbr.on('input', function () { $(this).attr('data-auto', $(this).val() === '' ? '1' : '0'); });
+    if (parentSel) { $(document).on('change', parentSel, fill); }
+    fill();
+});

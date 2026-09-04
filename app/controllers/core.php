@@ -135,6 +135,11 @@ class coreController extends protectedController{
             // A task applies to every active reporting entity unless chosen otherwise (see library.php).
             $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
         }
+        if (in_array($validated['tablename'], ['pm_objectives', 'pm_programmes'], true)
+            && array_key_exists('abbr', $this->query) && trim((string)$this->query['abbr']) === '') {
+            // An empty code is numbered from where the row sits (library.php auto_wbs_code).
+            $this->query['abbr'] = auto_wbs_code($this->DB, $validated['tablename'], $this->query);
+        }
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             $id_part = ($this->update_redirect=="db_edit") ? "/".$executed['common'] : "";
@@ -175,6 +180,11 @@ class coreController extends protectedController{
             // A task applies to every active reporting entity unless chosen otherwise (see library.php).
             $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
         }
+        if (in_array($validated['tablename'], ['pm_objectives', 'pm_programmes'], true)
+            && array_key_exists('abbr', $this->query) && trim((string)$this->query['abbr']) === '') {
+            // An empty code is numbered from where the row sits (library.php auto_wbs_code).
+            $this->query['abbr'] = auto_wbs_code($this->DB, $validated['tablename'], $this->query);
+        }
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");
@@ -182,6 +192,24 @@ class coreController extends protectedController{
             $id_part = ($this->update_redirect=="db_edit") ? "/".$validated['id'] : "";
             redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part));
         }
+    }
+
+    /**
+     * The next code for a new objective / programme / activity, so the add
+     * form can fill the abbreviation in as the parent is chosen.
+     * GET core/next_code/<model>/<parent id>  ->  {"code": "16.1.6"}
+     */
+    public function next_code(){
+        $this->checkMethod("GET");
+        $this->mapRoute("model/parent");
+        $model  = (string)($this->parts['model'] ?? '');
+        $parent = (int)($this->parts['parent'] ?? 0);
+        if (!in_array($model, ['pm_objectives', 'pm_programmes', 'pm_projects'], true)) {
+            $this->setAnswer(404, "Unknown model.", [], "json");
+            exit;
+        }
+        $row = ($model === 'pm_programmes') ? ['objective_id' => $parent] : (($model === 'pm_projects') ? ['programme_id' => $parent] : []);
+        $this->setAnswer(200, "OK", ["code" => auto_wbs_code($this->DB, $model, $row)], "json");
     }
 
     public function db_delete() {

@@ -106,7 +106,10 @@ class projectsController extends coreController{
         $additional_tables = (array)($this->query['additional_tables'] ?? []);
         unset($this->query['additional_tables']);
 
-        if ($validated['tablename'] === 'pm_projects') { $this->normaliseParents($this->query); }
+        if ($validated['tablename'] === 'pm_projects') {
+            $this->normaliseParents($this->query);
+            if (trim((string)($this->query['abbr'] ?? '')) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }
+        }
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             $new_id = $executed['common'];
@@ -153,7 +156,10 @@ class projectsController extends coreController{
         unset($this->query['additional_tables']);
 
         $previous = $this->DB->MQ("select * from ".$this->model->get_table_name($validated['tablename'])." where id=".(int)$validated['id'], "one");
-        if ($validated['tablename'] === 'pm_projects') { $this->normaliseParents($this->query); }
+        if ($validated['tablename'] === 'pm_projects') {
+            $this->normaliseParents($this->query);
+            if (array_key_exists('abbr', $this->query) && trim((string)$this->query['abbr']) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }
+        }
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");

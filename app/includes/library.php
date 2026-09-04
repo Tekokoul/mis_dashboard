@@ -690,3 +690,41 @@ function default_applies_to($db, $chosen) {
     foreach ((array)$db->MQ("SELECT id FROM pm_members_tbl WHERE active = 1", "all") as $m) { $ids[] = (string)(int)$m['id']; }
     return $ids;
 }
+
+/**
+ * Next code for a row whose abbreviation is empty, from where it sits:
+ *   objective  -> next whole number, kept in the "N.0" form the data uses ("18.0")
+ *   programme  -> parent objective's number + ".n"          ("16.2")
+ *   activity   -> parent programme's numeric code + ".n"    ("16.1.6"; "7.1 PRG" counts as 7.1)
+ * n is one more than the highest sibling already using that prefix; siblings
+ * whose code does not follow the pattern (the AWP codes of the seeded
+ * activities, "4.2.4.06.01") are ignored. "" when nothing can be derived.
+ */
+function auto_wbs_code($db, $model, array $row) {
+    $numeric = function ($code) { return preg_match('/^\d+(?:\.\d+)*/', trim((string)$code), $m) ? $m[0] : ''; };
+    if ($model === 'pm_objectives') {
+        $max = 0;
+        foreach ((array)$db->MQ("SELECT abbr FROM pm_objectives_tbl", "all") as $r) {
+            if (preg_match('/^(\d+)/', trim((string)$r['abbr']), $m)) { $max = max($max, (int)$m[1]); }
+        }
+        return ($max + 1) . ".0";
+    }
+    if ($model === 'pm_programmes') {
+        $parent = $db->MQ("SELECT abbr FROM pm_objectives_tbl WHERE id = ?", "one", [(int)($row['objective_id'] ?? 0)]);
+        if (!is_set($parent) || !preg_match('/^(\d+)/', trim((string)$parent['abbr']), $m)) { return ''; }
+        $prefix = $m[1];
+        $rows = (array)$db->MQ("SELECT abbr FROM pm_programmes_tbl WHERE objective_id = ?", "all", [(int)$row['objective_id']]);
+    } elseif ($model === 'pm_projects') {
+        $parent = $db->MQ("SELECT abbr FROM pm_programmes_tbl WHERE id = ?", "one", [(int)($row['programme_id'] ?? 0)]);
+        $prefix = is_set($parent) ? $numeric($parent['abbr']) : '';
+        if ($prefix === '') { return ''; }
+        $rows = (array)$db->MQ("SELECT abbr FROM pm_projects_tbl WHERE programme_id = ?", "all", [(int)$row['programme_id']]);
+    } else {
+        return '';
+    }
+    $max = 0;
+    foreach ($rows as $r) {
+        if (preg_match('/^' . preg_quote($prefix, '/') . '\.(\d+)(?:\D|$)/', trim((string)$r['abbr']), $m)) { $max = max($max, (int)$m[1]); }
+    }
+    return $prefix . '.' . ($max + 1);
+}
