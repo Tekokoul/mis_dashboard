@@ -345,6 +345,15 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         $fields = $this->get_table_fields($table_name);
         $common_fields = $this->remaining_array($fields['common'], $this->array_with_value("no_update", $fields['common']));
 
+        // Numeric columns take what a person typed ("10,000 USD") as a number;
+        // a value with no digits becomes empty and the column default applies.
+        foreach ($common_fields as $field => $properties) {
+            $t = strtolower((string)($properties['type'] ?? ''));
+            if (isset($data[$field]) && !is_array($data[$field]) && in_array($t, ['double','float','decimal','int','tinyint','smallint','bigint','integer'], true)) {
+                $data[$field] = normalise_number($data[$field], in_array($t, ['int','tinyint','smallint','bigint','integer'], true));
+            }
+        }
+
         $this->run_callbacks($callbacks['before'], $data);
         $query = "INSERT INTO " . $this->get_table_name($table_name) . " (";
         $query_elements_1 = [];
@@ -417,6 +426,15 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         $fields = $this->get_table_fields($table_name);
 
         $common_fields = $this->remaining_array($fields['common'], $this->array_with_value("no_update", $fields['common']));
+
+        // Numeric columns take what a person typed ("10,000 USD") as a number;
+        // a value with no digits becomes empty and the column default applies.
+        foreach ($common_fields as $field => $properties) {
+            $t = strtolower((string)($properties['type'] ?? ''));
+            if (isset($data[$field]) && !is_array($data[$field]) && in_array($t, ['double','float','decimal','int','tinyint','smallint','bigint','integer'], true)) {
+                $data[$field] = normalise_number($data[$field], in_array($t, ['int','tinyint','smallint','bigint','integer'], true));
+            }
+        }
 
         $this->run_callbacks($callbacks['before'], $data);
         $query = "UPDATE " . $this->get_table_name($table_name) . " SET ";

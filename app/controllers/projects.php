@@ -526,6 +526,14 @@ class projectsController extends coreController{
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['data'] = $this->model->get_data("pm_projects", $validated['id']) ?? [];
+        if (!is_set($data['data'])) {
+            $this->setAnswer(404, "There is no activity with that id.");
+            exit;
+        }
+        // An activity added through the form has no type; every activity is
+        // the task-reported kind. Without this the matrix lookup below passed
+        // an empty model name and the page showed "Database unavailable".
+        if (empty($data['data']['type'])) { $data['data']['type'] = 'pm_projects_tasks'; }
         $pm_matrix = readJSONFile(_MODELS_SETTINGS_PATH."pm_type_to_progress_matrix.json");
         $pm_progress = readJSONFile(_MODELS_SETTINGS_PATH.$pm_matrix[$data['data']['type']]['progress_file'].$this->S['db_master']['db_table_suffix'].".json");
 
@@ -760,7 +768,7 @@ class projectsController extends coreController{
             "member_id" => FILTER_SANITIZE_NUMBER_INT,
             "task_id" => FILTER_SANITIZE_NUMBER_INT,
             "result" => FILTER_SANITIZE_NUMBER_INT,
-            "actual_budget" => FILTER_SANITIZE_NUMBER_FLOAT,
+            "actual_budget" => FILTER_UNSAFE_RAW,
             "comment" => FILTER_UNSAFE_RAW,
             "progress_date" => FILTER_UNSAFE_RAW
         ];
@@ -772,9 +780,8 @@ class projectsController extends coreController{
         // actual_budget is optional. It was previously interpolated bare, so
         // leaving the field blank produced "VALUES (..., )" - a syntax error on
         // every tick that did not also record spend. NULL when empty.
-        $actual_budget = (isset($validated['actual_budget']) && $validated['actual_budget'] !== '')
-            ? (float)$validated['actual_budget']
-            : null;
+        $spend = normalise_number($validated['actual_budget'] ?? '');
+        $actual_budget = ($spend !== '') ? (float)$spend : null;
 
         // progress_date and comment are FILTER_UNSAFE_RAW, i.e. raw request
         // input, and db_esc() is only addslashes(). Bind everything instead.

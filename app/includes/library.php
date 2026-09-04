@@ -728,3 +728,19 @@ function auto_wbs_code($db, $model, array $row) {
     }
     return $prefix . '.' . ($max + 1);
 }
+
+/**
+ * A number as a person types it ("10,000", "$ 1 500.75", "USD 2000") as the
+ * database wants it ("10000", "1500.75"). Anything with no digits in it
+ * becomes "" so the column takes its default instead of the save failing
+ * with "Data truncated". Arrays and already-clean values pass through.
+ */
+function normalise_number($value, $integer = false) {
+    if (is_array($value) || $value === null) { return $value; }
+    $s = trim((string)$value);
+    if ($s === '' || is_numeric($s)) { return $integer && $s !== '' ? (string)(int)$s : $s; }
+    $s = preg_replace('/[^0-9.\-]/', '', str_replace(',', '', $s));
+    if (substr_count($s, '.') > 1) { $s = preg_replace('/\.(?=.*\.)/', '', $s); }   // keep the last dot
+    if ($s === '' || $s === '-' || $s === '.' || !is_numeric($s)) { return ''; }
+    return $integer ? (string)(int)$s : $s;
+}
