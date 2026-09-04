@@ -239,8 +239,9 @@ is being overruled more than it is helping; that is the number to watch.
 **Meaning matching (optional).** The two above only know words. The sidecar in
 `docker/matcher` turns text into numbers whose closeness reflects sense, so
 "conference sign-ups" reaches "CPHIA Registrations" with no shared words. It
-runs here, has no outbound network, no published port, no account and no
-quota. Off unless `MATCHER_URL` is set; if it is down or slow the suggestion
+runs here. Its container is on a network Docker declares `internal: true`, so
+it has no route off the machine, and it publishes no port, holds no account
+and has no quota. Off unless `MATCHER_URL` is set; if it is down or slow the suggestion
 quietly falls back to word matching. See `.env.example` for switching it on,
 and note the `docker save` route for a server that cannot reach the model
 host. Cost: about 850 MB of memory and 1.3 GB of disk.
@@ -413,6 +414,16 @@ three activity columns, `sso_subject`, and the two tables this release adds
 mentions). Leave them in place; dropping them would throw away the filing
 corrections people have made.
 
+Stop the meaning matcher FIRST, if it was running. Its compose file does not
+exist in older commits, so after the checkout this command cannot run at all:
+
+```bash
+docker compose -f docker-compose.yml -f compose.matcher.yml --profile matcher stop matcher
+```
+
+Then clear `MATCHER_URL` in `.env`, so the older `setup-production.sh` is not
+left pointing at something that is gone, and check out the commit:
+
 ```bash
 git checkout <previous commit> && ./setup-production.sh deploy
 ```
@@ -421,12 +432,11 @@ That leaves the repository on a detached HEAD, so a later `git pull` fails
 with "You are not currently on any branch". Return with `git checkout main`
 before the next deploy.
 
-If the meaning matcher was running, stop it as well, or it will sit there
-answering an application that no longer asks:
-
-```bash
-docker compose -f docker-compose.yml -f compose.matcher.yml --profile matcher stop matcher
-```
+Know what you are giving back. Going below a15f0196 restores a counting fault
+on live rows: an activity filed under a programme belonging to another
+objective disappears from that objective's page while still counting on the
+overview, which is what made the Data Centre objective read 44% against an
+empty page.
 
 Data, only if something was written that has to go: restore the dump the deploy
 took first. Note that `restore` asks you to type the database name to confirm,

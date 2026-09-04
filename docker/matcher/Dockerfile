@@ -26,7 +26,7 @@ RUN set -eux; \
 FROM python:3.12-slim
 ARG MODEL_ID
 LABEL org.opencontainers.image.title="AfCDC DHIS meaning matcher"
-LABEL org.opencontainers.image.description="Local sentence embeddings for filing activities. No outbound network."
+LABEL org.opencontainers.image.description="Local sentence embeddings for filing activities. Runs on an internal-only Docker network."
 ENV PYTHONUNBUFFERED=1 \
     HF_HUB_OFFLINE=1 \
     TRANSFORMERS_OFFLINE=1 \

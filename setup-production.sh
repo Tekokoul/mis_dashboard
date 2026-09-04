@@ -95,7 +95,16 @@ find_docker() {
 # failure is silent - filing suggestions simply get quietly worse - so the
 # deploy has to know about the matcher whenever it is in use.
 MATCHER_COMPOSE=compose.matcher.yml
-matcher_on() { [ -n "${MATCHER_URL:-}" ] && [ -f "$MATCHER_COMPOSE" ]; }
+# Fail closed. If the matcher is switched on but its compose file is missing -
+# a partial checkout, an unpacked tarball - carrying on with the base file
+# alone would make `up -d --remove-orphans` delete the running matcher without
+# a word. Stop instead and say why.
+matcher_on() {
+    [ -n "${MATCHER_URL:-}" ] || return 1
+    [ -f "$MATCHER_COMPOSE" ] || die "MATCHER_URL is set in .env but ${MATCHER_COMPOSE} is missing.
+     Restore the file, or clear MATCHER_URL to run without the meaning matcher."
+    return 0
+}
 dc() {
     if matcher_on; then
         "${COMPOSE[@]}" -f "$COMPOSE_FILE" -f "$MATCHER_COMPOSE" --profile matcher "$@"
@@ -402,18 +411,22 @@ cmd_restore() {
     ok "restored from $file"
 }
 
+# Every entry point below reads .env BEFORE its first compose call: matcher_on()
+# depends on MATCHER_URL, so a command that skipped this would silently use a
+# different set of compose files from the one `deploy` uses.
 cmd_admin() {
     local email="${1:-}"
     [ -n "$email" ] || die "usage: ./setup-production.sh admin <email> [group-id]"
     find_docker
+    load_env
     svc_running app || die "the app container is not running - start the stack first: ./setup-production.sh"
     dc exec app php /var/www/html/tools/create-admin.php "$email" "${2:-1}"
 }
 
 cmd_status() {
     find_docker
-    head_ "Containers"; dc ps
     load_env
+    head_ "Containers"; dc ps
     head_ "Health"
     curl -fsS "http://127.0.0.1:${HTTP_PORT:-8081}/health.php" 2>/dev/null || bad "health endpoint not answering"
     say ""
@@ -429,11 +442,12 @@ cmd_status() {
         "$MARIADB_DATABASE"' 2>/dev/null || bad "cannot query the database"
 }
 
-cmd_logs()    { find_docker; dc logs -f --tail 100 "${1:-app}"; }
-cmd_stop()    { find_docker; dc down; ok "stopped — data kept in the named volumes"; }
+cmd_logs()    { find_docker; load_env; dc logs -f --tail 100 "${1:-app}"; }
+cmd_stop()    { find_docker; load_env; dc down; ok "stopped — data kept in the named volumes"; }
 
 cmd_destroy() {
     find_docker
+    load_env    find_docker
     say ""
     warn "This deletes the containers AND all four volumes: the database, uploaded media,"
     warn "the render cache and the per-user settings. All recorded progress and every upload is lost."

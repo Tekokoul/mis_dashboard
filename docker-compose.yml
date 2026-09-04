@@ -99,7 +99,7 @@ services:
       # Per-user list preferences are written by the app at runtime; without
       # a volume every deploy reset them.
       - users_settings:/var/www/html/db/users_settings
-    networks: [internal]
+    networks: [internal, matchnet]
 
 volumes:
   db_data:
@@ -110,3 +110,13 @@ volumes:
 networks:
   internal:
     driver: bridge
+  # The meaning matcher sits here and nowhere else. `internal: true` is what
+  # actually removes its route to the internet - a plain bridge network does
+  # not, whatever it is called - so the promise that nothing typed into the
+  # dashboard can leave this machine is enforced by Docker rather than by the
+  # sidecar's good behaviour. The app joins both networks: it needs the
+  # outside world for Microsoft sign-in, the matcher does not need it at all
+  # because its model is baked into the image.
+  matchnet:
+    driver: bridge
+    internal: true

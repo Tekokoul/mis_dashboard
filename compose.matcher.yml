@@ -14,8 +14,10 @@ services:
     # tarball, so a missing image should fail loudly, not pull something.
     pull_policy: never
     restart: unless-stopped
-    # No ports. The only way in is the internal network shared with PHP-FPM.
-    networks: [internal]
+    # No ports, and matchnet is declared `internal: true` in docker-compose.yml,
+    # so this container has no route off the machine at all. The only way in is
+    # from PHP-FPM, which shares that network.
+    networks: [matchnet]
     environment:
       ORT_THREADS: "2"
       OMP_NUM_THREADS: "2"

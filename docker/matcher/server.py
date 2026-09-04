@@ -3,10 +3,10 @@ Meaning matcher: turns a short piece of text into a list of numbers whose
 closeness reflects sense rather than shared words, so "conference sign-ups"
 lands near "CPHIA Registrations".
 
-Runs entirely on this machine. It never opens an outbound connection: the
-model is baked into the image at build time and the container sits on an
-internal Docker network with no published port. There is no account, no key
-and no quota.
+Runs entirely on this machine. The model is baked into the image at build
+time, so nothing is fetched at run time, and the container sits on a Docker
+network declared `internal: true` with no published port - so it has no route
+off the machine even if something here tried. No account, no key, no quota.
 
   GET  /health -> {"ok": true, "model": ..., "dim": 384}
   POST /embed  {"texts": [...], "kind": "query"|"passage"}
