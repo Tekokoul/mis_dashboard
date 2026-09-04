@@ -176,17 +176,15 @@ class projectsController extends coreController{
     }
 
     /**
-     * pm_projects_tbl stores pillar_id, objective_id and programme_id side by
-     * side, and the overview joins on two of them at once: an activity whose
-     * goal disagrees with its objective vanishes from every count with no
-     * error. The parents follow the most specific choice made on the form.
+     * pm_projects_tbl stores pillar_id and objective_id side by side, and the
+     * overview joins on both at once: an activity whose goal disagrees with
+     * its objective vanishes from every count with no error. The goal
+     * therefore follows the objective. The programme is deliberately NOT
+     * used to derive the objective: in this data a programme is a loose
+     * grouping (many activities under objectives 2-5 sit in "1.x PRG"
+     * programmes), and deriving from it re-parented forty seeded activities.
      */
     private function normaliseParents(array &$row) {
-        $programme = (int)($row['programme_id'] ?? 0);
-        if ($programme > 0) {
-            $g = $this->DB->MQ("SELECT objective_id FROM pm_programmes_tbl WHERE id = ?", "one", [$programme]);
-            if (is_set($g)) { $row['objective_id'] = (int)$g['objective_id']; }
-        }
         $objective = (int)($row['objective_id'] ?? 0);
         if ($objective > 0) {
             $o = $this->DB->MQ("SELECT pillar_id FROM pm_objectives_tbl WHERE id = ?", "one", [$objective]);
