@@ -70,6 +70,18 @@ $(function () {
     // At the end of the field's column: select2 has already put its widget
     // right after the select, and the note belongs under both.
     var $hint  = $('<div class="afcdc-suggest" aria-live="polite"></div>').appendTo($parent.parent());
+    // What the form was suggesting when Save is pressed. The server compares
+    // it with what was actually chosen and remembers the difference, so the
+    // matcher learns from corrections. Empty when nothing was suggested.
+    var $sug = {};
+    $.each(['pillar_id', 'objective_id', 'programme_id'], function (i, f) {
+        $sug[f] = $('<input type="hidden">').attr('name', 'suggest_' + f).appendTo($form);
+    });
+    function remember(c) {
+        $.each(['pillar_id', 'objective_id', 'programme_id'], function (i, f) {
+            $sug[f].val(c && c[f] !== undefined ? String(c[f]) : '');
+        });
+    }
     var manual = false, auto = false, timer = null, lastText = '', last = null, seq = 0;
 
     function value(name) { var $s = $form.find('select[name="' + name + '"]'); return $s.length ? String($s.val()) : ''; }
@@ -112,13 +124,15 @@ $(function () {
         var selected = selectedKey(), current = null, others = [];
         $.each(list, function (i, c) { if (!current && key(c) === selected) { current = c; } else { others.push(c); } });
         if (current) {
-            var lead = (auto && !manual) ? (last.confident ? 'Filed under ' : 'Best guess from the wording: ') : '';
+            var lead = current.learned ? 'Filed here before for wording like this: '
+                     : (auto && !manual) ? (last.confident ? 'Filed under ' : 'Best guess from the wording: ') : '';
+            var tail = current.learned ? '' : ((auto && !manual) ? ' from the wording.' : ' matches the wording.');
             $hint.append($('<span></span>').text(lead))
                  .append($('<strong></strong>').text(current.label))
-                 .append($('<span></span>').text((auto && !manual) ? ' from the wording.' : ' matches the wording.'));
+                 .append($('<span></span>').text(tail));
         } else {
             var best = others.shift();
-            $hint.append($('<span></span>').text('Suggested from the wording: '))
+            $hint.append($('<span></span>').text(best.learned ? 'Filed here before for wording like this: ' : 'Suggested from the wording: '))
                  .append($('<strong></strong>').text(best.label)).append(' ')
                  .append(link('Apply', function () { manual = true; auto = false; apply(best); render(); }));
         }
@@ -143,6 +157,7 @@ $(function () {
             if (mine !== seq) { return; }
             last = (r && r.data) ? r.data : r;
             var best = last && last.candidates && last.candidates[0];
+            remember(best);
             if (best && isAdd && !manual) { auto = true; apply(best); }
             render();
         });

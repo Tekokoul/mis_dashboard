@@ -142,6 +142,11 @@ class coreController extends protectedController{
         }
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
+            record_filing_feedback($this->DB, $validated['tablename'], $this->query, [
+                'pillar_id'    => $this->query['suggest_pillar_id']    ?? 0,
+                'objective_id' => $this->query['suggest_objective_id'] ?? 0,
+                'programme_id' => $this->query['suggest_programme_id'] ?? 0,
+            ], (int)$executed['common']);
             $id_part = ($this->update_redirect=="db_edit") ? "/".$executed['common'] : "";
             redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part));
         } else {
@@ -185,10 +190,18 @@ class coreController extends protectedController{
             // An empty code is numbered from where the row sits (library.php auto_wbs_code).
             $this->query['abbr'] = auto_wbs_code($this->DB, $validated['tablename'], $this->query);
         }
+        // Where the row sat before the save: moving it is the correction the
+        // matcher learns from (read from the row, never from the browser).
+        $previous = [];
+        if (in_array($validated['tablename'], ['pm_objectives', 'pm_programmes', 'pm_projects'], true)) {
+            $previous = (array)$this->DB->MQ("SELECT * FROM " . $this->model->get_table_name($validated['tablename'])
+                                           . " WHERE id = ?", "one", [(int)$validated['id']]);
+        }
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");
         } else {
+            record_filing_feedback($this->DB, $validated['tablename'], $this->query, $previous, (int)$validated['id']);
             $id_part = ($this->update_redirect=="db_edit") ? "/".$validated['id'] : "";
             redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part));
         }

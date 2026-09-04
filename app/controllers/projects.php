@@ -118,7 +118,16 @@ class projectsController extends coreController{
                 $values['project_id'] = $new_id;
                 $executed = $this->model->add_data($add_tbl, $values);
             }
-            if ($validated['tablename'] === 'pm_projects') { $this->ensureDefaultTask((int)$new_id); }
+            if ($validated['tablename'] === 'pm_projects') {
+                $this->ensureDefaultTask((int)$new_id);
+                // What the form had suggested when this was saved; keeping it
+                // is a confirmation, changing it is a correction to learn from.
+                record_filing_feedback($this->DB, 'pm_projects', $this->query, [
+                    'pillar_id'    => $this->query['suggest_pillar_id']    ?? 0,
+                    'objective_id' => $this->query['suggest_objective_id'] ?? 0,
+                    'programme_id' => $this->query['suggest_programme_id'] ?? 0,
+                ], (int)$new_id);
+            }
             redirect($this->L("projects/".$id_part));
         } else {
             $this->setAnswer(500, "Problem adding the entry.");
@@ -176,7 +185,12 @@ class projectsController extends coreController{
                     $executed = $this->model->add_data($add_tbl, $values);
                 }
             }
-            if ($validated['tablename'] === 'pm_projects') { $this->ensureDefaultTask((int)$validated['id']); }
+            if ($validated['tablename'] === 'pm_projects') {
+                $this->ensureDefaultTask((int)$validated['id']);
+                // Moving an activity is the clearest correction there is: the
+                // place it sat in was wrong for this wording, whoever chose it.
+                record_filing_feedback($this->DB, 'pm_projects', $this->query, $previous, (int)$validated['id']);
+            }
             redirect($this->L("projects/".$id_part));
         }
     }

@@ -843,6 +843,63 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
     if (!$query) { return $none; }
     $exclude = (int)$exclude;
 
+    // What people actually did when the matcher was wrong. A correction is
+    // stronger evidence than anything filed by hand long ago, so the chosen
+    // place gets the text at a higher weight than any other source, and the
+    // place that was wrong is damped - never below 0.6, so a correction can
+    // tilt a close call but can never invent an answer on its own. An item's
+    // own past correction is excluded with the item, for the same reason.
+    $corrections = [];
+    if (filing_feedback_available($db)) {
+        $corrections = (array)$db->MQ(
+            "SELECT row_id, words, chosen_pillar_id, chosen_objective_id, chosen_programme_id,
+                    suggested_pillar_id, suggested_objective_id, suggested_programme_id
+               FROM pm_filing_feedback_tbl
+              WHERE model = ? AND accepted = 0 AND words <> ''
+              ORDER BY id DESC LIMIT 500", "all", [$model]);
+        if ($exclude > 0) {
+            $corrections = array_values(array_filter($corrections, function ($c) use ($exclude) {
+                return (int)$c['row_id'] !== $exclude;
+            }));
+        }
+    }
+    // A rejection only counts against a place when THIS text resembles the
+    // text that was corrected. Pooling the rejected words and counting any
+    // overlap punished the right place whenever two activities shared
+    // ordinary words like "establish" or "operating model", and cost four
+    // correctly filed rows in the measurement.
+    $rejected = ['pillar' => [], 'objective' => [], 'programme' => []];
+    $learned  = ['pillar' => [], 'objective' => [], 'programme' => []];
+    foreach ($corrections as $ci => $c) {
+        $corrections[$ci]['_sim'] = 0.0;
+        $ct = $words($c['words']);
+        if (!$ct) { continue; }
+        $shared = count(array_intersect($ct, $query));
+        $sim    = $shared / max(1, min(count($ct), count($query)));
+        // Weight the evidence by how much this text looks like the corrected
+        // one: a correction is a statement about a wording, not a licence to
+        // enlarge a whole objective's vocabulary.
+        $corrections[$ci]['_sim'] = ($shared >= 2) ? $sim : 0.0;
+        if (!($shared >= 3 && $sim >= 0.35)) { continue; }
+        foreach (['pillar', 'objective', 'programme'] as $lvl) {
+            $was = (int)$c['suggested_' . $lvl . '_id'];
+            $now = (int)$c['chosen_' . $lvl . '_id'];
+            if ($was > 0 && $was !== $now) {
+                $rejected[$lvl][$was] = max($rejected[$lvl][$was] ?? 0, $sim);
+            }
+            if ($now > 0) { $learned[$lvl][$now] = true; }
+        }
+    }
+    $damp = function ($level, $id) use ($rejected) {
+        $sim = $rejected[$level][$id] ?? 0;
+        return $sim > 0 ? max(0.6, 1 - 0.4 * $sim) : 1.0;
+    };
+    $applyDamp = function (array $scores, $level) use ($damp) {
+        foreach ($scores as $id => $s) { $scores[$id] = $s * $damp($level, $id); }
+        arsort($scores);
+        return $scores;
+    };
+
     $pillars    = (array)$db->MQ("SELECT id, name, abbr, description FROM pm_pillars_tbl WHERE active = 1", "all");
     $objectives = (array)$db->MQ("SELECT id, pillar_id, name, abbr, description, outcomes FROM pm_objectives_tbl WHERE active = 1", "all");
     $programmes = (array)$db->MQ("SELECT id, objective_id, name, abbr, description FROM pm_programmes_tbl WHERE active = 1", "all");
@@ -865,11 +922,15 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
             $o = $objectiveById[(int)$p['objective_id']] ?? null;
             if ($o && (int)$o['id'] !== $exclude && isset($docs[(int)$o['pillar_id']])) { $add($docs[(int)$o['pillar_id']], $p['name'], 0.75); }
         }
-        $scores = $score($docs, $names, $query);
+        foreach ($corrections as $c) {
+            $g = (int)$c['chosen_pillar_id'];
+            if ($g > 0 && isset($docs[$g]) && $c['_sim'] > 0) { $add($docs[$g], $c['words'], 1.5 + 1.5 * $c['_sim']); }
+        }
+        $scores = $applyDamp($score($docs, $names, $query), 'pillar');
         $out = [];
         foreach ($scores as $id => $s) {
             if ($s <= 0 || count($out) >= $limit) { break; }
-            $out[] = ['pillar_id' => $id, 'label' => $label($pillarById[$id]), 'score' => round($s, 2)];
+            $out[] = ['pillar_id' => $id, 'label' => $label($pillarById[$id]), 'score' => round($s, 2), 'learned' => !empty($learned['pillar'][$id])];
         }
         $v = array_values($scores);
         return ['candidates' => $out, 'confident' => $ahead($v[0] ?? 0, $v[1] ?? 0, 4)];
@@ -894,14 +955,18 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
         $add($odocs[(int)$a['objective_id']], $a['name'], 1.2);
         $add($odocs[(int)$a['objective_id']], $a['description'] . ' ' . $a['kpi'], 0.8);
     }
-    $oscores = $score($odocs, $onames, $query);
+    foreach ($corrections as $c) {
+        $o = (int)$c['chosen_objective_id'];
+        if ($o > 0 && isset($odocs[$o]) && $c['_sim'] > 0) { $add($odocs[$o], $c['words'], 1.5 + 1.5 * $c['_sim']); }
+    }
+    $oscores = $applyDamp($score($odocs, $onames, $query), 'objective');
     $olabel = function ($id) use ($objectiveById, $label) { return $label($objectiveById[$id]); };
 
     if ($model === 'pm_programmes') {
         $out = [];
         foreach ($oscores as $id => $s) {
             if ($s <= 0 || count($out) >= $limit) { break; }
-            $out[] = ['pillar_id' => (int)$objectiveById[$id]['pillar_id'], 'objective_id' => $id, 'label' => $olabel($id), 'score' => round($s, 2)];
+            $out[] = ['pillar_id' => (int)$objectiveById[$id]['pillar_id'], 'objective_id' => $id, 'label' => $olabel($id), 'score' => round($s, 2), 'learned' => !empty($learned['objective'][$id])];
         }
         $v = array_values($oscores);
         return ['candidates' => $out, 'confident' => $ahead($v[0] ?? 0, $v[1] ?? 0)];
@@ -923,7 +988,18 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
         $add($pdocs[(int)$p['id']], $a['name'], 1.5);
         $add($pdocs[(int)$p['id']], $a['description'] . ' ' . $a['kpi'], 1);
     }
-    $pscores = $score($pdocs, $pnames, $query);
+    // A correction counts for its programme only when that programme really
+    // sits under the objective the person chose. Without this the commonest
+    // correction in this data - "same programme, different objective" -
+    // boosted the objective it was moved AWAY from, through that programme.
+    foreach ($corrections as $c) {
+        $g = (int)$c['chosen_programme_id'];
+        if ($g <= 0 || !isset($pdocs[$g]) || !isset($programmeById[$g])) { continue; }
+        if ((int)$programmeById[$g]['objective_id'] !== (int)$c['chosen_objective_id']) { continue; }
+        if ($c['_sim'] <= 0) { continue; }
+        $add($pdocs[$g], $c['words'], 1.5 + 1.5 * $c['_sim']);
+    }
+    $pscores = $applyDamp($score($pdocs, $pnames, $query), 'programme');
     // The best programme of each objective (ties broken by code order), and
     // the runner-up's score so the choice within the objective can be judged.
     $byObjective = [];
@@ -952,6 +1028,7 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
             'programme_id' => (int)$p['id'],
             'label'        => $olabel($o) . ' › ' . $label($p),
             'score'        => round($s, 2),
+            'learned'      => !empty($learned['objective'][$o]) || !empty($learned['programme'][(int)$p['id']]),
         ];
     }
     $v = array_values($pairs); $top = array_key_first($pairs);
@@ -963,4 +1040,76 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
         $confident = ($secondPrg[$top] === null) || ($best > 0 && $ahead($best, $secondPrg[$top]));
     }
     return ['candidates' => $out, 'confident' => $confident];
+}
+
+
+/**
+ * Does the corrections table exist yet? The table arrives with a migration,
+ * and a query against a missing table would answer every page with
+ * "Database unavailable", so both the reader and the writer check first.
+ * SHOW TABLES succeeds either way, and the answer is cached per request.
+ */
+function filing_feedback_available($db) {
+    static $ok = null;
+    if ($ok === null) { $ok = is_set($db->MQ("SHOW TABLES LIKE 'pm_filing_feedback_tbl'", "one")); }
+    return $ok;
+}
+
+/**
+ * Remember where a person actually filed something, so the matcher learns.
+ * Two moments are worth recording, and nothing else is:
+ *
+ *   ADD  - the form suggested a place and the person saved. Keeping it is a
+ *          confirmation (accepted=1, recorded but not scored: the new row
+ *          joins the corpus anyway); moving it is a correction.
+ *   EDIT - the person moved an existing item. The place it sat in is the
+ *          "suggestion" that was wrong, whatever the note said. This is read
+ *          from the stored row, not from the browser.
+ *
+ * Saving an unchanged item records nothing: ignoring a hint is not a
+ * correction, and recording it would damp good places on every save.
+ */
+function record_filing_feedback($db, $model, array $posted, $suggested, $rowId = 0) {
+    if (!in_array($model, ['pm_objectives', 'pm_programmes', 'pm_projects'], true)) { return; }
+    if (!filing_feedback_available($db)) { return; }
+    $suggested = (array)$suggested;
+    $sug = [
+        'pillar'    => (int)($suggested['pillar_id']    ?? 0),
+        'objective' => (int)($suggested['objective_id'] ?? 0),
+        'programme' => (int)($suggested['programme_id'] ?? 0),
+    ];
+    if ($sug['pillar'] <= 0 && $sug['objective'] <= 0 && $sug['programme'] <= 0) { return; }
+    $chosen = [
+        'pillar'    => (int)($posted['pillar_id']    ?? 0),
+        'objective' => (int)($posted['objective_id'] ?? 0),
+        'programme' => (int)($posted['programme_id'] ?? 0),
+    ];
+    $words = trim(preg_replace('/\s+/u', ' ', strip_tags(
+        (string)($posted['name'] ?? '') . ' ' .
+        (string)($posted['description'] ?? '') . ' ' .
+        (string)($posted['kpi'] ?? ''))));
+    if ($words === '') { return; }
+    // The level this model is filed AT: an objective sits in a goal, a
+    // programme in an objective, an activity in a programme.
+    $level = $model === 'pm_objectives' ? 'pillar' : ($model === 'pm_programmes' ? 'objective' : 'programme');
+    if ($sug[$level] <= 0 || $chosen[$level] <= 0) { return; }
+    // Accepted means nothing moved AT ANY level. Judging this by the filing
+    // level alone missed the commonest correction in this data: an activity
+    // kept its programme but was moved to another objective, because a
+    // programme here does not always belong to the objective above it.
+    $accepted = 1;
+    foreach (['pillar', 'objective', 'programme'] as $lvl) {
+        if ($sug[$lvl] > 0 && $sug[$lvl] !== $chosen[$lvl]) { $accepted = 0; }
+    }
+    $db->MQ("INSERT INTO pm_filing_feedback_tbl
+                (model, words, chosen_pillar_id, chosen_objective_id, chosen_programme_id,
+                 suggested_pillar_id, suggested_objective_id, suggested_programme_id,
+                 accepted, row_id, user_id)
+             VALUES (?,?,?,?,?,?,?,?,?,?,?)", false, [
+        $model, mb_substr($words, 0, 4000),
+        $chosen['pillar'], $chosen['objective'], $chosen['programme'],
+        $sug['pillar'], $sug['objective'], $sug['programme'],
+        $accepted, (int)$rowId,
+        (int)($_SESSION['user']['user_id'] ?? 0),
+    ]);
 }

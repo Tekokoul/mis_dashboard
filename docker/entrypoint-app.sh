@@ -266,6 +266,34 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
             || die "could not widen core_users_tbl.username (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
     fi
 
+    # 4. Filing corrections: where people actually put things when the
+    #    suggestion was wrong. Created empty; the matcher checks the table
+    #    exists before reading it, so the app runs with or without it.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_filing_feedback_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_filing_feedback_tbl (filing corrections)"
+        qddl "CREATE TABLE pm_filing_feedback_tbl (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                model VARCHAR(32) NOT NULL,
+                words TEXT DEFAULT NULL,
+                chosen_pillar_id INT(11) NOT NULL DEFAULT 0,
+                chosen_objective_id INT(11) NOT NULL DEFAULT 0,
+                chosen_programme_id INT(11) NOT NULL DEFAULT 0,
+                suggested_pillar_id INT(11) NOT NULL DEFAULT 0,
+                suggested_objective_id INT(11) NOT NULL DEFAULT 0,
+                suggested_programme_id INT(11) NOT NULL DEFAULT 0,
+                accepted TINYINT(1) NOT NULL DEFAULT 0,
+                row_id INT(11) NOT NULL DEFAULT 0,
+                user_id INT(11) NOT NULL DEFAULT 0,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_filing_feedback_model (model, accepted)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" \
+            || die "could not create pm_filing_feedback_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    fi
+
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)
     if [ "${users:-0}" -eq 0 ]; then
         log "NOTE: no accounts exist yet. Create one with:"
