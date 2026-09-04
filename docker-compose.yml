@@ -79,6 +79,10 @@ services:
       SSO_CLIENT_SECRET: ${SSO_CLIENT_SECRET:-}
       SSO_DEFAULT_GROUP: ${SSO_DEFAULT_GROUP:-4}
       SSO_ALLOWED_DOMAINS: ${SSO_ALLOWED_DOMAINS:-africacdc.org}
+      # Meaning matcher sidecar (compose.matcher.yml). Empty = off.
+      MATCHER_URL: ${MATCHER_URL:-}
+      MATCHER_WEIGHT: ${MATCHER_WEIGHT:-0.35}
+      MATCHER_MODEL: ${MATCHER_MODEL:-intfloat/multilingual-e5-small}
       SSO_AUTHORITY: ${SSO_AUTHORITY:-}
       SSO_REDIRECT_URI: ${SSO_REDIRECT_URI:-}
     ports:

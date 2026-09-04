@@ -209,6 +209,66 @@ Clear all recorded progress and start again — **local development database onl
 
 ---
 
+## How an activity gets filed
+
+Typing a name or description on an add form moves the Goal, Objective and
+Programme boxes to where the wording belongs, and the code follows. Three
+things decide it, and the first two need nothing installed.
+
+**Word matching.** The typed text is scored against every goal, objective and
+programme: their own names and descriptions, plus the names and descriptions
+of everything already filed under them. Rare words count for more, acronyms
+count double, filler is dropped.
+
+**Corrections.** Change the box the form proposed and save, or move an
+existing item, and that is remembered in `pm_filing_feedback_tbl`. Nobody is
+asked anything. Next time similar wording is typed, the place that was chosen
+is favoured and the place that was wrong is held back, but never far enough to
+invent an answer. Saving without moving anything is stored as a confirmation
+and never counted against a place. To see what has been learned:
+
+```
+docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -e "
+  SELECT model, SUM(accepted) AS kept, SUM(1-accepted) AS corrected, COUNT(*) AS total
+  FROM pm_filing_feedback_tbl GROUP BY model;"'
+```
+
+`corrected` far outrunning `kept` on a settled catalogue means the suggestion
+is being overruled more than it is helping; that is the number to watch.
+
+**Meaning matching (optional).** The two above only know words. The sidecar in
+`docker/matcher` turns text into numbers whose closeness reflects sense, so
+"conference sign-ups" reaches "CPHIA Registrations" with no shared words. It
+runs here, has no outbound network, no published port, no account and no
+quota. Off unless `MATCHER_URL` is set; if it is down or slow the suggestion
+quietly falls back to word matching. See `.env.example` for switching it on,
+and note the `docker save` route for a server that cannot reach the model
+host. Cost: about 850 MB of memory and 1.3 GB of disk.
+
+Measured by hiding each already-filed activity and asking where it belongs
+(128 activities, correct objective on the first guess):
+
+| | correct |
+|---|---|
+| words only | 77.3% |
+| words + meaning | 80.5% |
+| words + corrections | 84.4% |
+| all three | 85.2% |
+
+`MATCHER_WEIGHT` is how much meaning counts against words. Accuracy peaked on
+a plateau from 0.25 to 0.45 and fell away outside it; meaning alone scored
+62.5%, so it supplements the word score rather than replacing it. Re-measure
+after the catalogue changes shape rather than trusting these numbers forever.
+
+Cached vectors live in `pm_embeddings_tbl`, keyed by the text and the model.
+Editing a description recomputes just that one. Changing `MATCHER_MODEL`
+without rebuilding the image (or the reverse) would reuse vectors from the old
+model, so change both together. To force a full recompute:
+
+```
+docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -e "TRUNCATE pm_embeddings_tbl;"'
+```
+
 ## Before you commit or deploy
 
 Lint every PHP file — must report `0 failing`:

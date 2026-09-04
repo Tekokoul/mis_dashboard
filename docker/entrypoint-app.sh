@@ -103,6 +103,11 @@ define('_SSO_DEFAULT_GROUP',   $(php_str "${SSO_DEFAULT_GROUP:-4}"));
 define('_SSO_ALLOWED_DOMAINS', $(php_str "${SSO_ALLOWED_DOMAINS:-africacdc.org}"));
 define('_SSO_AUTHORITY',       $(php_str "${SSO_AUTHORITY:-}"));
 define('_SSO_REDIRECT_URI',    $(php_str "${SSO_REDIRECT_URI:-}"));
+// Meaning matcher sidecar. Empty = off, and the filing suggestion falls back
+// to word matching alone. See compose.matcher.yml and .env.example.
+define('_MATCHER_URL',     $(php_str "${MATCHER_URL:-}"));
+define('_MATCHER_WEIGHT',  $(php_str "${MATCHER_WEIGHT:-0.35}"));
+define('_MATCHER_MODEL',   $(php_str "${MATCHER_MODEL:-intfloat/multilingual-e5-small}"));
 PHPEOF
 chown www-data:www-data /var/www/html/app/configuration/settings.local.php
 chmod 640 /var/www/html/app/configuration/settings.local.php
@@ -292,6 +297,26 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
                 KEY idx_filing_feedback_model (model, accepted)
               ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" \
             || die "could not create pm_filing_feedback_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    fi
+
+    # 5. Cached meaning vectors for objective and programme descriptions, so a
+    #    page load only has to embed what a person just typed. Keyed by the
+    #    text and the model, so an edited description recomputes itself.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_embeddings_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_embeddings_tbl (cached meaning vectors)"
+        qddl "CREATE TABLE pm_embeddings_tbl (
+                kind VARCHAR(16) NOT NULL,
+                ref_id INT(11) NOT NULL,
+                model VARCHAR(96) NOT NULL,
+                hash CHAR(40) NOT NULL,
+                vec MEDIUMBLOB NOT NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                PRIMARY KEY (kind, ref_id, model)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" \
+            || die "could not create pm_embeddings_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)

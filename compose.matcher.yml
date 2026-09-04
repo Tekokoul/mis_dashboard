@@ -1,0 +1,40 @@
+# The meaning matcher, kept apart from the main stack on purpose.
+#
+#   docker compose -f docker-compose.yml -f compose.matcher.yml --profile matcher up -d matcher
+#
+# It is optional in every sense: the app checks _MATCHER_URL, falls back to
+# word matching when the sidecar is missing or slow, and the core stack starts
+# whether or not this image exists. The profile keeps a plain
+# `docker compose up -d` from ever trying to start it.
+services:
+  matcher:
+    profiles: ["matcher"]
+    image: afcdc-matcher:e5-small
+    # Never reach out for this image: it is built here or loaded from a
+    # tarball, so a missing image should fail loudly, not pull something.
+    pull_policy: never
+    restart: unless-stopped
+    # No ports. The only way in is the internal network shared with PHP-FPM.
+    networks: [internal]
+    environment:
+      ORT_THREADS: "2"
+      OMP_NUM_THREADS: "2"
+      MAX_TOKENS: "192"
+    mem_limit: 1536m
+    mem_reservation: 512m
+    memswap_limit: 1536m
+    cpus: 2.0
+    pids_limit: 256
+    # Under memory pressure the kernel should take this before MariaDB.
+    oom_score_adj: 500
+    read_only: true
+    tmpfs:
+      - /tmp:size=32m
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys,json; sys.exit(0 if json.load(urllib.request.urlopen('http://127.0.0.1:8077/health',timeout=4)).get('ok') else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 180s
