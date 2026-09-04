@@ -45,7 +45,27 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
                 </div>
                 <?php
         }
-        ?>
+        if (!empty($data['other_projects'])): ?>
+        <div class="afcdc-other mt-4">
+            <h3 class="pb-2">Activities filed under programmes of other objectives</h3>
+            <p class="text-muted mb-3">They count towards this objective on the overview but sit under a programme that belongs elsewhere. Open one to change its programme.</p>
+            <?php foreach ($data['other_projects'] as $p): ?>
+            <div class="row afcdc-drill">
+                <div class="col col-7">
+                    <a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$p['id']);?>"><?= display(trim($p['abbr'] . ' ' . $p['name'])); ?></a><br>
+                    <small class="text-muted"><?= $p['programme_name'] !== null && $p['programme_name'] !== '' ? display($p['programme_name']) : 'No programme'; ?></small>
+                </div>
+                <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
+                        <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$p['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$p['progress'];?>%;">
+                            <?php if ((float)$p['progress'] >= 12): ?><?= pct($p['progress']); ?>%<?php endif; ?>
+                        </div>
+                    </div>
+                    <?php if ((float)$p['progress'] < 12): ?><span class="afcdc-progress-zero"><?= pct($p['progress']); ?>%</span><?php endif; ?></div>
+                    <hr>
+            </div>
+            <?php endforeach; ?>
+        </div>
+        <?php endif; ?>
     </div>
 </div>
 <script nonce="<?= csp_nonce(); ?>">

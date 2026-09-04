@@ -294,35 +294,7 @@ class projects_graphsController extends coreController{
             ];
     
             foreach ($projects as $project) {
-                $projectTotal = 0;
-                $projectProgress = 0;
-    
-                // Fetch tasks linked to the project
-                $query = "SELECT * FROM pm_projects_tasks_tbl WHERE project_id = " . $project['id'];
-                $tasks = $this->DB->MQ($query, "all");
-    
-                foreach ($tasks as $task) {
-                    $appliesTo = json_decode($task['applies_to'], true);
-    
-                    if (is_array($appliesTo) && count($appliesTo) > 0) {
-                        $taskAssignments = count($appliesTo);
-                        $projectTotal += $taskAssignments;
-    
-                        // Create a query to get progress per division user
-                        $queryPart = implode(",", $appliesTo);
-                        $query = "SELECT COUNT(*) as progress 
-                                  FROM pm_progress_tasks_tbl 
-                                  WHERE result = 1 
-                                  AND task_id = " . $task['id'] . " 
-                                  AND project_id = " . $project['id'] . " 
-                                  AND member_id IN (" . $queryPart . ")";
-                        $taskProgress = $this->DB->MQ($query, "one")['progress'] ?? 0;
-    
-                        $projectProgress += $taskProgress;
-                    }
-                }
-    
-                // Calculate project progress as a percentage
+                list($projectTotal, $projectProgress) = $this->activityProgress((int)$project['id']);
                 $projectProgressPercentage = ($projectTotal > 0) ? round(($projectProgress / $projectTotal) * 100, 2) : 0;
     
                 // Add project data to the programme
@@ -347,6 +319,31 @@ class projects_graphsController extends coreController{
             $objectiveTotal += $programmeTotal;
             $objectiveProgress += $programmeProgress;
         }
+
+        // Activities of this objective filed under a programme that belongs
+        // to ANOTHER objective (or under none). The overview counts them by
+        // objective id, so this page must too - otherwise "Data Centre" reads
+        // 44% on the overview and 0% here, with its nine activities unreachable.
+        $known = [];
+        foreach ((array)$programmes as $programme) { $known[] = (int)$programme['id']; }
+        $query = "SELECT p.id, p.name, p.abbr, g.name AS programme_name FROM pm_projects_tbl p"
+               . " LEFT JOIN pm_programmes_tbl g ON g.id = p.programme_id"
+               . " WHERE p.objective_id = " . (int)$objective['id']
+               . ($known ? " AND (p.programme_id IS NULL OR p.programme_id NOT IN (" . implode(",", $known) . "))" : "")
+               . " ORDER BY " . coreModel::natural_order_sql('p.abbr');
+        $otherTotal = 0; $otherProgress = 0; $data['other_projects'] = [];
+        foreach ((array)$this->DB->MQ($query, "all") as $project) {
+            list($t, $d) = $this->activityProgress((int)$project['id']);
+            $data['other_projects'][] = [
+                "id" => (int)$project['id'], "name" => $project['name'], "abbr" => $project['abbr'],
+                "programme_name" => $project['programme_name'],
+                "totals" => $t, "completed" => $d, "progress" => ($t > 0) ? round(($d / $t) * 100, 2) : 0,
+            ];
+            $otherTotal += $t; $otherProgress += $d;
+        }
+        $data['other'] = ["totals" => $otherTotal, "completed" => $otherProgress, "progress" => ($otherTotal > 0) ? round(($otherProgress / $otherTotal) * 100, 2) : 0];
+        $objectiveTotal += $otherTotal;
+        $objectiveProgress += $otherProgress;
     
         // Calculate objective progress as a percentage
         $objectiveProgressPercentage = ($objectiveTotal > 0) ? round(($objectiveProgress / $objectiveTotal) * 100, 2) : 0;
@@ -361,6 +358,25 @@ class projects_graphsController extends coreController{
         $this->render($data);
     }
   
+    /**
+     * [assignments, delivered] for one activity: each task counts once per
+     * reporting entity it applies to; delivered = progress rows with result 1.
+     */
+    private function activityProgress($projectId) {
+        $total = 0; $done = 0;
+        $tasks = $this->DB->MQ("SELECT id, applies_to FROM pm_projects_tasks_tbl WHERE project_id = " . (int)$projectId, "all");
+        foreach ((array)$tasks as $task) {
+            $appliesTo = json_decode((string)$task['applies_to'], true);
+            if (!is_array($appliesTo) || count($appliesTo) === 0) { continue; }
+            $members = array_map('intval', $appliesTo);
+            $total += count($members);
+            $row = $this->DB->MQ("SELECT COUNT(*) AS progress FROM pm_progress_tasks_tbl WHERE result = 1 AND task_id = " . (int)$task['id']
+                                . " AND project_id = " . (int)$projectId . " AND member_id IN (" . implode(",", $members) . ")", "one");
+            $done += (int)($row['progress'] ?? 0);
+        }
+        return [$total, $done];
+    }
+
     public function programme() {
         $this->checkMethod("GET");
         $this->mapRoute("id");
