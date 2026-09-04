@@ -1,4 +1,8 @@
 {
+  "auth": {
+    "controller": "users",
+    "action": "sso_callback"
+  },
   "login": {
     "controller": "system",
     "action": "login"

@@ -108,6 +108,16 @@ class usersController extends protectedController {
         redirect($this->L(in_array($landing, $allowed, true) ? $landing : 'projects_graphs/overview'));
     }
 
+    /**
+     * The address Entra sends the browser back to. It has to match a redirect
+     * URI on the app registration character for character, or sign-in fails
+     * with AADSTS50011. Two paths reach this controller: the native
+     * /users/sso_callback, and /auth/microsoft/callback, aliased in
+     * app/configuration/routes.json because that is the convention some
+     * directory teams standardise on. The app cannot tell which one was
+     * registered, so it sends the native form unless _SSO_REDIRECT_URI says
+     * otherwise.
+     */
     private function ssoRedirectUri() {
         if (defined('_SSO_REDIRECT_URI') && trim((string)_SSO_REDIRECT_URI) !== '') {
             return trim((string)_SSO_REDIRECT_URI);
