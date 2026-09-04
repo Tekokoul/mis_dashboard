@@ -137,7 +137,10 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
      */
     public static function natural_order_sql($column, $dir = "asc") {
         $dir = (strtolower($dir) == "desc") ? "desc" : "asc";
-        $c = "`" . preg_replace('/[^A-Za-z0-9_]/', '', $column) . "`";
+        // Accepts a bare column (quoted here) or an alias-qualified one, "p.abbr".
+        $c = (strpos($column, '.') !== false)
+            ? preg_replace('/[^A-Za-z0-9_.]/', '', $column)
+            : "`" . preg_replace('/[^A-Za-z0-9_]/', '', $column) . "`";
         return "CAST(SUBSTRING_INDEX(" . $c . ",'.',1) AS UNSIGNED) " . $dir
              . ", CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(" . $c . ",'.0.0'),'.',2),'.',-1) AS UNSIGNED) " . $dir
              . ", CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(" . $c . ",'.0.0'),'.',3),'.',-1) AS UNSIGNED) " . $dir

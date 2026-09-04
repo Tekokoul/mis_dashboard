@@ -419,6 +419,7 @@ class projectsController extends coreController{
             $data['count'] = $this->DB->MQ($count_query, "one", $params)['total'];
 
             $query = "select * from ".$this->model->get_table_name($model['model_name']).$where
+                   . " order by " . coreModel::natural_order_sql('abbr')
                    . " limit " . (int)$items_per_page . " offset " . (((int)$page - 1) * (int)$items_per_page);
 
             $data['data'] = $this->DB->MQ($query, "all", $params);

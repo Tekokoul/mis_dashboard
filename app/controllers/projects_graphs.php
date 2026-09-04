@@ -276,7 +276,7 @@ class projects_graphsController extends coreController{
         $objectiveProgress = 0;
     
         // Fetch programmes linked to the objective
-        $query = "SELECT id, name, abbr FROM pm_programmes_tbl WHERE objective_id = " . $objective['id'];
+        $query = "SELECT id, name, abbr FROM pm_programmes_tbl WHERE objective_id = " . (int)$objective['id'] . " ORDER BY " . coreModel::natural_order_sql('abbr');
         $programmes = $this->DB->MQ($query, "all");
         $data['programmes'] = [];
     
@@ -285,7 +285,7 @@ class projects_graphsController extends coreController{
             $programmeProgress = 0;
     
             // Fetch projects linked to the programme
-            $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . $programme['id'] . " AND objective_id = " . $objective['id'];
+            $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . (int)$programme['id'] . " AND objective_id = " . (int)$objective['id'] . " ORDER BY " . coreModel::natural_order_sql('abbr');
             $projects = $this->DB->MQ($query, "all");
             $data['programmes'][$programme['id']] = [
                 "id" => $programme['id'],
@@ -384,7 +384,7 @@ class projects_graphsController extends coreController{
         $programmeProgress = 0;
     
         // Fetch projects linked to the programme
-        $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . (int)$validated['id'] . " AND objective_id = " . $programme['objective_id'];
+        $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . (int)$validated['id'] . " AND objective_id = " . (int)$programme['objective_id'] . " ORDER BY " . coreModel::natural_order_sql('abbr');
         $projects = $this->DB->MQ($query, "all");
         $data['projects'] = [];
     
@@ -631,7 +631,7 @@ class projects_graphsController extends coreController{
                   LEFT JOIN pm_pillars_tbl     l ON l.id = p.pillar_id
                   LEFT JOIN pm_objectives_tbl  o ON o.id = p.objective_id
                   LEFT JOIN pm_programmes_tbl  g ON g.id = p.programme_id
-                  ORDER BY l.position, o.position, o.id, p.abbr, p.id";
+                  ORDER BY l.position, o.position, o.id, " . coreModel::natural_order_sql('p.abbr') . ", p.id";
         $data['activities'] = $this->DB->MQ($query, "all") ?: [];
 
         // Distinct values for the filter selects, taken from what is actually

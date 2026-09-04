@@ -19,8 +19,7 @@
   "fields": {
     "id": {
       "hidden": true,
-      "no_update": true,
-      "order_field": "ASC"
+      "no_update": true
     },
     "pillar_id": {
       "title": "Goal",
@@ -62,7 +61,9 @@
       "type": "varchar",
       "search_field": true,
       "appear_in_list": 0,
-      "list_width": 10
+      "list_width": 10,
+      "order_field": "ASC",
+      "order_natural": true
     },
     "description": {
       "no_editor": true
