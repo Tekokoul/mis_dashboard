@@ -87,7 +87,22 @@ find_docker() {
         die "neither 'docker compose' nor 'docker-compose' is available. Install the compose plugin."
     fi
 }
-dc() { "${COMPOSE[@]}" -f "$COMPOSE_FILE" "$@"; }
+# The meaning matcher is an optional extra container in its own compose file,
+# behind a profile. It is included here ONLY when the operator has switched it
+# on by setting MATCHER_URL, because `up -d --remove-orphans` below would
+# otherwise delete a running matcher on every deploy: compose removes any
+# container of this project that the files it was given do not describe. That
+# failure is silent - filing suggestions simply get quietly worse - so the
+# deploy has to know about the matcher whenever it is in use.
+MATCHER_COMPOSE=compose.matcher.yml
+matcher_on() { [ -n "${MATCHER_URL:-}" ] && [ -f "$MATCHER_COMPOSE" ]; }
+dc() {
+    if matcher_on; then
+        "${COMPOSE[@]}" -f "$COMPOSE_FILE" -f "$MATCHER_COMPOSE" --profile matcher "$@"
+    else
+        "${COMPOSE[@]}" -f "$COMPOSE_FILE" "$@"
+    fi
+}
 # True when the named compose service has a running container.
 svc_running() { dc ps --status running --services 2>/dev/null | grep -qx "$1"; }
 
@@ -201,6 +216,14 @@ build_and_start() {
     ok "image built (build ${BUILD_ID})"
 
     head_ "Starting"
+    if matcher_on; then
+        if ! docker image inspect afcdc-matcher:e5-small >/dev/null 2>&1; then
+            die "MATCHER_URL is set but the image afcdc-matcher:e5-small is missing.
+     Build it here with:  docker build -t afcdc-matcher:e5-small docker/matcher
+     or clear MATCHER_URL in .env to run without the meaning matcher."
+        fi
+        ok "meaning matcher enabled (${MATCHER_URL})"
+    fi
     dc up -d --remove-orphans
     ok "containers started"
 }

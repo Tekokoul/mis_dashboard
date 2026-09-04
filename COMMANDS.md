@@ -260,6 +260,21 @@ a plateau from 0.25 to 0.45 and fell away outside it; meaning alone scored
 62.5%, so it supplements the word score rather than replacing it. Re-measure
 after the catalogue changes shape rather than trusting these numbers forever.
 
+**Switching it on for a deployment.** Build the image on the machine that will
+run it, because an image built on an Apple-silicon Mac will not start on an
+Intel server:
+
+```
+docker build -t afcdc-matcher:e5-small docker/matcher
+```
+
+Then set `MATCHER_URL=http://matcher:8077` in `.env` and deploy. From that
+point `setup-production.sh` manages the matcher alongside the rest: it refuses
+to start if the image is missing, and it keeps the matcher's compose file in
+every command so a deploy cannot remove it. Without `MATCHER_URL` the deploy
+never mentions the matcher at all and the app runs on word matching and
+corrections.
+
 Cached vectors live in `pm_embeddings_tbl`, keyed by the text and the model.
 Editing a description recomputes just that one. Changing `MATCHER_MODEL`
 without rebuilding the image (or the reverse) would reuse vectors from the old
