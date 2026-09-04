@@ -391,15 +391,32 @@ tar -xzf backups/appdata_<stamp>.tar.gz && docker compose cp appdata_<stamp>/use
 
 ### Rolling back
 
-Code: check out the previous commit and deploy it again — the widened password
-column and the three added columns do not bother the old code.
+Code: check out the previous commit and deploy it again. Everything added by
+migration so far is inert to older code — the widened password column, the
+three activity columns, `sso_subject`, and the two tables this release adds
+(`pm_filing_feedback_tbl` and `pm_embeddings_tbl`, which no earlier version
+mentions). Leave them in place; dropping them would throw away the filing
+corrections people have made.
 
 ```bash
 git checkout <previous commit> && ./setup-production.sh deploy
 ```
 
+That leaves the repository on a detached HEAD, so a later `git pull` fails
+with "You are not currently on any branch". Return with `git checkout main`
+before the next deploy.
+
+If the meaning matcher was running, stop it as well, or it will sit there
+answering an application that no longer asks:
+
+```bash
+docker compose -f docker-compose.yml -f compose.matcher.yml --profile matcher stop matcher
+```
+
 Data, only if something was written that has to go: restore the dump the deploy
-took first (it runs as root, so it works after the privilege step below too).
+took first. Note that `restore` asks you to type the database name to confirm,
+so it needs a real terminal — it cannot be piped through a single `ssh`
+command.
 
 ```bash
 ./setup-production.sh restore backups/afcdc_dhis_<stamp>.sql.gz
