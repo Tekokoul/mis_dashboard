@@ -30,7 +30,8 @@
       "order_by": "`name` asc",
       "where_clause": "",
       "appear_in_list": 1,
-      "list_width": 35
+      "list_width": 35,
+      "search_field": true
     },
     "name": {
       "type": "varchar",

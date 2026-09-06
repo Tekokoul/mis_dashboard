@@ -416,10 +416,27 @@ class projectsController extends coreController{
             $params = [];
 
             // $data['search'] is FILTER_UNSAFE_RAW - raw user input. Bound.
-            if($data['search']!=""){
-                $where .= "AND ((name like ?) OR (description like ?)) ";
-                $params[] = "%".$data['search']."%";
-                $params[] = "%".$data['search']."%";
+            //
+            // Same two rules as the Projects list (coreModel::get_list_data):
+            // every word must match somewhere, rather than the whole phrase
+            // matching one column, and the programme the activity sits under
+            // is searched too, so "CPHIA" finds "Email reminders". This page
+            // builds its own query because it is scoped to the tasks that
+            // apply to the signed-in entity, so the rules live in both places;
+            // the code column was also missing here, which meant a delivery
+            // could not be found by its number at all.
+            if(trim((string)$data['search']) !== ""){
+                $terms = preg_split('/\s+/u', trim((string)$data['search']), -1, PREG_SPLIT_NO_EMPTY);
+                foreach (array_slice($terms, 0, 6) as $term) {
+                    $where .= "AND ((name like ?) OR (abbr like ?) OR (description like ?)"
+                            . " OR (programme_id in (select `id` from `pm_programmes_tbl`"
+                            . " where `abbr` like ? or `name` like ?))) ";
+                    $params[] = "%".$term."%";
+                    $params[] = "%".$term."%";
+                    $params[] = "%".$term."%";
+                    $params[] = "%".$term."%";
+                    $params[] = "%".$term."%";
+                }
             }
             // Each $filters entry already begins with "AND", so the old
             // implode(" OR ", ...) produced "AND a=? OR AND b=?" - a syntax

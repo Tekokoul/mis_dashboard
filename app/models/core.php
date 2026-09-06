@@ -181,16 +181,65 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         // The search term is raw user input (FILTER_UNSAFE_RAW in every caller),
         // so it is bound, never interpolated. The field NAMES come from the
         // model settings, not from the request, so they stay as identifiers.
-        if ($search != "") {
+        if (trim((string)$search) !== "") {
             $all_fields = array_merge($model['model']['common'] ?? [], $model['model']['languages'][$this->lang] ?? []);
             $search_fields = $this->array_with_value("search_field", $all_fields);
-            $search_clause = [];
-            foreach ($search_fields as $search_field=>$values){
-                $search_clause[] = "`".$search_field."` like ?";
-                $params[] = "%".$search."%";
-            }
-            if (count($search_clause) > 0) {
-                $where_string[] = "AND (".implode(" OR ",$search_clause).")";
+            // Every word has to match somewhere in the row, instead of the
+            // whole phrase having to appear in one column. Nobody types a
+            // single word, and the old behaviour failed silently: "member
+            // states training" returned nothing, while the three words
+            // separately are in three activities.
+            $terms = preg_split('/\s+/u', trim((string)$search), -1, PREG_SPLIT_NO_EMPTY);
+            $terms = array_slice($terms, 0, 6);   // a sentence is not a search
+            foreach ($terms as $term) {
+                $clause = [];
+                $bind   = [];
+                foreach ($search_fields as $search_field => $properties) {
+                    // A dropdown column holds an id, but what a person reads
+                    // in the list - and so what they search for - is the text
+                    // in the table it points at. This is what makes "CPHIA"
+                    // find the activities under CPHIA Registrations, whose own
+                    // names never say CPHIA.
+                    //
+                    // The IMMEDIATE parent only. Measured on this data,
+                    // including objectives as well took "member states" from
+                    // 34 hits to 68 of 134 activities, and adding goals on top
+                    // reached 69: past the first level the words are category
+                    // labels, and a search that returns half the table has
+                    // not answered anything.
+                    $link_table = (string)($properties['link_to_table'] ?? '');
+                    $link_key   = (string)($properties['link_from_field'] ?? 'id');
+                    $link_cols  = array_filter(array_map('trim', explode(',', (string)($properties['link_to_field'] ?? ''))));
+                    $is_lookup  = $link_table !== '' && $link_cols
+                                  && preg_match('/^[A-Za-z0-9_]{1,64}$/', $link_table)
+                                  && preg_match('/^[A-Za-z0-9_]{1,64}$/', $link_key);
+                    if ($is_lookup) {
+                        $inner = [];
+                        $inner_bind = [];
+                        foreach ($link_cols as $col) {
+                            // Names come from the model settings, never from
+                            // the request, but a typo in a settings file
+                            // should skip the column rather than break SQL.
+                            if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', $col)) { continue; }
+                            $inner[] = "`" . $col . "` like ?";
+                            $inner_bind[] = "%" . $term . "%";
+                        }
+                        if (count($inner) > 0) {
+                            $clause[] = "`" . $search_field . "` in (select `" . $link_key . "` from `"
+                                      . $link_table . "` where " . implode(" or ", $inner) . ")";
+                            $bind = array_merge($bind, $inner_bind);
+                        }
+                    } else {
+                        $clause[] = "`" . $search_field . "` like ?";
+                        $bind[]   = "%" . $term . "%";
+                    }
+                }
+                if (count($clause) > 0) {
+                    $where_string[] = "AND (" . implode(" OR ", $clause) . ")";
+                    // Bound in the order the placeholders appear, which is the
+                    // order the clauses were built above.
+                    foreach ($bind as $value) { $params[] = $value; }
+                }
             }
         }
 
