@@ -775,6 +775,11 @@ html tr.afcdc-row--inactive td { color: var(--afcdc-ink-soft); }
         background: var(--afcdc-surface);
         padding-top: 0.75rem;
         margin-top: -0.75rem;
+        /* Bottom padding keeps the toolbar row's own margin INSIDE the bar
+           (a child margin would otherwise collapse out of it), so when the
+           bar is pinned the rows sliding under it get a clear band of
+           background rather than touching its edge. */
+        padding-bottom: 0.5rem;
         transition: box-shadow 0.15s ease;
     }
     html.fixed .datatable-header.afcdc-sticky.is-stuck {
