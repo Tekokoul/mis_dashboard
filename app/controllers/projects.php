@@ -1113,20 +1113,8 @@ class projectsController extends coreController{
      * disappears once nothing is pending, so it never becomes furniture.
      */
     private function addVettingFilter(array &$data) {
-        // Activities with something missing or a broken goal / objective /
-        // programme chain: the "Unfinished" filter, only while there are any.
-        $unfinished = activity_unfinished_count($this->DB);
-        if ($unfinished > 0) {
-            $data['meta_filters'][] = [
-                'title'       => 'Completeness (' . $unfinished . ' unfinished)',
-                'key'         => 'gaps',
-                'type'        => 'dropdown',
-                'values_from' => 'values_list',
-                'values_list' => ['unfinished' => 'Unfinished (' . $unfinished . ')'],
-                'all_label'   => 'Everything',
-                'sql'         => "AND ? = 'unfinished' AND " . activity_gaps_sql(),
-            ];
-        }
+        // Unfinished activities are marked on their rows (flag + tag); there
+        // is no filter for them by choice.
         // Only while something waits for a person: accepted and undone rows
         // look like any other activity, on the local copy and on live alike.
         $pending = allocation_pending_count($this->DB);

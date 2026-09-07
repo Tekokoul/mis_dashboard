@@ -298,8 +298,7 @@ while it is being read.
 **Unfinished activities.** An activity with no name, no description, no goal,
 objective or programme, a programme under another objective, an objective
 under another goal, or no code carries a red **Unfinished** tag naming what
-is missing, in both lists and on its edit form; a "Completeness" filter
-lists them while there are any. Name, description, goal, objective and
+is missing, in both lists and on its edit form. Name, description, goal, objective and
 programme are required on the activity form: the browser marks what is
 missing and opens the first such box (select2 hides the real control, so the
 browser's own message never showed), and the server refuses the save with the
