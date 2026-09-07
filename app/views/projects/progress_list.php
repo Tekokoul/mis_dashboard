@@ -1,6 +1,20 @@
 <?php
 $page_link_prefix = "projects/progress_list";
-$page_link_suffix = (isset($data['search'])&&($data['search']!="")) ? "?search-term=".$data['search'] : "";
+// Pagination keeps the search AND the filters, escaped once (as in db_list.php).
+$suffix_terms = [];
+if (isset($data['search']) && ($data['search'] != "")) {
+    $suffix_terms['search-term'] = (string)$data['search'];
+}
+if (!empty($data['filter_data'])) {
+    foreach ($data['filter_data'] as $filter_data => $value) {
+        if ($value != "") {
+            $suffix_terms[(string)$filter_data] = (string)$value;
+        }
+    }
+}
+$page_link_suffix = (count($suffix_terms) > 0)
+    ? htmlspecialchars("?" . http_build_query($suffix_terms), ENT_QUOTES, 'UTF-8')
+    : "";
 ?>
 <header class="page-header page-header-left-inline-breadcrumb">
     <h2 class="font-weight-bold text-6"><?= display($data['meta_name']); ?></h2>
@@ -28,7 +42,13 @@ $page_link_suffix = (isset($data['search'])&&($data['search']!="")) ? "?search-t
                                     $html .= filter_DropDown($filter['key'], $filter, $data['filter_data'][$filter['key']]);
                                 }
                             }
-                            print $html;
+                            if ($html !== "") {
+                                // The overview's filter row: small labels, one wrapping line, green while narrowing.
+                                $narrowing = array_filter((array)($data['filter_data'] ?? []), function ($v) { return $v !== '' && $v !== '%'; });
+                                print '<div class="col-12 col-lg-auto mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">' . $html;
+                                if ($narrowing) { print '<a class="btn btn-sm btn-light border afcdc-filters__clear" href="' . $this->L($page_link_prefix) . (($data['search'] ?? '') !== '' ? '?search-term=' . rawurlencode((string)$data['search']) : '') . '">Clear</a>'; }
+                                print '</div></div>';
+                            }
 
                             ?>
                             <div class="col-12 col-lg-auto ms-auto ml-auto ps-lg-1">
@@ -52,19 +72,19 @@ $page_link_suffix = (isset($data['search'])&&($data['search']!="")) ? "?search-t
                             <table class="table table-ecommerce-simple table-borderless table-striped mb-0" id="datatable-list" style="min-width: 640px;">
                                 <thead>
                                 <tr>
-                                    <th width="3%"><input type="checkbox" name="select-all" class="select-all checkbox-style-1 p-relative top-2" value="" /></th>
-                                    <th width="4%">#</th>
+                                    <th width="3%" class="afcdc-col-check"><input type="checkbox" name="select-all" class="select-all checkbox-style-1 p-relative top-2" value="" /></th>
+                                    <th width="4%" class="afcdc-col-num">#</th>
                                     <?php
                                     foreach ($data['fields'] as $field => $properties){
                                         if(isset($properties['appear_in_list'])){
                                             $title = (isset($properties['title'])) ? $properties['title'] : $field;
                                             ?>
-                                            <th width="<?=$properties['list_width'];?>%"><?=ucfirst($title)?></th>
+                                            <th width="<?=$properties['list_width'];?>%" class="afcdc-col-<?= preg_replace('/[^a-z0-9_]/i', '', $field); ?>"><?=ucfirst($title)?></th>
                                             <?php
                                         }
                                     }
                                     ?>
-                                    <th width="10%">Actions</th>
+                                    <th width="10%" class="afcdc-col-actions">Actions</th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -73,23 +93,27 @@ $page_link_suffix = (isset($data['search'])&&($data['search']!="")) ? "?search-t
                                 foreach ($data['data'] as $row) {
                                     $link = "projects/progress_edit/".$row['id'];
                                     ?>
-                                    <tr>
-                                        <td width="30"><input type="checkbox" name="checkboxRow1" class="checkbox-style-1 p-relative top-2" value="" /></td>
-                                        <td><?=$aa;?></td>
+                                    <tr<?= (isset($row['active']) && (string)$row['active'] === '0') ? ' class="afcdc-row--inactive"' : ''; ?>>
+                                        <td width="30" class="afcdc-col-check"><input type="checkbox" name="checkboxRow1" class="checkbox-style-1 p-relative top-2" value="" /></td>
+                                        <td class="afcdc-col-num"><?=$aa;?></td>
                                         <?php
                                         $first = true;
                                         foreach ($data['fields'] as $field => $properties) {
                                             if (isset($properties['appear_in_list'])) {
 
                                                 $active = (isset($row['active'])) ? $row['active'] : true;
+                                                $cell = display_list_element($properties, $row[$field], $active);
+                                                $attrs = list_cell_attrs($field, $properties, $cell);
+                                                // The name column stops at two lines (CSS .afcdc-clamp); the full text is the cell's title and the edit page.
+                                                $inner = (strpos($attrs, 'afcdc-cell-name') !== false) ? '<span class="afcdc-clamp">' . $cell . '</span>' : $cell;
                                                 print ($first)
-                                                    ? '<td><a href="' . $this->L($link) . '"><strong>' . display_list_element($properties, $row[$field], $active) . '</strong></a></td>'
-                                                    : '<td>' . display_list_element($properties, $row[$field], $active) . '</td>';
+                                                    ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
+                                                    : '<td' . $attrs . '>' . $inner . '</td>';
                                                 $first = false;
                                             }
                                         }
                                         ?>
-                                        <td>
+                                        <td class="afcdc-col-actions">
                                             <?php
                                             foreach ($data['meta_actions'] as $action){
                                                 $show_action = false;
@@ -105,7 +129,7 @@ $page_link_suffix = (isset($data['search'])&&($data['search']!="")) ? "?search-t
                                                 }
                                             }
                                             ?>
-                                            <a href="<?=$this->L($link);?>" ><i class='bx bxs-edit bx-sm'></i></a>
+                                            <a href="<?=$this->L($link);?>" aria-label="Edit"><i class='bx bxs-edit bx-sm' aria-hidden="true"></i></a>
                                         </td>
                                     </tr>
                                     <?php

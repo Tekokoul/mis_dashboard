@@ -4,7 +4,7 @@
     "actions": [],
     "filters": [
       {
-        "title": "Choose Goal",
+        "title": "Goal",
         "key": "pillar_id",
         "type": "dropdown",
         "values_from": "db",
@@ -12,7 +12,27 @@
         "link_to_field": "name",
         "order_by": "`name` asc",
         "where_clause": "",
-        "add_zero_value": true
+        "add_zero_value": true,
+        "all_label": "All goals"
+      },
+      {
+        "title": "Programme",
+        "key": "programme_id",
+        "type": "dropdown",
+        "values_from": "db",
+        "link_to_table": "pm_programmes_tbl",
+        "link_to_field": "abbr,name",
+        "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',2),'.',-1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',3),'.',-1) AS UNSIGNED) asc, `abbr` asc",
+        "where_clause": "",
+        "add_zero_value": true,
+        "all_label": "All programmes",
+        "narrow_by": "pillar_id",
+        "parent_via": {
+          "table": "pm_objectives_tbl",
+          "key": "objective_id",
+          "parent_field": "pillar_id"
+        },
+        "_note": "narrow_by names the parent filter; parent_via maps a programme to its goal through its objective, so the box only lists programmes under the chosen goal and clears itself when the goal changes."
       }
     ]
   },
@@ -48,13 +68,13 @@
       "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',2),'.',-1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',3),'.',-1) AS UNSIGNED) asc, `abbr` asc",
       "where_clause": "",
       "appear_in_list": 1,
-      "list_width": 15,
+      "list_width": 22,
       "search_field": true
     },
     "name": {
       "type": "varchar",
       "appear_in_list": 1,
-      "list_width": 40,
+      "list_width": 46,
       "search_field": true
     },
     "abbr": {

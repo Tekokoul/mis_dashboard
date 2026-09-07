@@ -43,7 +43,12 @@ $page_link_suffix = (count($suffix_terms) > 0) ? "?" . implode("&", $suffix_term
                                         $html .= filter_DropDown($filter['key'], $filter, $data['filter_data'][$filter['key']]);
                                     }
                                 }
-                                print $html;
+                                if ($html !== "") {
+                                    $narrowing = array_filter((array)($data['filter_data'] ?? []), function ($v) { return $v !== '' && $v !== '%'; });
+                                    print '<div class="col-12 col-lg-auto mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">' . $html;
+                                    if ($narrowing) { print '<a class="btn btn-sm btn-light border afcdc-filters__clear" href="' . $this->L($page_link_prefix) . (($data['search'] ?? '') !== '' ? '?search-term=' . rawurlencode((string)$data['search']) : '') . '">Clear</a>'; }
+                                    print '</div></div>';
+                                }
 
                                 ?>
                                 <div class="col-12 col-lg-auto ms-auto ml-auto ps-lg-1">

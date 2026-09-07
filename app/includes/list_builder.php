@@ -52,11 +52,21 @@ function display_list_element($field, $data, $active){
                     // Escaped: these come from user-editable rows, so an
                     // objective renamed to contain markup would otherwise run
                     // for every user who opens any list showing that column.
-                    $answer = "";
-                    foreach($linked_fields as $tempfield){
-                        $answer .= display($linked_result[$tempfield] ?? "")." ";
+                    // "abbr,name" renders as the code, then the name, in
+                    // two spans, so the column can keep the code visible and
+                    // let the (repeated, long) name truncate or hide.
+                    if (count($linked_fields) >= 2 && trim($linked_fields[0]) === 'abbr' && trim((string)($linked_result[$linked_fields[0]] ?? '')) !== '') {
+                        $rest = [];
+                        foreach (array_slice($linked_fields, 1) as $tempfield) { $rest[] = display($linked_result[$tempfield] ?? ""); }
+                        $answer = '<span class="afcdc-code">' . display($linked_result[$linked_fields[0]]) . '</span> '
+                                . '<span class="afcdc-parent">' . trim(implode(" ", $rest)) . '</span>';
+                    } else {
+                        $answer = "";
+                        foreach($linked_fields as $tempfield){
+                            $answer .= display($linked_result[$tempfield] ?? "")." ";
+                        }
+                        $answer = trim($answer);
                     }
-                    $answer = trim($answer);
                 } else {
                     $answer = "None";
                 }
@@ -94,8 +104,18 @@ function filter_DropDown($name, $field, $data = []) {
     $default_language_id = $registry->languages[_DEFAULT_LANGUAGE]['langid'];
     $disabled = isset($field['disabled']) ? "disabled" : "";
 
-    $label = createLabel($name, $field);
-    $html = '<div class="col-12 col-lg-auto ms-auto ml-auto mb-3 mb-lg-0"><div class="d-flex align-items-lg-center flex-column flex-lg-row"><label class="ws-nowrap me-3 mb-0">'.$label.'</label>';
+    // The same filter vocabulary as the overview page: a small label above
+    // the control, in one wrapping row, lit green while it is narrowing.
+    // A filter may name a parent filter ("narrow_by") and the column on ITS
+    // linked table that carries the parent id ("parent_field"): the options
+    // then carry data-parent and custom.js hides the ones that do not belong
+    // to the chosen parent, and clears this box when the parent changes.
+    $is_active = !is_array($data) && (string)$data !== '' && (string)$data !== '%';
+    $parent_of = (string)($field['narrow_by'] ?? '');
+    $parent_col = (string)($field['parent_field'] ?? '');
+    $parent_via = (isset($field['parent_via']) && is_array($field['parent_via'])) ? $field['parent_via'] : null;
+    $html = '<label class="afcdc-filter' . ($is_active ? ' is-active' : '') . '"><span>' . display($field['title'] ?? ucfirst($name)) . '</span>';
+    $select_attrs = ' data-afcdc-autosubmit="1"' . ($parent_of !== '' ? ' data-afcdc-narrow-by="' . display($parent_of) . '"' : '');
     if($field['values_from']=="db"){
         $link_to_table = $field['link_to_table'];
         $link_to_field = $field['link_to_field'];
@@ -111,14 +131,25 @@ function filter_DropDown($name, $field, $data = []) {
 //            $where_clause .= " or ".$link_to_table.".id=".$data;
 //            $limit ++;
 //        }
-        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
+        $html .= '<select class="form-select form-select-sm filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.$select_attrs.'>';
         if(isset($field['add_zero_value'])) {
             $html .= "<option value='%'";
             $html .= ($data==0) ? ' selected ' : '';
-            $html .= ">All</option>";
+            $html .= ">" . display($field['all_label'] ?? 'All') . "</option>";
         }
         $link_to_table_part = substr($link_to_table, 0, strlen($link_to_table) - 4);
         $result = $registry->db_master->MQ("SHOW TABLES LIKE '" . $link_to_table_part . $language_suffix . "_tbl'", "all");
+        // When the parent id lives one table further up (a programme's goal
+        // is its objective's goal), "parent_via" maps through that table:
+        //   {"table": "pm_objectives_tbl", "key": "objective_id", "parent_field": "pillar_id"}
+        $parent_map = null;
+        if ($parent_via && preg_match('/^[A-Za-z0-9_]{1,64}\z/', (string)($parent_via['table'] ?? ''))
+            && preg_match('/^[A-Za-z0-9_]{1,64}\z/', (string)($parent_via['parent_field'] ?? ''))) {
+            $parent_map = [];
+            foreach ((array)$registry->db_master->MQ("select `id`, `" . $parent_via['parent_field'] . "` as p from `" . $parent_via['table'] . "`", "all") as $pr) {
+                $parent_map[(string)$pr['id']] = (string)$pr['p'];
+            }
+        }
 
         if(is_set($result)) {
             $query = "select * from " . $link_to_table_part . "_tbl inner join " . $link_to_table_part  . $language_suffix . "_tbl on " .
@@ -140,6 +171,13 @@ function filter_DropDown($name, $field, $data = []) {
         // of the control on the list pages.
         foreach($linkedresult as $linkedrow) {
             $html .= "<option value='" . display($linkedrow[$link_from_field]) . "' ";
+            $parent_value = null;
+            if ($parent_map !== null) {
+                $parent_value = $parent_map[(string)($linkedrow[$parent_via['key'] ?? ''] ?? '')] ?? '';
+            } elseif ($parent_col !== '' && array_key_exists($parent_col, $linkedrow)) {
+                $parent_value = (string)$linkedrow[$parent_col];
+            }
+            if ($parent_value !== null) { $html .= "data-parent='" . display($parent_value) . "' "; }
             if($display_to_field!=""){
                 $html .= ">";
                 $values_array = [];
@@ -167,7 +205,7 @@ function filter_DropDown($name, $field, $data = []) {
         // A fixed list (e.g. Active: Yes/No). "%" means All; the value is
         // compared as a string so "0" (No) is not mistaken for "no choice".
         $current = is_array($data) ? '' : (string)$data;
-        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
+        $html .= '<select class="form-select form-select-sm filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.$select_attrs.'>';
         if(isset($field['add_zero_value'])) {
             $html .= "<option value='%'".(($current === '' || $current === '%') ? ' selected' : '').">All</option>";
         }
@@ -245,6 +283,29 @@ function filter_DropDown($name, $field, $data = []) {
         }
         $html .= '</select>';
     }
-    $html .= '</div></div>';
+    $html .= '</label>';
     return $html;
 }
+
+/**
+ * Class and title for a list cell, so the views can stay one line each:
+ * the parent column keeps its code and truncates its name, the name column
+ * stops at two lines, and the utility columns can be hidden on a phone.
+ * The title carries the full text, which a click on the row also reaches.
+ */
+function list_cell_attrs($field, array $properties, $cell) {
+    $classes = ['afcdc-col-' . preg_replace('/[^a-z0-9_]/i', '', (string)$field)];
+    // Only a cell that actually rendered a code truncates: a goal shown by
+    // name alone, or a list of people, must keep wrapping.
+    if (strpos((string)$cell, 'class="afcdc-code"') !== false && empty($properties['multiselect'])) {
+        $classes[] = 'afcdc-cell-parent';
+    } elseif ($field === 'name') {
+        $classes[] = 'afcdc-cell-name';
+    }
+    // The title (hover text) only where something can be cut off.
+    $plain = trim(html_entity_decode(strip_tags((string)$cell), ENT_QUOTES, 'UTF-8'));
+    $truncates = in_array('afcdc-cell-parent', $classes, true) || in_array('afcdc-cell-name', $classes, true);
+    $title = ($truncates && $plain !== '' && $plain !== 'None') ? ' title="' . display($plain) . '"' : '';
+    return ' class="' . implode(' ', $classes) . '"' . $title;
+}
+

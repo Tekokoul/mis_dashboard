@@ -4,7 +4,7 @@
     "actions": [],
     "filters": [
       {
-        "title": "Choose Goal",
+        "title": "Goal",
         "key": "pillar_id",
         "type": "dropdown",
         "values_from": "db",
@@ -13,7 +13,8 @@
         "order_by": "`position` asc",
         "where_clause": "",
         "add_zero_value": true,
-        "sql": "AND `objective_id` IN (SELECT `id` FROM `pm_objectives_tbl` WHERE `pillar_id` = ?)"
+        "sql": "AND `objective_id` IN (SELECT `id` FROM `pm_objectives_tbl` WHERE `pillar_id` = ?)",
+        "all_label": "All goals"
       }
     ]
   },
@@ -31,13 +32,20 @@
       "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',2),'.',-1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',3),'.',-1) AS UNSIGNED) asc, `abbr` asc",
       "where_clause": "",
       "appear_in_list": 1,
-      "list_width": 15,
-      "search_field": true
+      "list_width": 22,
+      "search_field": true,
+      "cascade": {
+        "label": "Goal",
+        "table": "pm_pillars_tbl",
+        "field": "name",
+        "order_by": "`position` asc",
+        "parent_field": "pillar_id"
+      }
     },
     "name": {
       "type": "varchar",
       "appear_in_list": 1,
-      "list_width": 50,
+      "list_width": 46,
       "search_field": true
     },
     "abbr": {

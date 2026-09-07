@@ -135,12 +135,24 @@ function createDropDown($name, $field, $data) {
         }
     }
     $label = createLabel($name, $field);
-    $html = '<div class="form-group row align-items-center pb-3"><label class="col-lg-3 control-label text-lg-end mb-0">'.$label.$required_star.'</label><div class="col-lg-8">';
+    $html = '';
+    // A dropdown may ask for a "narrow by" box above it: the programme form
+    // has no goal column, but choosing a goal first cuts seventeen
+    // objectives to the few under it. The box has no name, so it never
+    // posts; each real option carries its parent id, and custom.js hides
+    // the ones that do not belong. See "cascade" in db/models_settings.
+    $cascade = (isset($field['cascade']) && is_array($field['cascade'])) ? $field['cascade'] : null;
+    if ($cascade && $field['values_from'] == "db") {
+        $html .= createCascadeSelector($name, $cascade);
+    }
+    $html .= '<div class="form-group row align-items-center pb-3"><label class="col-lg-3 control-label text-lg-end mb-0">'.$label.$required_star.'</label><div class="col-lg-8">';
     if($field['values_from']=="db"){
         $link_to_table = $field['link_to_table'];
         $link_to_field = $field['link_to_field'];
         $display_to_field = $field['display_to_field'] ?? "";
         $selectElement .= ' data-plugin-selectTwo ';
+        if ($cascade) { $selectElement .= ' data-afcdc-cascade-child="' . display($name) . '" '; }
+        $parent_col = ($cascade && !empty($cascade['parent_field'])) ? (string)$cascade['parent_field'] : '';
 
         $link_from_field = $field['link_from_field'] ?? "id";
 
@@ -186,6 +198,9 @@ function createDropDown($name, $field, $data) {
         // used to break out of the control on every add/edit form.
         foreach($linkedresult as $linkedrow) {
             $html .= "<option value='" . display($linkedrow[$link_from_field]) . "'";
+            if ($parent_col !== '' && array_key_exists($parent_col, $linkedrow)) {
+                $html .= " data-parent='" . display($linkedrow[$parent_col]) . "'";
+            }
             if (is_array($data)) {
                 $html .= in_array($linkedrow[$link_from_field], $data) ? " selected>" : ">";
             } else {
@@ -518,3 +533,39 @@ function createPassword($name, $field, $data) {
     $html .= '</div></div>';
     return $html;
 }
+
+/**
+ * The "narrow by" box a cascading dropdown asks for. It is a real select
+ * with no name attribute, so the browser never posts it and nothing on the
+ * server has to ignore it. Its options come from the parent table; the
+ * child's options carry data-parent, and custom.js does the narrowing.
+ *
+ *   "cascade": {"label": "Goal", "table": "pm_pillars_tbl", "field": "name",
+ *               "order_by": "`position` asc", "parent_field": "pillar_id"}
+ *
+ * parent_field is the column ON THE CHILD'S TABLE that names the parent.
+ */
+function createCascadeSelector($childName, array $cascade) {
+    global $registry;
+    $table = (string)($cascade['table'] ?? '');
+    $field = (string)($cascade['field'] ?? 'name');
+    $label = (string)($cascade['label'] ?? 'Narrow by');
+    if (!preg_match('/^[A-Za-z0-9_]{1,64}\z/', $table) || !preg_match('/^[A-Za-z0-9_,]{1,128}\z/', $field)) { return ''; }
+    $cols = array_values(array_filter(array_map('trim', explode(',', $field))));
+    if (!$cols) { return ''; }
+    $order = (string)($cascade['order_by'] ?? '`' . $cols[0] . '` asc');   // "abbr,name" defaults to the first column
+    $rows = (array)$registry->db_master->MQ("select * from `" . $table . "` where 1 order by " . $order, "all");
+    $id = 'cascade_' . md5($childName);
+    $html  = '<div class="form-group row align-items-center pb-3">';
+    $html .= '<label class="col-lg-3 control-label text-lg-end mb-0" for="' . $id . '">' . display($label) . '</label>';
+    $html .= '<div class="col-lg-8"><select data-plugin-selectTwo class="form-control populate" id="' . $id . '" data-afcdc-cascade-parent="' . display($childName) . '">';
+    $html .= '<option value="">All</option>';
+    foreach ($rows as $r) {
+        $text = '';
+        foreach ($cols as $c) { $text .= display($r[$c] ?? '') . ' '; }
+        $html .= '<option value="' . display($r['id'] ?? '') . '">' . trim($text) . '</option>';
+    }
+    $html .= '</select></div></div>';
+    return $html;
+}
+

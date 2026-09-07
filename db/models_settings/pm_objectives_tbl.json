@@ -4,7 +4,7 @@
     "actions": [],
     "filters": [
       {
-        "title": "Choose Goal",
+        "title": "Goal",
         "key": "pillar_id",
         "type": "dropdown",
         "values_from": "db",
@@ -12,7 +12,8 @@
         "link_to_field": "name",
         "order_by": "`position` asc",
         "where_clause": "",
-        "add_zero_value": true
+        "add_zero_value": true,
+        "all_label": "All goals"
       }
     ]
   },
@@ -26,17 +27,17 @@
       "type": "dropdown",
       "values_from": "db",
       "link_to_table": "pm_pillars_tbl",
-      "link_to_field": "name",
-      "order_by": "`name` asc",
+      "link_to_field": "abbr,name",
+      "order_by": "`position` asc",
       "where_clause": "",
       "appear_in_list": 1,
-      "list_width": 35,
+      "list_width": 24,
       "search_field": true
     },
     "name": {
       "type": "varchar",
       "appear_in_list": 2,
-      "list_width": 30,
+      "list_width": 50,
       "search_field": true
     },
     "abbr": {

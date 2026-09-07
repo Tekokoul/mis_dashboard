@@ -711,3 +711,45 @@ html .body-error .center-error {
 .afcdc-suggest strong { color: #1E2A22; font-weight: 600; }
 .afcdc-suggest a { color: #1A5632; text-decoration: underline; }
 .afcdc-suggest a:hover, .afcdc-suggest a:focus-visible { color: #348F41; }
+
+/* --- List pages (Projects, Progress, Programmes, Objectives, Goals) --------
+   The toolbar borrows the overview's filter row so every list looks like the
+   same product. The table keeps one line per row: the parent column shows
+   the code and truncates its (repeated, long) name; the name column stops at
+   two lines; and the columns that carry no information on a phone - the
+   checkbox, the row counter, "Active" - step aside below 992px, where the
+   table would otherwise wrap every row to five lines. */
+html .afcdc-filters--inline { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; }
+html .afcdc-filters--inline .afcdc-filter .form-select-sm { min-width: 13rem; max-width: 22rem; }
+@media (max-width: 767.98px) {
+    html .afcdc-filters--inline .afcdc-filter { flex: 1 1 100%; min-width: 0; }
+    html .afcdc-filter .form-select-sm { max-width: none; }
+    html .datatable-header .search.search-style-1 { width: 100%; max-width: none; }   /* same width as the filters above it */
+}
+html #datatable-list th { white-space: nowrap; }
+html .afcdc-code { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; color: var(--afcdc-ink); }
+html .afcdc-parent { color: var(--afcdc-ink-soft); }
+html td.afcdc-cell-parent { max-width: 20rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+html td.afcdc-cell-name { max-width: 34rem; }
+html .afcdc-clamp {
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+html td.afcdc-col-actions { white-space: nowrap; }
+html td.afcdc-col-actions a {          /* 44px targets (WCAG 2.5.8) without widening the column */
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 2.75rem; height: 2.75rem; margin: -0.5rem 0;
+}
+@media (max-width: 991.98px) {
+    html #datatable-list .afcdc-col-check,
+    html #datatable-list .afcdc-col-num,
+    html #datatable-list .afcdc-col-active { display: none; }
+    html td.afcdc-cell-parent { max-width: 9rem; }
+    /* Sighted users see the code alone; a screen reader still gets the name. */
+    html td.afcdc-cell-parent .afcdc-parent {
+        position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+        overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+    /* With the Active column out of the way, an inactive row says so itself. */
+    html tr.afcdc-row--inactive td.afcdc-cell-name .afcdc-clamp::after { content: " \00b7 Inactive"; font-weight: 600; }
+}
+html tr.afcdc-row--inactive td { color: var(--afcdc-ink-soft); }

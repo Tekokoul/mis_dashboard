@@ -209,6 +209,44 @@ Clear all recorded progress and start again — **local development database onl
 
 ---
 
+## List filters and cascading dropdowns
+
+Both are driven from `db/models_settings/<model>.json`, no code.
+
+**A filter above a list** is an entry in `meta.filters`. Two optional keys
+make one filter depend on another:
+
+```
+"narrow_by": "pillar_id",
+"parent_via": {"table": "pm_objectives_tbl", "key": "objective_id", "parent_field": "pillar_id"}
+```
+
+`narrow_by` names the filter above it. `parent_field` names the column on
+the filter's own linked table that carries the parent id; `parent_via` is for
+when that id lives one table further up (a programme's goal is its
+objective's goal). The options then carry the parent id, the box lists only
+the options under the chosen parent, and it clears itself when the parent
+changes - otherwise the page would show nothing. `all_label` is the wording
+of the "All" option.
+
+**A "narrow by" box on a form** is a `cascade` key on a dropdown field:
+
+```
+"cascade": {"label": "Goal", "table": "pm_pillars_tbl", "field": "name",
+            "order_by": "`position` asc", "parent_field": "pillar_id"}
+```
+
+It renders a select above the field with no name, so it never posts and
+nothing on the server has to ignore it; the field's own options carry
+`data-parent` and are hidden unless they belong to the chosen parent. On an
+edit form the box is set from the value already saved. The programme form
+uses it: there is no goal column on a programme, but choosing the goal first
+cuts seventeen objectives to the few beneath it, and the code box follows.
+
+The activity form does NOT use it: its goal, objective and programme are real
+columns and cascade through the server (`pm_projects.js`), which the
+filing-by-wording code relies on.
+
 ## How an activity gets filed
 
 Typing a name or description on an add form moves the Goal, Objective and

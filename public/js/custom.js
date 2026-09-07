@@ -98,6 +98,12 @@ $(function () {
     function setSelect(name, v) {
         var $s = $form.find('select[name="' + name + '"]');
         if (!$s.length || String($s.val()) === String(v)) { return false; }
+        // A dropdown narrowed by a "Goal" box may be hiding this value: ask
+        // the cascade to widen to its goal first, or the select would be
+        // left with nothing chosen and the save would store a blank.
+        if ($s.is('[data-afcdc-cascade-child]') && !$s.find('option[value="' + String(v) + '"]').length) {
+            $s.trigger('afcdc:set', [String(v)]);
+        }
         $s.val(String(v)).trigger('change');
         return true;
     }
@@ -165,8 +171,93 @@ $(function () {
     $fields.on('input change', function () { clearTimeout(timer); timer = setTimeout(ask, 600); });
     // A pick made by a person: select2 raises select2:select only for one,
     // and a plain dropdown's change carries the browser event.
-    $form.on('select2:select', 'select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"]', function () { manual = true; });
-    $form.on('change', 'select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"]', function (e) { if (e.originalEvent) { manual = true; } });
+    $form.on('select2:select', 'select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"], select[data-afcdc-cascade-parent]', function () { manual = true; });
+    $form.on('change', 'select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"], select[data-afcdc-cascade-parent]', function (e) { if (e.originalEvent) { manual = true; } });
     // Re-read the note whenever the place settles (the cascade ends here).
     $parent.on('change', function () { if (last) { render(); } });
+});
+
+/* Cascading dropdowns.
+ *
+ * FORMS: a dropdown may carry a "narrow by" box above it (form_builder
+ * createCascadeSelector): the programme form has no goal column, but
+ * choosing a goal first cuts seventeen objectives to the few beneath it. The
+ * box never posts; every real option carries data-parent, and this hides the
+ * ones that do not belong. On an edit form the box is set from the option
+ * already chosen.
+ *
+ * LIST FILTERS: a filter may name the filter above it (data-afcdc-narrow-by).
+ * Its options carry data-parent too, so with a goal chosen the programme box
+ * lists only that goal's programmes - and when the goal changes, the
+ * programme choice is cleared before the form submits, or the page would
+ * show nothing at all. */
+$(function () {
+    $('select[data-afcdc-cascade-parent]').each(function () {
+        var $parent = $(this);
+        var $child  = $('select[data-afcdc-cascade-child="' + $parent.attr('data-afcdc-cascade-parent') + '"]');
+        if (!$child.length) { return; }
+        // The ORIGINAL option elements, kept for the life of the page and
+        // re-attached as needed. Clones would break select2, whose cache
+        // still points at the originals.
+        var all = $child.children('option').toArray();
+        var wasRequired = $child.prop('required');
+        function narrow(want, silent) {
+            var p = String($parent.val() || '');
+            var was = String($child.val() || '');
+            $child.empty();
+            all.forEach(function (o) {
+                var op = o.getAttribute('data-parent');
+                // An option with no parent (a "None" placeholder) belongs everywhere.
+                if (!p || op === null || op === '' || String(op) === p) { $child.append(o); }
+            });
+            if (!$child.children('option').length) {
+                // A goal with nothing under it: say so, and do not let the
+                // form save a blank objective by accident.
+                $child.append($('<option value="">No objectives under this goal</option>'));
+                $child.prop('required', true);
+            } else {
+                $child.prop('required', wasRequired);
+            }
+            var pick = (want !== undefined && $child.find('option[value="' + String(want) + '"]').length) ? String(want)
+                     : ($child.find('option[value="' + was + '"]').length ? was : String($child.children('option').first().val()));
+            $child.val(pick);
+            if (silent) { return; }
+            // A real change only when the value moved; otherwise just redraw
+            // the widget, or the code box would be fetched twice on load.
+            if (pick !== was) { $child.trigger('change'); } else { $child.trigger('change.select2'); }
+        }
+        // Preset the box from a SAVED selection only (the server marks it
+        // with a selected attribute); a browser-default first option must
+        // not narrow a fresh form to one goal.
+        var saved = $child.find('option[selected]').attr('data-parent');
+        if (saved) { $parent.val(String(saved)).trigger('change.select2'); }
+        narrow(undefined, false);
+        $parent.on('change', function () { narrow(undefined, false); });
+        // Something else (the filing suggestion, an Apply link) wants a value
+        // that the current narrowing hides: widen to its goal first.
+        $child.on('afcdc:set', function (e, v) {
+            var o = all.filter(function (el) { return String(el.value) === String(v); })[0];
+            if (!o) { return; }
+            var p = o.getAttribute('data-parent') || '';
+            if (p && String($parent.val() || '') !== p) { $parent.val(p).trigger('change.select2'); }
+            narrow(String(v), true);
+        });
+    });
+
+    $('select[data-afcdc-narrow-by]').each(function () {
+        var $child  = $(this);
+        var $parent = $('select[name="' + $child.attr('data-afcdc-narrow-by') + '"]');
+        if (!$parent.length) { return; }
+        var p = String($parent.val() || '');
+        if (p && p !== '%') {
+            $child.find('option[data-parent]').each(function () {
+                // The option in force stays even if it disagrees with the
+                // parent (a stale link), so the box always shows what the
+                // list is actually filtered by.
+                if (!this.selected && String($(this).attr('data-parent')) !== p) { $(this).remove(); }
+            });
+        }
+        // Bound directly, so it runs before the document-level autosubmit.
+        $parent.on('change', function () { $child.val('%'); });
+    });
 });
