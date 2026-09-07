@@ -309,3 +309,27 @@ function list_cell_attrs($field, array $properties, $cell) {
     return ' class="' . implode(' ', $classes) . '"' . $title;
 }
 
+/**
+ * The search box, in the same shape as the filters beside it: a small label
+ * above a control of the same height. It sits inside the filter row, so on
+ * a narrow screen it wraps under the first filter instead of being pushed
+ * alone to the far right in a differently styled pill.
+ */
+function list_search_box($value) {
+    $value = (string)$value;
+    $html  = '<label class="afcdc-filter afcdc-filter--search' . ($value !== '' ? ' is-active' : '') . '"><span>Search</span>';
+    $html .= '<div class="input-group input-group-sm afcdc-search">';
+    $html .= '<input type="search" class="search-term form-control form-control-sm" name="search-term" id="search-term"'
+           . ' placeholder="Name, code or programme" value="' . display($value) . '" autocomplete="off">';
+    $html .= '<button class="btn btn-light border" type="submit" aria-label="Search"><i class="bx bx-search" aria-hidden="true"></i></button>';
+    $html .= '</div></label>';
+    return $html;
+}
+
+/** "Clear", shown only while a filter or a search is narrowing the list. */
+function list_clear_link($href, array $filter_data, $search) {
+    $narrowing = array_filter($filter_data, function ($v) { return $v !== '' && $v !== '%'; });
+    if (!$narrowing && (string)$search === '') { return ''; }
+    return '<a class="btn btn-sm btn-light border afcdc-filters__clear" href="' . $href . '">Clear</a>';
+}
+

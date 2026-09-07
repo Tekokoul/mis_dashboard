@@ -32,7 +32,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                     <div class="datatable-header afcdc-sticky">
                         <form method="get" action="<?=$this->L($page_link_prefix);?>">
 
-                        <div class="row align-items-center mb-3">
+                        <div class="row align-items-start mb-3">
                             <?php
                             $html = "";
 
@@ -42,25 +42,14 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                     $html .= filter_DropDown($filter['key'], $filter, $data['filter_data'][$filter['key']]);
                                 }
                             }
-                            if ($html !== "") {
-                                // The overview's filter row: small labels, one wrapping line, green while narrowing.
-                                $narrowing = array_filter((array)($data['filter_data'] ?? []), function ($v) { return $v !== '' && $v !== '%'; });
-                                print '<div class="col-12 col-lg-auto mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">' . $html;
-                                if ($narrowing) { print '<a class="btn btn-sm btn-light border afcdc-filters__clear" href="' . $this->L($page_link_prefix) . (($data['search'] ?? '') !== '' ? '?search-term=' . rawurlencode((string)$data['search']) : '') . '">Clear</a>'; }
-                                print '</div></div>';
-                            }
+                            // One row for everything that narrows the list: the filters, the search, and Clear.
+                            print '<div class="col-12 col-lg mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">'
+                                . $html . list_search_box($data['search'] ?? '')
+                                . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
+                                . '</div></div>';
 
                             ?>
-                            <div class="col-12 col-lg-auto ms-auto ml-auto ps-lg-1">
-                                    <div class="search search-style-1 search-style-1-lg mx-lg-auto">
-                                        <div class="input-group">
-
-                                            <input type="text" class="search-term form-control" name="search-term" id="search-term" placeholder="Search" value="<?= htmlspecialchars((string)($data['search'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
-                                            <button class="btn btn-default" type="submit"><i class="bx bx-search"></i></button>
-
-                                        </div>
-                                    </div>
-                            </div>
+                            
                         </div>
                         </form>
 

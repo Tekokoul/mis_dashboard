@@ -720,11 +720,29 @@ html .body-error .center-error {
    checkbox, the row counter, "Active" - step aside below 992px, where the
    table would otherwise wrap every row to five lines. */
 html .afcdc-filters--inline { padding-bottom: 0; margin-bottom: 0; border-bottom: 0; }
-html .afcdc-filters--inline .afcdc-filter .form-select-sm { min-width: 13rem; max-width: 22rem; }
+/* 20rem, not 22: at a 1440px window the filter row is ~857px wide and Goal +
+   Programme + Search at 22rem came to 870, so the search dropped a line for
+   the sake of 13px. Long programme names are cut by the select anyway. */
+html .afcdc-filters--inline .afcdc-filter .form-select-sm { min-width: 13rem; max-width: 20rem; }
+html .afcdc-filters--inline .afcdc-search { min-width: 15rem; max-width: 22rem; }
+/* The row breathes a little more than the overview's: 1.25rem between cells
+   on a line, 1rem between lines, so a wrapped search box sits clear of the
+   programme box above it and stays flush with the goal box on the left. */
+html .afcdc-filters--inline { gap: 1rem 1.25rem; }
+/* The search control is exactly the selects' height (Bootstrap's -sm sizing). */
+html .afcdc-filters--inline .afcdc-search .form-control,
+html .afcdc-filters--inline .afcdc-search .btn {
+    height: calc(1.5em + 0.5rem + 2px);
+    padding-top: 0.25rem; padding-bottom: 0.25rem;
+    font-size: 0.875rem; line-height: 1.5;
+}
+html .afcdc-filters--inline .afcdc-search .btn { display: inline-flex; align-items: center; }
+html .afcdc-filter.is-active > .afcdc-search .form-control { border-left: 3px solid var(--au-green-deep); }
+html .afcdc-filters--inline .afcdc-filters__clear { margin-bottom: 1px; }
 @media (max-width: 767.98px) {
     html .afcdc-filters--inline .afcdc-filter { flex: 1 1 100%; min-width: 0; }
     html .afcdc-filter .form-select-sm { max-width: none; }
-    html .datatable-header .search.search-style-1 { width: 100%; max-width: none; }   /* same width as the filters above it */
+    html .afcdc-filters--inline .afcdc-search { max-width: none; }
 }
 html #datatable-list th { white-space: nowrap; }
 html .afcdc-code { font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; color: var(--afcdc-ink); }
