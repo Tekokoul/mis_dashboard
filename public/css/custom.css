@@ -825,3 +825,49 @@ html tr.afcdc-row--inactive td { color: var(--afcdc-ink-soft); }
     html.fixed .datatable-header.afcdc-sticky { transition: none; }
 }
 
+/* --- Re-filed activities awaiting vetting --------------------------------
+   A moved row carries a band on its left: gold while it waits, red where the
+   two judges disagreed or the text was too thin to be sure, green once a
+   person has accepted it. Colour never stands alone - the note under the
+   name says the same in words, and carries the Accept / Undo links. */
+html #datatable-list tr.afcdc-review td:first-child { box-shadow: inset 4px 0 0 var(--au-gold); }
+html #datatable-list tr.afcdc-review--split td:first-child,
+html #datatable-list tr.afcdc-review--low td:first-child { box-shadow: inset 4px 0 0 var(--au-red); }
+html #datatable-list tr.afcdc-review--accepted td:first-child { box-shadow: inset 4px 0 0 var(--au-green); }
+html #datatable-list tr.afcdc-review--proposed { background-color: #FBF8EE !important; }
+html #datatable-list tr.afcdc-review--split, html #datatable-list tr.afcdc-review--low { background-color: #FBEFF2 !important; }
+html .afcdc-review__note { margin-top: 0.25rem; font-size: 0.75rem; line-height: 1.5; color: var(--afcdc-ink-soft); }
+html .afcdc-review__note code { font-size: 0.75rem; color: var(--afcdc-ink); background: transparent; padding: 0; }
+html .afcdc-review__tag { display: inline-block; padding: 0 0.4rem; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: var(--au-gold); color: var(--afcdc-ink); }
+html tr.afcdc-review--split .afcdc-review__tag, html tr.afcdc-review--low .afcdc-review__tag { background: var(--au-red); color: #FFF; }
+html tr.afcdc-review--accepted .afcdc-review__tag { background: var(--au-green-deep); color: #FFF; }
+html .afcdc-review__why { font-style: italic; }
+html .afcdc-review__act { margin-left: 0.5rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; white-space: nowrap; }
+
+
+/* Unfinished activities: a red tag naming what is missing, in the list and on
+ * the edit form. Rows keep the vetting band when they have one (those rules
+ * come first in the file and are more specific, so they win). */
+html #datatable-list tr.afcdc-gap:not(.afcdc-review) td:first-child { box-shadow: inset 4px 0 0 var(--au-red); }
+html .afcdc-gap__note { margin-top: 0.25rem; font-size: 0.75rem; line-height: 1.5; color: var(--afcdc-ink-soft); }
+html .afcdc-gap__tag { display: inline-block; padding: 0 0.4rem; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: var(--au-red); color: #FFF; }
+
+/* The same vetting note as a panel at the top of the edit form. */
+html .afcdc-review-panel, html .afcdc-gap-panel, html .afcdc-form-errors { padding: 0.6rem 0.9rem; margin: 0 0 1rem; border-left: 4px solid var(--au-gold); border-radius: 2px; background: #FBF8EE; font-size: 0.8125rem; line-height: 1.5; color: var(--afcdc-ink); }
+html .afcdc-review-panel .afcdc-review__note, html .afcdc-gap-panel .afcdc-gap__note { margin-top: 0; font-size: 0.8125rem; }
+html .afcdc-review-panel.afcdc-review--split, html .afcdc-review-panel.afcdc-review--low, html .afcdc-gap-panel, html .afcdc-form-errors { border-left-color: var(--au-red); background: #FBEFF2; }
+html .afcdc-review-panel.afcdc-review--split .afcdc-review__tag, html .afcdc-review-panel.afcdc-review--low .afcdc-review__tag { background: var(--au-red); color: #FFF; }
+html .afcdc-review-panel.afcdc-review--accepted { border-left-color: var(--au-green); background: #F0F6F1; }
+html .afcdc-review-panel.afcdc-review--accepted .afcdc-review__tag { background: var(--au-green-deep); color: #FFF; }
+html .afcdc-review-panel .afcdc-review__act { font-size: 0.8125rem; }
+
+/* Required fields the save was refused on. */
+html .afcdc-field--missing .form-control, html .afcdc-field--missing .select2-container .select2-selection--single { border-color: var(--au-red) !important; }
+html .afcdc-field__msg { margin-top: 0.25rem; font-size: 0.75rem; font-weight: 600; color: var(--au-red); }
+
+/* A goal / objective / programme changed on the edit form before it is saved. */
+html .afcdc-field--changed .form-control, html .afcdc-field--changed .select2-container .select2-selection--single { border-color: var(--au-gold) !important; background-color: #FBF8EE !important; }
+/* select2 sizes itself from the hidden <select> at start-up; below 992px that
+ * measures a few characters wide, and the box shrank to a letter. */
+html form.ecommerce-form .form-group .select2-container { width: 100% !important; }
+html .afcdc-field__changed { margin-top: 0.25rem; padding-left: 0.5rem; border-left: 3px solid var(--au-gold); font-size: 0.75rem; color: var(--afcdc-ink-soft); }

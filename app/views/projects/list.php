@@ -49,6 +49,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                             print '<div class="col-12 col-lg mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">'
                                 . $html . list_search_box($data['search'] ?? '')
                                 . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
+                                // While moves are pending, one control accepts everything left after the person has looked.
+                                . ((allocation_pending_count($this->DB) > 0) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-review-action="accept_all">Accept all pending</a>' : '')
                                 . '</div></div>';
 
                             ?>
@@ -85,7 +87,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                 foreach ($data['data'] as $row) {
                                     $link = "projects/edit/".$row['id'];
                                     ?>
-                                    <tr<?= (isset($row['active']) && (string)$row['active'] === '0') ? ' class="afcdc-row--inactive"' : ''; ?>>
+                                    <?php $review = $data['reviews'][(int)$row['id']] ?? null; $gaps = $data['gaps'][(int)$row['id']] ?? []; $trClass = trim(((isset($row['active']) && (string)$row['active'] === '0') ? 'afcdc-row--inactive ' : '') . ($gaps ? 'afcdc-gap ' : '') . (($review && $review['status'] !== 'reverted') ? 'afcdc-review afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) : '')); ?>
+                                    <tr<?= $trClass !== '' ? ' class="' . $trClass . '"' : ''; ?>>
                                         <td width="30" class="afcdc-col-check"><input type="checkbox" name="checkboxRow1" class="checkbox-style-1 p-relative top-2" value="" /></td>
                                         <td class="afcdc-col-num"><?=$aa;?></td>
                                         <?php
@@ -98,6 +101,10 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 $attrs = list_cell_attrs($field, $properties, $cell);
                                                 // The name column stops at two lines (CSS .afcdc-clamp); the full text is the cell's title and the edit page.
                                                 $inner = (strpos($attrs, 'afcdc-cell-name') !== false) ? '<span class="afcdc-clamp">' . $cell . '</span>' : $cell;
+                                                // A moved activity carries its vetting note under the name.
+                                                if ($field === 'name' && !empty($review)) { $inner .= allocation_review_note($review); }
+                                                // An activity with something missing, or a broken goal / objective / programme chain, says so.
+                                                if ($field === 'name' && $gaps) { $inner .= activity_gap_note($gaps); }
                                                 print ($first)
                                                     ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
                                                     : '<td' . $attrs . '>' . $inner . '</td>';

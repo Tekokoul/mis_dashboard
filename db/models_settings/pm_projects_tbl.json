@@ -48,7 +48,8 @@
       "link_to_table": "pm_pillars_tbl",
       "link_to_field": "name",
       "order_by": "`name` asc",
-      "where_clause": ""
+      "where_clause": "",
+      "required": true
     },
     "objective_id": {
       "title": "Objective",
@@ -57,7 +58,8 @@
       "link_to_table": "pm_objectives_tbl",
       "link_to_field": "abbr,name",
       "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',2),'.',-1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',3),'.',-1) AS UNSIGNED) asc, `abbr` asc",
-      "where_clause": ""
+      "where_clause": "",
+      "required": true
     },
     "programme_id": {
       "title": "Programme",
@@ -69,13 +71,15 @@
       "where_clause": "",
       "appear_in_list": 1,
       "list_width": 22,
-      "search_field": true
+      "search_field": true,
+      "required": true
     },
     "name": {
       "type": "varchar",
       "appear_in_list": 1,
       "list_width": 46,
-      "search_field": true
+      "search_field": true,
+      "required": true
     },
     "abbr": {
       "title": "Abbreviation",
@@ -87,7 +91,8 @@
       "order_natural": true
     },
     "description": {
-      "no_editor": true
+      "no_editor": true,
+      "required": true
     },
     "kpi": {
       "title": "Expected task"

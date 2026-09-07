@@ -1272,3 +1272,137 @@ function matcher_rescale(array $scores) {
     foreach ($scores as $k => $v) { $scores[$k] = $span > 1e-9 ? ($v - $lo) / $span : 0.0; }
     return $scores;
 }
+
+/**
+ * Re-filing review (tools/allocate-imported.php). A moved activity keeps a
+ * row here saying where it was, where it went and whether a person has
+ * vetted the move. The lists band such rows in colour until they are
+ * accepted or undone. Both readers check the table exists first.
+ */
+function allocation_review_available($db) {
+    static $ok = null;
+    if ($ok === null) { $ok = is_set($db->MQ("SHOW TABLES LIKE 'pm_allocation_review_tbl'", "one")); }
+    return $ok;
+}
+
+/** [project_id => review row (+ old_programme_label)] for the ids given. */
+function allocation_reviews($db, array $ids) {
+    $ids = array_values(array_filter(array_map('intval', $ids)));
+    if (!$ids || !allocation_review_available($db)) { return []; }
+    $marks = implode(',', array_fill(0, count($ids), '?'));
+    $rows = (array)$db->MQ("SELECT r.*, g.abbr AS old_programme_abbr, o.abbr AS old_objective_abbr
+                              FROM pm_allocation_review_tbl r
+                              LEFT JOIN pm_programmes_tbl g ON g.id = r.old_programme_id
+                              LEFT JOIN pm_objectives_tbl o ON o.id = r.old_objective_id
+                             WHERE r.project_id IN (" . $marks . ")", "all", $ids);
+    $out = [];
+    foreach ($rows as $r) {
+        $r['old_programme_label'] = $r['old_programme_abbr'] !== null ? (string)$r['old_programme_abbr']
+                                  : ((int)$r['old_programme_id'] > 0 ? 'a programme that no longer exists (#' . (int)$r['old_programme_id'] . ')' : 'no programme');
+        $out[(int)$r['project_id']] = $r;
+    }
+    return $out;
+}
+
+/** How many moves still wait for a person, or 0. */
+function allocation_pending_count($db) {
+    if (!allocation_review_available($db)) { return 0; }
+    $r = $db->MQ("SELECT COUNT(*) AS n FROM pm_allocation_review_tbl WHERE status = 'proposed'", "one");
+    return (int)($r['n'] ?? 0);
+}
+
+/** The vetting note under a moved activity's name, or "" when there is none to show. */
+function allocation_review_note(array $review) {
+    $status = (string)$review['status'];
+    if ($status === 'reverted') { return ''; }
+    $tag = ['proposed' => ['agreed' => 'Proposed by AI', 'split' => 'Check: judges disagreed', 'low' => 'Check', 'code' => 'Code fixed'],
+            'accepted' => 'Accepted'];
+    $label = $status === 'accepted' ? $tag['accepted'] : ($tag['proposed'][$review['confidence']] ?? 'Proposed by AI');
+    $html  = '<div class="afcdc-review__note">';
+    $html .= '<span class="afcdc-review__tag">' . display($label) . '</span> ';
+    // A code-only fix names just the old code; a move names where it sat.
+    $html .= 'was <code>' . display($review['old_abbr']) . '</code>';
+    if ((int)$review['old_programme_id'] !== (int)$review['new_programme_id'] || (int)$review['old_objective_id'] !== (int)$review['new_objective_id']) {
+        $html .= ' under ' . display($review['old_objective_abbr'] ?? '?') . ' / ' . display($review['old_programme_label']);
+    }
+    if (trim((string)$review['reason']) !== '') { $html .= ' <span class="afcdc-review__why">' . display($review['reason']) . '</span>'; }
+    if ($status === 'proposed') {
+        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Accept</a>';
+        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="revert" data-id="' . (int)$review['project_id'] . '">Undo</a>';
+    } elseif ($status === 'accepted') {
+        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="revert" data-id="' . (int)$review['project_id'] . '">Undo</a>';
+    }
+    return $html . '</div>';
+}
+
+/**
+ * The same note as a panel on the edit form: the row's colour band becomes
+ * the panel's left edge, so the vetting reads the same in both places.
+ */
+function allocation_review_panel($review) {
+    if (!$review || $review['status'] === 'reverted') { return ''; }
+    return '<div class="afcdc-review-panel afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) . '">'
+        . allocation_review_note($review) . '</div>';
+}
+
+/**
+ * What is missing or wrong on an activity, as short labels ("description",
+ * "programme", "programme belongs to another objective"). Empty when the
+ * activity is complete. Used three ways: the save refuses an activity that
+ * lacks a name, description, goal, objective or programme; the lists and the
+ * edit form flag one that is unfinished; and the "Unfinished" filter finds
+ * them. The parent tables are read once per request.
+ */
+function activity_gaps($db, array $row) {
+    static $objectives = null, $programmes = null, $pillars = null;
+    if ($objectives === null) {
+        $objectives = []; $programmes = []; $pillars = [];
+        foreach ((array)$db->MQ("SELECT id, pillar_id FROM pm_objectives_tbl", "all") as $r) { $objectives[(int)$r['id']] = (int)$r['pillar_id']; }
+        foreach ((array)$db->MQ("SELECT id, objective_id FROM pm_programmes_tbl", "all") as $r) { $programmes[(int)$r['id']] = (int)$r['objective_id']; }
+        foreach ((array)$db->MQ("SELECT id FROM pm_pillars_tbl", "all") as $r) { $pillars[(int)$r['id']] = true; }
+    }
+    $gaps = [];
+    if (trim((string)($row['name'] ?? '')) === '') { $gaps[] = 'name'; }
+    if (trim((string)($row['description'] ?? '')) === '') { $gaps[] = 'description'; }
+    $g = (int)($row['pillar_id'] ?? 0); $o = (int)($row['objective_id'] ?? 0); $p = (int)($row['programme_id'] ?? 0);
+    if ($g <= 0 || !isset($pillars[$g])) { $gaps[] = 'goal'; }
+    if ($o <= 0 || !isset($objectives[$o])) { $gaps[] = 'objective'; }
+    elseif ($g > 0 && isset($pillars[$g]) && $objectives[$o] !== $g) { $gaps[] = 'objective belongs to another goal'; }
+    if ($p <= 0 || !isset($programmes[$p])) { $gaps[] = 'programme'; }
+    elseif ($o > 0 && isset($objectives[$o]) && $programmes[$p] !== $o) { $gaps[] = 'programme belongs to another objective'; }
+    if (trim((string)($row['abbr'] ?? '')) === '') { $gaps[] = 'code'; }
+    return $gaps;
+}
+
+/** Gaps for a page of activities, keyed by id; rows without gaps are absent. */
+function activity_gaps_for($db, array $ids) {
+    $ids = array_values(array_unique(array_map('intval', $ids)));
+    if (!$ids) { return []; }
+    $out = [];
+    $rows = (array)$db->MQ("SELECT id, name, description, abbr, pillar_id, objective_id, programme_id FROM pm_projects_tbl WHERE id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")", "all", $ids);
+    foreach ($rows as $r) {
+        $gaps = activity_gaps($db, $r);
+        if ($gaps) { $out[(int)$r['id']] = $gaps; }
+    }
+    return $out;
+}
+
+/** SQL (no bound values) that is true for an unfinished activity - the "Unfinished" list filter. */
+function activity_gaps_sql($table = 'pm_projects_tbl') {
+    return "(TRIM(IFNULL(`$table`.`name`,'')) = '' OR TRIM(IFNULL(`$table`.`description`,'')) = '' OR TRIM(IFNULL(`$table`.`abbr`,'')) = ''"
+        . " OR `$table`.`pillar_id` NOT IN (SELECT `id` FROM `pm_pillars_tbl`)"
+        . " OR `$table`.`objective_id` NOT IN (SELECT `id` FROM `pm_objectives_tbl` WHERE `pillar_id` = `$table`.`pillar_id`)"
+        . " OR `$table`.`programme_id` NOT IN (SELECT `id` FROM `pm_programmes_tbl` WHERE `objective_id` = `$table`.`objective_id`))";
+}
+
+function activity_unfinished_count($db) {
+    static $n = null;
+    if ($n === null) { $r = $db->MQ("SELECT COUNT(*) AS n FROM pm_projects_tbl WHERE " . activity_gaps_sql(), "one"); $n = (int)($r['n'] ?? 0); }
+    return $n;
+}
+
+/** The red "Unfinished" tag with what is missing, for a list cell or the edit form. */
+function activity_gap_note(array $gaps) {
+    if (!$gaps) { return ''; }
+    return '<div class="afcdc-gap__note"><span class="afcdc-gap__tag">Unfinished</span> missing: ' . display(implode(', ', $gaps)) . '</div>';
+}

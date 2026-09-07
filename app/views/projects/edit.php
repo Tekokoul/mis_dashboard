@@ -13,12 +13,20 @@ $col_width = 12/$columns;
 </header>
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("projects/edit_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
+    <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
     <div class="row mb-4">
             <div class="col col-lg-<?=$col_width;?> col-md-12">
                 <section class="card card-modern mb-5">
                     <div class="card-body">
                         <div class="row">
                             <div>
+                                <?php
+                                // Refused save: what was typed comes back with what is missing named.
+                                if (!empty($data['form_errors'])) { print '<div class="afcdc-form-errors" role="alert"><strong>Not saved.</strong> Please fill in: ' . display(implode(', ', $data['form_errors'])) . '.</div>'; }
+                                // The AI's filing proposal, with Accept / Undo, and the unfinished flag - the same as in the list.
+                                print allocation_review_panel($data['review'] ?? null);
+                                if (!empty($data['gaps']) && empty($data['form_errors'])) { print '<div class="afcdc-gap-panel">' . activity_gap_note($data['gaps']) . '</div>'; }
+                                ?>
                                 <?php
                                 $html = "";
                                 foreach ($data['model']['common'] as $field=>$value) {
@@ -71,7 +79,7 @@ $col_width = 12/$columns;
             </button>
         </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
-            <a href="<?=$this->GoBack();?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
+            <a href="<?= display($data['back'] ?? $this->L('projects/list')); ?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1" data-afcdc-back title="Back to the list (Esc)">Back</a>
         </div>
     </div>
 </form>

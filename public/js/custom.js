@@ -31,19 +31,27 @@ $(function () {
     var parentSel = model === 'pm_programmes' ? 'select[name="objective_id"]'
                   : model === 'pm_projects'   ? 'select[name="programme_id"]' : null;
     var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
-    function fill() {
-        if ($abbr.val() !== '' && $abbr.attr('data-auto') !== '1') { return; }
+    // A plain numeric code that came from the database ("1.8.1") counts as
+    // automatic as well: when the item is moved to another parent on the
+    // edit form the code follows, and moving it back restores the code it
+    // had. Anything typed by hand in this session is left alone.
+    var typed = false, origParent = parentSel ? $(parentSel).val() : null, origCode = $abbr.val();
+    function fill(moved) {
+        var v = $abbr.val();
+        var automatic = v === '' || $abbr.attr('data-auto') === '1' || (moved && !typed && /^\d+(\.\d+)+$/.test(v));
+        if (!automatic) { return; }
         var parent = parentSel ? parseInt($(parentSel).val(), 10) || 0 : 0;
         if (parentSel && !parent) { return; }
+        if (moved && !typed && origCode !== '' && String(parent) === String(origParent)) { $abbr.val(origCode).attr('data-auto', '1'); return; }
         $.getJSON(prefix + '/core/next_code/' + model + '/' + parent, function (r) {
             var d = (r && r.data) ? r.data : r;
             if (!d || !d.code) { return; }
             $abbr.val(d.code).attr('data-auto', '1');
         });
     }
-    $abbr.on('input', function () { $(this).attr('data-auto', $(this).val() === '' ? '1' : '0'); });
-    if (parentSel) { $(document).on('change', parentSel, fill); }
-    fill();
+    $abbr.on('input', function () { typed = $(this).val() !== ''; $(this).attr('data-auto', typed ? '0' : '1'); });
+    if (parentSel) { $(document).on('change', parentSel, function () { fill(true); }); }
+    fill(false);
 });
 
 /* Filing by content. As the name and description of a new objective,
@@ -290,3 +298,96 @@ $(function () {
     window.addEventListener('scroll', shadow, { passive: true });
 });
 
+/* Vetting the re-filed activities: Accept / Undo on a row, or Accept all.
+ * Each is a POST with the page's CSRF token; the page reloads so the bands
+ * and the pending count are fresh. */
+$(function () {
+    $(document).on('click', '[data-review-action]', function (e) {
+        e.preventDefault();
+        var action = $(this).attr('data-review-action'), id = $(this).attr('data-id');
+        if (action === 'accept_all' && !window.confirm('Accept every move still pending?')) { return; }
+        var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
+        var url = prefix + '/projects/allocation_' + action + (id ? '/' + id : '');
+        $.ajax({ url: url, method: 'POST', data: { csrf: window.CSRF_TOKEN || '' }, dataType: 'json' })
+            .done(function () { window.location.reload(); })
+            .fail(function (xhr) { window.alert(xhr.status === 403 ? 'The page had been open too long. Reload and try again.' : 'That did not go through (' + xhr.status + ').'); });
+    });
+});
+
+
+/* Required fields on the activity form. The browser's own check cannot show
+ * itself on a select2 box: the real <select> is hidden, so "an invalid form
+ * control is not focusable" is all that happens and the click does nothing.
+ * This marks every missing field, names what is wrong, and opens the first
+ * one. The server refuses the save as well (projectsController). */
+$(function () {
+    var pending = null;
+    document.addEventListener('invalid', function (e) {
+        var field = e.target;
+        if (!field || !field.form || !$(field.form).hasClass('ecommerce-form')) { return; }
+        e.preventDefault();
+        var $group = $(field).closest('.form-group');
+        var why = (field.tagName === 'SELECT' && !field.options.length) ? 'Nothing to choose from yet' : 'Required';
+        $group.addClass('afcdc-field--missing');
+        var $msg = $group.find('.afcdc-field__msg');
+        if (!$msg.length) { $msg = $('<div class="afcdc-field__msg" role="alert"></div>').appendTo($group.children().last()); }
+        $msg.text(why);
+        if (!pending) {
+            pending = field;
+            window.setTimeout(function () {
+                var first = pending; pending = null;
+                $(first).closest('.form-group')[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+                if ($(first).data('select2')) { $(first).select2('open'); } else { first.focus(); }
+            }, 0);
+        }
+    }, true);
+    // The mark goes as soon as the field is filled.
+    $(document).on('input change', 'form.ecommerce-form [required]', function () {
+        if (this.value !== '' && this.value !== null) { $(this).closest('.form-group').removeClass('afcdc-field--missing').find('.afcdc-field__msg').remove(); }
+    });
+});
+
+/* Esc leaves the activity form the way the Back button does - to the list
+ * it was opened from. Not while a dropdown or a dialog is open (they take
+ * Esc themselves), and not without asking when something typed is unsaved. */
+$(function () {
+    $(document).on('keydown', function (e) {
+        if (e.key !== 'Escape' || e.isDefaultPrevented()) { return; }
+        var $back = $('a[data-afcdc-back]').first();
+        if (!$back.length) { return; }
+        if ($('.select2-container--open').length) { return; }
+        if (window.jQuery && $.magnificPopup && $.magnificPopup.instance && $.magnificPopup.instance.isOpen) { return; }
+        var dirty = false;
+        $('form.ecommerce-form').find('input[type="text"], input:not([type]), textarea').each(function () {
+            if (this.value !== this.defaultValue) { dirty = true; }
+        });
+        if (dirty && !window.confirm('Leave without saving your changes?')) { return; }
+        e.preventDefault();
+        window.location.href = $back.attr('href');
+    });
+});
+
+/* On the activity edit form, a goal / objective / programme moved away from
+ * what the row holds - the AI's proposal while one is pending - turns yellow
+ * before anything is saved, so a correction is visible as a correction.
+ * Choosing the original value again clears it. */
+$(function () {
+    if (typeof project_id === 'undefined' || !(project_id > 0)) { return; }
+    var $form = $('form.ecommerce-form');
+    if (!$form.length) { return; }
+    var names = ['pillar_id', 'objective_id', 'programme_id'], base = {};
+    names.forEach(function (n) { var el = $form.find('select[name="' + n + '"]')[0]; if (el) { base[n] = el.value; } });
+    var why = $('.afcdc-review-panel').length ? 'Changed from what was proposed. Saving keeps your choice.' : 'Changed. Saving moves the activity.';
+    function mark() {
+        names.forEach(function (n) {
+            var $el = $form.find('select[name="' + n + '"]');
+            if (!$el.length || base[n] === undefined) { return; }
+            var changed = String($el.val()) !== String(base[n]);
+            var $g = $el.closest('.form-group');
+            $g.toggleClass('afcdc-field--changed', changed);
+            if (changed && !$g.find('.afcdc-field__changed').length) { $('<div class="afcdc-field__changed"></div>').text(why).appendTo($g.children().last()); }
+            if (!changed) { $g.find('.afcdc-field__changed').remove(); }
+        });
+    }
+    $form.on('change', 'select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"]', function () { window.setTimeout(mark, 0); });
+});

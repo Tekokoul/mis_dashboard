@@ -319,6 +319,38 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
             || die "could not create pm_embeddings_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
+    # 6. Re-filing review: for each activity moved by tools/allocate-imported.php,
+    #    where it was, where it went, and whether a person has vetted that.
+    #    Empty until the tool runs; the lists check it exists before reading.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_allocation_review_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_allocation_review_tbl (re-filing review)"
+        qddl "CREATE TABLE pm_allocation_review_tbl (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                project_id INT(11) NOT NULL,
+                old_pillar_id INT(11) NOT NULL DEFAULT 0,
+                old_objective_id INT(11) NOT NULL DEFAULT 0,
+                old_programme_id INT(11) NOT NULL DEFAULT 0,
+                old_abbr VARCHAR(64) DEFAULT NULL,
+                new_pillar_id INT(11) NOT NULL DEFAULT 0,
+                new_objective_id INT(11) NOT NULL DEFAULT 0,
+                new_programme_id INT(11) NOT NULL DEFAULT 0,
+                new_abbr VARCHAR(64) DEFAULT NULL,
+                confidence VARCHAR(16) NOT NULL DEFAULT 'agreed',
+                reason TEXT DEFAULT NULL,
+                status VARCHAR(16) NOT NULL DEFAULT 'proposed',
+                decided_by INT(11) NOT NULL DEFAULT 0,
+                decided_at DATETIME DEFAULT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_allocation_review_project (project_id),
+                KEY idx_allocation_review_status (status)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" \
+            || die "could not create pm_allocation_review_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    fi
+
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)
     if [ "${users:-0}" -eq 0 ]; then
         log "NOTE: no accounts exist yet. Create one with:"

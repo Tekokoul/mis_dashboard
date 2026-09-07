@@ -247,6 +247,75 @@ The activity form does NOT use it: its goal, objective and programme are real
 columns and cascade through the server (`pm_projects.js`), which the
 filing-by-wording code relies on.
 
+## Re-filing imported activities, and vetting the result
+
+The activities imported from the annual work plan carried its codes
+(`4.2.4.06.01`) and sat under programmes that had since been deleted or that
+belong to another objective, so they never lined up on the overview. The
+fix is a move, recorded for a person to check, never a silent rewrite.
+
+1. `tools/allocate-imported.php <decisions.json> [--dry-run]` re-files each
+   activity listed in the decisions file (objective, programme, goal from the
+   objective, and the next free code under the programme, siblings in the
+   order of their old codes) and writes the old and new placement to
+   `pm_allocation_review_tbl` with status **proposed**. Tasks and recorded
+   deliveries hang off the activity id and are untouched. Re-running skips
+   anything already recorded.
+2. On the local copy, the Projects and Progress lists band every moved row:
+   gold while it waits, red where the two judges disagreed or the text was
+   too thin, green once accepted. The note under the name says where it was
+   and why it moved, with **Accept** and **Undo**. Undo puts the row back
+   exactly and teaches the matcher that the proposal was wrong. A "Vetting"
+   filter appears while anything is pending, with **Accept all pending** for
+   the remainder once you have looked.
+3. `tools/export-allocations.php [accepted|all] > allocations.sql` turns the
+   vetted moves into one `UPDATE ... WHERE id=` per row, with a commented
+   rollback block, to run on the live database as root. Nothing reaches the
+   server any other way.
+
+The judges' decisions file for the first run is produced from the local
+matcher's proposals plus two independent readings of each activity; where
+they disagree the row is flagged rather than guessed.
+
+**Code fixes ride the same rails.** A decision that names no objective or
+programme leaves the activity where it is and only fixes its code (`"7.1.2
+Act"` becomes `7.1.2`; an `"abbr"` in the decision is kept when it fits the
+programme's code and is free, otherwise the next free code is taken). Those
+rows carry the tag **Code fixed** and the same Accept / Undo. Programme codes
+(`7.6 PGR`, `12.8`, `14.1 Fin` and so on) are plain `UPDATE ... WHERE id=`
+statements kept next to the export; there is nothing to vet in a spelling.
+
+**The edit form shows the same note** (Proposed by AI / Check / Code fixed,
+where it was, why, Accept, Undo) above the fields, so a row can be vetted
+while it is being read.
+
+**Unfinished activities.** An activity with no name, no description, no goal,
+objective or programme, a programme under another objective, an objective
+under another goal, or no code carries a red **Unfinished** tag naming what
+is missing, in both lists and on its edit form; a "Completeness" filter
+lists them while there are any. Name, description, goal, objective and
+programme are required on the activity form: the browser marks what is
+missing and opens the first such box (select2 hides the real control, so the
+browser's own message never showed), and the server refuses the save with the
+form shown again and "Not saved. Please fill in: ..." at the top
+(`projectsController::activityBlockers`). The code is filled automatically
+and never blocks.
+
+**Back and Esc.** The form's Back button and the Esc key both return to the
+list the form was opened from (filters kept). After a save the form is
+reached by a redirect, so the browser's referer would be the form itself;
+the list URL travels in a hidden `back` field and `?back=` instead
+(`projectsController::backTo`, same-host paths only, never the form or the
+site root). Esc asks first when a text box holds an unsaved change; it does
+nothing while a dropdown or a dialog is open, as they use Esc themselves.
+
+Where the 7 September 2026 round stands: the local copy was refreshed from
+the live content tables first (goals, objectives, programmes, activities,
+tasks, deliveries - accounts and learned corrections untouched), the two
+judges ran against that catalogue, and 107 proposals are recorded (55 moves,
+52 code fixes; 49 + 49 gold, 4 split, 5 to check). `programme-codes.sql` (8
+rows) sits with the export for the live run.
+
 ## How an activity gets filed
 
 Typing a name or description on an add form moves the Goal, Objective and

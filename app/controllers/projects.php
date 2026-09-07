@@ -57,6 +57,7 @@ class projectsController extends coreController{
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['meta_filters'] = $this->model->get_meta_filters("pm_projects");
+        $this->addVettingFilter($data);
         $data['model_name'] = "pm_projects";
         $data['fields'] = $this->model->get_list_fields($model);
 
@@ -83,6 +84,8 @@ class projectsController extends coreController{
         }
 
         $this->prepare_edit_mode();
+        $data['reviews'] = allocation_reviews($this->DB, array_column((array)($data['data'] ?? []), 'id'));
+        $data['gaps'] = activity_gaps_for($this->DB, array_column((array)($data['data'] ?? []), 'id'));
         $this->render($data);
     }
 
@@ -90,6 +93,7 @@ class projectsController extends coreController{
         $data['model_name'] = "pm_projects";
         $data["model"] = $this->model->get_table_fields("pm_projects");
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
+        $data['back'] = $this->backTo();
         $this->AddJS("/js/pm_projects.js");
         $this->prepare_edit_mode();
         $this->render($data);
@@ -106,8 +110,11 @@ class projectsController extends coreController{
         $additional_tables = (array)($this->query['additional_tables'] ?? []);
         unset($this->query['additional_tables']);
 
+        $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
         if ($validated['tablename'] === 'pm_projects') {
             $this->normaliseParents($this->query);
+            $blocking = $this->activityBlockers($this->query);
+            if ($blocking) { $this->renderActivityForm('add', $this->query, $blocking, $back); }
             if (trim((string)($this->query['abbr'] ?? '')) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }
         }
         $executed = $this->model->add_data($validated['tablename'], $this->query);
@@ -128,7 +135,7 @@ class projectsController extends coreController{
                     'programme_id' => $this->query['suggest_programme_id'] ?? 0,
                 ], (int)$new_id);
             }
-            redirect($this->L("projects/".$id_part));
+            redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo($back)));
         } else {
             $this->setAnswer(500, "Problem adding the entry.");
         }
@@ -148,6 +155,11 @@ class projectsController extends coreController{
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['data'] = $this->model->get_data("pm_projects", $validated['id']);
+        // The AI's filing proposal (with Accept / Undo) and whatever is still
+        // missing are shown on the form too, not only in the list.
+        $data['review'] = allocation_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
+        $data['gaps'] = is_array($data['data']) ? activity_gaps($this->DB, $data['data']) : [];
+        $data['back'] = $this->backTo();
         $this->AddJS("/js/pm_projects.js");
         $this->prepare_edit_mode();
         $this->render($data);
@@ -165,8 +177,11 @@ class projectsController extends coreController{
         unset($this->query['additional_tables']);
 
         $previous = $this->DB->MQ("select * from ".$this->model->get_table_name($validated['tablename'])." where id=".(int)$validated['id'], "one");
+        $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
         if ($validated['tablename'] === 'pm_projects') {
             $this->normaliseParents($this->query);
+            $blocking = $this->activityBlockers($this->query);
+            if ($blocking) { $this->renderActivityForm('edit', $this->query, $blocking, $back); }
             if (array_key_exists('abbr', $this->query) && trim((string)$this->query['abbr']) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }
         }
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
@@ -191,8 +206,58 @@ class projectsController extends coreController{
                 // place it sat in was wrong for this wording, whoever chose it.
                 record_filing_feedback($this->DB, 'pm_projects', $this->query, $previous, (int)$validated['id']);
             }
-            redirect($this->L("projects/".$id_part));
+            redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo($back)));
         }
+    }
+
+    /**
+     * The gaps that stop a save. An activity needs a name, a description and
+     * a real goal / objective / programme chain before it counts anywhere;
+     * the code is filled in automatically, so it never blocks.
+     */
+    private function activityBlockers(array $row) {
+        $stop = ['name', 'description', 'goal', 'objective', 'programme', 'programme belongs to another objective', 'objective belongs to another goal'];
+        return array_values(array_intersect(activity_gaps($this->DB, $row), $stop));
+    }
+
+    /** Show the add or edit form again with what was typed and what is missing, instead of saving. */
+    private function renderActivityForm($mode, array $posted, array $errors, $back = '') {
+        if (!headers_sent()) { http_response_code(422); }
+        $data['model_name'] = "pm_projects";
+        $data["model"] = $this->model->get_table_fields("pm_projects");
+        $data['meta_name'] = $this->model->get_meta_name("pm_projects");
+        $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
+        $data['data'] = $posted;
+        $data['form_errors'] = $errors;
+        $data['back'] = $this->backTo($back);
+        if ($mode === 'edit') {
+            $id = (int)($posted['id'] ?? 0);
+            $data['review'] = allocation_reviews($this->DB, [$id])[$id] ?? null;
+            $data['gaps'] = $errors;
+        }
+        // render() picks the view from the routed action; the registry keeps
+        // its url through __set, so the array is replaced whole.
+        $url = $this->R->url; $url['action'] = ($mode === 'edit') ? 'edit' : 'add'; $this->R->url = $url;
+        $this->AddJS("/js/pm_projects.js");
+        $this->prepare_edit_mode();
+        $this->render($data);
+    }
+
+    /**
+     * Where Back (and the Esc key) on the activity form should go: the list
+     * page the form was opened from, never the form itself. After a save the
+     * form is reached by a redirect, so the browser's referer would be the
+     * form - which is why Back used to lead nowhere.
+     */
+    private function backTo($given = '') {
+        foreach ([(string)$given, (string)($this->query['back'] ?? ''), $this->GoBack()] as $c) {
+            $c = trim($c);
+            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || strpbrk($c, "\r\n") !== false) { continue; }
+            if (preg_match('#/projects/(add|edit|add_update|edit_update)(/|$|\?)#', $c)) { continue; }
+            if (rtrim($c, '/') === rtrim((string)$this->L(""), '/')) { continue; }   // no referer at all: GoBack() answers with the site root
+            return $c;
+        }
+        return $this->L("projects/list");
     }
 
     /**
@@ -374,6 +439,7 @@ class projectsController extends coreController{
         $data['meta_name'] = "Progress";
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['meta_filters'] = $this->model->get_meta_filters("pm_projects");
+        $this->addVettingFilter($data);
 
         $data['model_name'] = "pm_projects";
         $data['fields'] = $this->model->get_list_fields($model);
@@ -460,6 +526,8 @@ class projectsController extends coreController{
         } else {
             $data['data'] = [];
         }
+        $data['reviews'] = allocation_reviews($this->DB, array_column((array)$data['data'], 'id'));
+        $data['gaps'] = activity_gaps_for($this->DB, array_column((array)$data['data'], 'id'));
 
         $this->prepare_edit_mode();
         $this->render($data);
@@ -850,4 +918,82 @@ class projectsController extends coreController{
         }
     }
 
+
+    /**
+     * While tools/allocate-imported.php has left moves waiting for a person,
+     * the lists get a "Vetting" filter: pending / accepted / undone. It
+     * disappears once nothing is pending, so it never becomes furniture.
+     */
+    private function addVettingFilter(array &$data) {
+        // Activities with something missing or a broken goal / objective /
+        // programme chain: the "Unfinished" filter, only while there are any.
+        $unfinished = activity_unfinished_count($this->DB);
+        if ($unfinished > 0) {
+            $data['meta_filters'][] = [
+                'title'       => 'Completeness (' . $unfinished . ' unfinished)',
+                'key'         => 'gaps',
+                'type'        => 'dropdown',
+                'values_from' => 'values_list',
+                'values_list' => ['unfinished' => 'Unfinished (' . $unfinished . ')'],
+                'all_label'   => 'Everything',
+                'sql'         => "AND ? = 'unfinished' AND " . activity_gaps_sql(),
+            ];
+        }
+        if (!allocation_review_available($this->DB)) { return; }
+        $r = $this->DB->MQ("SELECT SUM(status='proposed') p, SUM(status='accepted') a, SUM(status='reverted') u FROM pm_allocation_review_tbl", "one");
+        if (!is_set($r) || ((int)$r['p'] + (int)$r['a'] + (int)$r['u']) === 0) { return; }
+        $data['meta_filters'][] = [
+            'title'       => 'Vetting' . ((int)$r['p'] > 0 ? ' (' . (int)$r['p'] . ' pending)' : ''),
+            'key'         => 'review',
+            'type'        => 'dropdown',
+            'values_from' => 'values_list',
+            'values_list' => ['proposed' => 'Pending (' . (int)$r['p'] . ')', 'accepted' => 'Accepted (' . (int)$r['a'] . ')', 'reverted' => 'Undone (' . (int)$r['u'] . ')'],
+            'all_label'   => 'Everything',
+            'sql'         => "AND `id` IN (SELECT `project_id` FROM `pm_allocation_review_tbl` WHERE `status` = ?)",
+        ];
+    }
+
+    /** POST projects/allocation_accept/<id>: a person confirms where the activity now sits. */
+    public function allocation_accept() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        $this->mapRoute("id");
+        $id = (int)($this->parts['id'] ?? 0);
+        $review = allocation_review_available($this->DB) ? $this->DB->MQ("SELECT * FROM pm_allocation_review_tbl WHERE project_id = ?", "one", [$id]) : null;
+        if (!is_set($review)) { $this->setAnswer(404, "No move is recorded for that activity.", [], "json"); exit; }
+        $this->DB->MQ("UPDATE pm_allocation_review_tbl SET status = 'accepted', decided_by = ?, decided_at = NOW() WHERE project_id = ?", false,
+                      [(int)($_SESSION['user']['user_id'] ?? 0), $id]);
+        // A confirmation for the matcher: the new place was right for this wording.
+        $row = $this->DB->MQ("SELECT name, description, kpi, pillar_id, objective_id, programme_id FROM pm_projects_tbl WHERE id = ?", "one", [$id]);
+        if (is_set($row)) { record_filing_feedback($this->DB, 'pm_projects', $row, ['pillar_id' => $row['pillar_id'], 'objective_id' => $row['objective_id'], 'programme_id' => $row['programme_id']], $id); }
+        $this->setAnswer(200, "Accepted.", ['pending' => allocation_pending_count($this->DB)], "json");
+    }
+
+    /** POST projects/allocation_revert/<id>: put the activity back where it was; the matcher learns from that. */
+    public function allocation_revert() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        $this->mapRoute("id");
+        $id = (int)($this->parts['id'] ?? 0);
+        $review = allocation_review_available($this->DB) ? $this->DB->MQ("SELECT * FROM pm_allocation_review_tbl WHERE project_id = ?", "one", [$id]) : null;
+        if (!is_set($review)) { $this->setAnswer(404, "No move is recorded for that activity.", [], "json"); exit; }
+        $this->DB->MQ("UPDATE pm_projects_tbl SET pillar_id = ?, objective_id = ?, programme_id = ?, abbr = ? WHERE id = ?", false,
+                      [(int)$review['old_pillar_id'], (int)$review['old_objective_id'], (int)$review['old_programme_id'], (string)$review['old_abbr'], $id]);
+        $this->DB->MQ("UPDATE pm_allocation_review_tbl SET status = 'reverted', decided_by = ?, decided_at = NOW() WHERE project_id = ?", false,
+                      [(int)($_SESSION['user']['user_id'] ?? 0), $id]);
+        // The proposed place was wrong for this wording: a correction the matcher learns from.
+        $row = $this->DB->MQ("SELECT name, description, kpi, pillar_id, objective_id, programme_id FROM pm_projects_tbl WHERE id = ?", "one", [$id]);
+        if (is_set($row)) { record_filing_feedback($this->DB, 'pm_projects', $row, ['pillar_id' => $review['new_pillar_id'], 'objective_id' => $review['new_objective_id'], 'programme_id' => $review['new_programme_id']], $id); }
+        $this->setAnswer(200, "Put back.", ['pending' => allocation_pending_count($this->DB)], "json");
+    }
+
+    /** POST projects/allocation_accept_all: everything still pending is accepted at once, after the person has looked. */
+    public function allocation_accept_all() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        if (!allocation_review_available($this->DB)) { $this->setAnswer(404, "Nothing to accept.", [], "json"); exit; }
+        $this->DB->MQ("UPDATE pm_allocation_review_tbl SET status = 'accepted', decided_by = ?, decided_at = NOW() WHERE status = 'proposed'", false,
+                      [(int)($_SESSION['user']['user_id'] ?? 0)]);
+        $this->setAnswer(200, "All pending moves accepted.", ['pending' => 0], "json");
+    }
 }

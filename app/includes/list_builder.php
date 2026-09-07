@@ -206,8 +206,11 @@ function filter_DropDown($name, $field, $data = []) {
         // compared as a string so "0" (No) is not mistaken for "no choice".
         $current = is_array($data) ? '' : (string)$data;
         $html .= '<select class="form-select form-select-sm filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.$select_attrs.'>';
-        if(isset($field['add_zero_value'])) {
-            $html .= "<option value='%'".(($current === '' || $current === '%') ? ' selected' : '').">All</option>";
+        // "All" is there when the filter asks for it (add_zero_value) or names
+        // it (all_label): without it the box showed its first choice as
+        // selected while filtering nothing.
+        if(isset($field['add_zero_value']) || isset($field['all_label'])) {
+            $html .= "<option value='%'".(($current === '' || $current === '%') ? ' selected' : '').">".display($field['all_label'] ?? 'All')."</option>";
         }
         foreach ((array)($field['values_list'] ?? []) as $value => $label) {
             $html .= "<option value='".display($value)."'".(($current !== '' && $current !== '%' && $current === (string)$value) ? ' selected' : '').">".display($label)."</option>";
