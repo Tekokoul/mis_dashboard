@@ -910,7 +910,7 @@ html .afcdc-search { position: relative; }
 html .afcdc-typeahead { position: absolute; top: calc(100% + 0.25rem); left: 0; right: 0; z-index: 30; max-height: 22rem; overflow-y: auto; background: #FFF; border: 1px solid #D9DCD6; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); font-size: 0.8125rem; text-align: left; }
 html .afcdc-typeahead__group { padding: 0.35rem 0.75rem 0.15rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--afcdc-ink-soft); }
 html .afcdc-typeahead__item { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.35rem 0.75rem; cursor: pointer; line-height: 1.35; }
-html .afcdc-typeahead__item > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--afcdc-ink); }
+html .afcdc-typeahead__item > span { flex: 1 1 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--afcdc-ink); }
 html .afcdc-typeahead__item > small { flex: 0 0 auto; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--afcdc-ink-soft); }
 html .afcdc-typeahead__act { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: var(--au-green-deep) !important; }
 html .afcdc-typeahead__item.is-active, html .afcdc-typeahead__item:hover { background: #F0F6F1; }
@@ -920,3 +920,12 @@ html .dataTables_paginate .ellipsis.is-open { color: var(--au-green-deep); font-
 /* The Bootstrap skin marks the dots "disabled", which switches clicks off. */
 html .dataTables_paginate .page-item.disabled > [data-dt-idx="ellipsis"] { pointer-events: auto; cursor: pointer; color: var(--afcdc-ink-soft); }
 html .dataTables_paginate .page-item.is-open > [data-dt-idx="ellipsis"] { background: var(--au-green-deep); color: #FFF; }
+
+/* A row found through its description says so, with the words marked. */
+html .afcdc-match { margin-top: 0.25rem; font-size: 0.75rem; line-height: 1.5; color: var(--afcdc-ink-soft); font-weight: 400; }
+html .afcdc-match__tag { display: inline-block; padding: 0 0.4rem; border-radius: 2px; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; background: #E8EEE9; color: var(--au-green-deep); }
+html .afcdc-match mark, html .afcdc-typeahead__why mark { background: #FBF0B8; color: inherit; padding: 0 0.1em; border-radius: 2px; }
+html .afcdc-typeahead__item { flex-wrap: wrap; row-gap: 0.1rem; }
+html .afcdc-typeahead__why { flex: 1 1 100%; font-size: 0.75rem; color: var(--afcdc-ink-soft); white-space: normal; line-height: 1.4; }
+html .afcdc-typeahead__why b { font-weight: 700; color: var(--au-green-deep); font-size: 0.6875rem; letter-spacing: 0.04em; text-transform: uppercase; }
+@media print { html .afcdc-match mark { background: transparent; text-decoration: underline; font-weight: 700; } }

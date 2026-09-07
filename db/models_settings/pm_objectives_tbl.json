@@ -50,7 +50,8 @@
       "order_natural": true
     },
     "description": {
-      "no_editor": true
+      "no_editor": true,
+      "search_field": true
     },
     "outcomes": {
       "no_editor": true

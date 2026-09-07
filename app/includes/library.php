@@ -1432,3 +1432,51 @@ function activity_gap_note(array $gaps) {
     if (!$gaps) { return ''; }
     return '<div class="afcdc-gap__note"><span class="afcdc-gap__tag">Unfinished</span> missing: ' . display(implode(', ', $gaps)) . '</div>';
 }
+
+/**
+ * When a list is being searched and a row is there because of its
+ * description rather than its name or code, say so under the name: the
+ * passage around the first such word, with the words marked. Every word of
+ * the search is looked for; a word already visible in the name or code
+ * needs no explanation.
+ */
+function search_match_note(array $row, $search, array $visible = ['name', 'abbr']) {
+    $search = trim((string)$search);
+    if ($search === '') { return ''; }
+    $terms = array_slice(preg_split('/\s+/u', $search, -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, 6);
+    if (!$terms) { return ''; }
+    // Simple (1:1) case mapping, so offsets found in the lowered text hold in the original.
+    $lower = function ($v) { return mb_convert_case((string)$v, MB_CASE_LOWER_SIMPLE, 'UTF-8'); };
+    $shown = $lower(implode(' ', array_map(function ($f) use ($row) { return (string)($row[$f] ?? ''); }, $visible)));
+    $desc  = trim(preg_replace('/\s+/u', ' ', (string)($row['description'] ?? '')));
+    if ($desc === '') { return ''; }
+    $ldesc = $lower($desc);
+    $hidden = [];
+    foreach ($terms as $t) {
+        $lt = $lower($t);
+        if (mb_strpos($shown, $lt) === false && mb_strpos($ldesc, $lt) !== false) { $hidden[] = $t; }
+    }
+    if (!$hidden) { return ''; }
+    $at = (int)mb_strpos($ldesc, $lower($hidden[0]));
+    $from = max(0, $at - 60);
+    $snippet = mb_substr($desc, $from, 60 + mb_strlen($hidden[0]) + 90);
+    // One pass over the raw passage, longest words first, each piece escaped
+    // on its own: marking already-marked HTML would cut the tags themselves.
+    usort($terms, function ($a, $b) { return mb_strlen($b) <=> mb_strlen($a); });
+    $re = '/(' . implode('|', array_map(function ($t) { return preg_quote($t, '/'); }, $terms)) . ')/iu';
+    $parts = preg_split($re, $snippet, -1, PREG_SPLIT_DELIM_CAPTURE);
+    if ($parts === false) { $parts = [$snippet]; }
+    $html = '';
+    foreach ($parts as $k => $piece) { $html .= ($k % 2) ? '<mark>' . display($piece) . '</mark>' : display($piece); }
+    return '<div class="afcdc-match"><span class="afcdc-match__tag">In description</span> '
+        . ($from > 0 ? "\u{2026}" : '') . $html . (mb_strlen($desc) > $from + mb_strlen($snippet) ? "\u{2026}" : '') . '</div>';
+}
+
+/** The same passage as plain text (no marks), for the search dropdown; '' when the name or code already shows the words. */
+function search_match_snippet(array $row, $search, array $visible = ['name', 'abbr']) {
+    $note = search_match_note($row, $search, $visible);
+    if ($note === '') { return ''; }
+    $text = html_entity_decode(strip_tags(preg_replace('/^<div[^>]*><span[^>]*>In description<\/span> /', '', $note)), ENT_QUOTES, 'UTF-8');
+    return trim($text);
+}
+

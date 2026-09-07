@@ -92,7 +92,8 @@
     },
     "description": {
       "no_editor": true,
-      "required": true
+      "required": true,
+      "search_field": true
     },
     "kpi": {
       "title": "Expected task"

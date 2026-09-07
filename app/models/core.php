@@ -163,6 +163,12 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                 ]
             ];
         }
+        // While searching, the description rides along even when the list
+        // does not show it: a row found through its description explains
+        // itself under the name (search_match_note in list_builder's views).
+        if (trim((string)$search) !== "" && isset($model['model']['common']['description']) && !isset($fields['description'])) {
+            $fields['description'] = ["hidden" => true];
+        }
         // start building query
         $query = "select `" . implode("`,`", array_keys($fields)) . "` from " . $this->get_table_name($model['model_name']);
         $count_query = "select count(*) as total from " . $this->get_table_name($model['model_name']);

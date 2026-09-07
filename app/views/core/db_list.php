@@ -100,6 +100,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 $attrs = list_cell_attrs($field, $properties, $cell);
                                                 // The name column stops at two lines (CSS .afcdc-clamp); the full text is the cell's title and the edit page.
                                                 $inner = (strpos($attrs, 'afcdc-cell-name') !== false) ? '<span class="afcdc-clamp">' . $cell . '</span>' : $cell;
+                                                // Found through its description? Show the passage, so the row explains itself.
+                                                if ($field === 'name' && ($data['search'] ?? '') !== '') { $inner .= search_match_note($row, $data['search']); }
                                                 print ($first)
                                                     ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
                                                     : '<td' . $attrs . '>' . $inner . '</td>';

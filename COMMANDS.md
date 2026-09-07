@@ -344,8 +344,16 @@ the tooltip names what is missing.
 find under the box (`projects/search_suggest/<model>`): rows of the list (a
 pick opens one) and the parents the list can be filtered by (a pick sets
 that filter), then "Search for …" which submits as before. Arrow keys move,
-Enter picks, Esc closes. Only names and codes travel; the users list answers
-only for administrators and executives.
+Enter picks, Esc closes. Names, codes and the matching passage of a
+description travel, nothing else; the users list answers only for
+administrators and executives.
+
+**Descriptions count.** The list search and the dropdown look inside
+descriptions as well as names, codes and programmes. A row that is there
+only because of its description says so under its name - "In description"
+and the passage with the words marked - so a result never looks arbitrary
+(`search_match_note()`; the description is fetched for the page only while
+a search is on).
 
 **Go to a page.** The "…" between page numbers, on the lists and on the Per
 Project table, opens a small box to type a page number.

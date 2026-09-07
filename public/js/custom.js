@@ -569,6 +569,14 @@ $(function () {
                 var $row = $('<div class="afcdc-typeahead__item" role="option"></div>').append($('<span></span>').text(it.label));
                 if (it.hint) { $row.append($('<small></small>').text(it.hint)); }
                 if (it.filter) { $row.append($('<small class="afcdc-typeahead__act"></small>').text('filter')); }
+                if (it.why) {
+                    // Found through its description: show the passage with the words marked.
+                    var $why = $('<div class="afcdc-typeahead__why"></div>').append($('<b></b>').text('In description')).append(document.createTextNode(' '));
+                    var words = q.split(/\s+/).filter(Boolean).sort(function (a, b) { return b.length - a.length; });   // longest first, so a word is not cut by its own prefix
+                    var rest = it.why, re = new RegExp('(' + words.map(function (w) { return w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }).join('|') + ')', 'ig');
+                    rest.split(re).forEach(function (part, k) { if (!part) { return; } $why.append(k % 2 ? $('<mark></mark>').text(part) : document.createTextNode(part)); });
+                    $row.append($why);
+                }
                 $row.data('item', it); $box.append($row); items.push($row);
             });
         });
