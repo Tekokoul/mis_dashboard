@@ -32,12 +32,12 @@ $page_link_suffix = (count($suffix_terms) > 0)
         <div class="card card-modern">
             <div class="card-body">
                 <div class="datatables-header-footer-wrapper">
-                    <div class="datatable-header">
+                    <div class="datatable-header afcdc-sticky">
                         <form method="get" action="<?=$this->L($page_link_prefix);?>">
 
                         <div class="row align-items-center mb-3">
-                            <div class="col-12 col-lg-auto mb-3 mb-lg-0">
-                                <a href="<?=$this->L("core/db_add/".display($data['model_name']));?>" class="btn btn-primary btn-md font-weight-semibold btn-py-2 px-4">+ Add</a>
+                            <div class="col-12 col-lg-auto mb-3 mb-lg-0 afcdc-add-col">
+                                <a href="<?=$this->L("core/db_add/".display($data['model_name']));?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a>
                             </div>
                             <?php
                             $html = "";

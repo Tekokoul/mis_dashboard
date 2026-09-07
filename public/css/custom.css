@@ -753,3 +753,52 @@ html td.afcdc-col-actions a {          /* 44px targets (WCAG 2.5.8) without wide
     html tr.afcdc-row--inactive td.afcdc-cell-name .afcdc-clamp::after { content: " \00b7 Inactive"; font-weight: 600; }
 }
 html tr.afcdc-row--inactive td { color: var(--afcdc-ink-soft); }
+
+/* --- List toolbar that stays put -------------------------------------
+   On a desktop the toolbar (Add, the filters, the search) sticks below the
+   fixed page header while the table scrolls under it, so Add is always in
+   reach on a 134-row list. custom.js sets --afcdc-sticky-top from the real
+   height of the fixed header, and marks the bar is-stuck once it is pinned
+   so it only casts a shadow when there is something under it. Below 992px
+   the toolbar stacks too tall to pin, so the Add button alone floats at the
+   bottom right, clear of the thumb's home position and the safe area. */
+@media (min-width: 992px) {
+    /* The theme gives .inner-wrapper overflow:hidden, and an overflow:hidden
+       ancestor becomes a sticky element's scroll reference even though it
+       never scrolls - so nothing inside it could ever stick to the page.
+       overflow:clip clips exactly the same and creates no scroll container. */
+    html.fixed .inner-wrapper { overflow: clip; }
+    html.fixed .datatable-header.afcdc-sticky {
+        position: sticky;
+        top: var(--afcdc-sticky-top, 150px);
+        z-index: 20;
+        background: var(--afcdc-surface);
+        padding-top: 0.75rem;
+        margin-top: -0.75rem;
+        transition: box-shadow 0.15s ease;
+    }
+    html.fixed .datatable-header.afcdc-sticky.is-stuck {
+        box-shadow: 0 10px 12px -10px rgba(29, 33, 30, 0.22);
+    }
+}
+@media (max-width: 991.98px) {
+    html .afcdc-add-col { margin: 0 !important; }
+    html a.afcdc-add.btn.btn-primary {
+        position: fixed;
+        right: 1rem;
+        bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+        z-index: 1030;
+        border-radius: 999px;
+        padding: 0.85rem 1.35rem;
+        min-height: 3rem;
+        box-shadow: 0 8px 20px rgba(29, 33, 30, 0.28);
+    }
+}
+@media (max-width: 991.98px) {
+    /* Room under the last row, so the floating button never hides it. */
+    html body:has(a.afcdc-add) .content-body { padding-bottom: 5.5rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+    html.fixed .datatable-header.afcdc-sticky { transition: none; }
+}
+

@@ -29,7 +29,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
         <div class="card card-modern">
             <div class="card-body">
                 <div class="datatables-header-footer-wrapper">
-                    <div class="datatable-header">
+                    <div class="datatable-header afcdc-sticky">
                         <form method="get" action="<?=$this->L($page_link_prefix);?>">
 
                         <div class="row align-items-center mb-3">

@@ -261,3 +261,32 @@ $(function () {
         $parent.on('change', function () { $child.val('%'); });
     });
 });
+
+/* The sticky list toolbar needs to know how tall the fixed page chrome is,
+ * and whether it is currently pinned (for its shadow). Both are measured
+ * rather than assumed: the header's height differs by breakpoint and theme. */
+$(function () {
+    var bar = document.querySelector('.datatable-header.afcdc-sticky');
+    if (!bar) { return; }
+    var ph = document.querySelector('.page-header');
+    function place() {
+        if (ph && getComputedStyle(ph).position === 'fixed') {
+            bar.style.setProperty('--afcdc-sticky-top', Math.round(ph.getBoundingClientRect().bottom) + 'px');
+        } else {
+            bar.style.removeProperty('--afcdc-sticky-top');
+        }
+    }
+    function shadow() {
+        // One rect read per scroll event is cheap; deferring it a frame made
+        // the shadow lag the pin by one scroll step.
+        var top = parseFloat(getComputedStyle(bar).top) || 0;
+        // document.scrollingElement, not window.scrollY: this theme scrolls the html element.
+        var scrolled = (document.scrollingElement || document.documentElement).scrollTop > 0;
+        var stuck = getComputedStyle(bar).position === 'sticky' && Math.round(bar.getBoundingClientRect().top) <= Math.round(top) + 1 && scrolled;
+        bar.classList.toggle('is-stuck', stuck);
+    }
+    place(); shadow();
+    window.addEventListener('resize', function () { place(); shadow(); });
+    window.addEventListener('scroll', shadow, { passive: true });
+});
+
