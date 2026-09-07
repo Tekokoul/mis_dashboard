@@ -85,7 +85,7 @@ $col_width = 12/$columns;
 </form>
 
 <script nonce="<?= csp_nonce(); ?>">
-    var project_id = <?=$data['data']['id'];?>;
+    var project_id = <?= (int)($data['data']['id'] ?? 0); ?>;
     // The add form never sets a type; every activity is the task-reported
     // kind, so an empty type still gets the Tasks panel (and the first save
     // writes the type - projectsController::ensureDefaultTask).

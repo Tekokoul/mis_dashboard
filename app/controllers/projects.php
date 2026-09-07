@@ -250,9 +250,11 @@ class projectsController extends coreController{
      * form - which is why Back used to lead nowhere.
      */
     private function backTo($given = '') {
-        foreach ([(string)$given, (string)($this->query['back'] ?? ''), $this->GoBack()] as $c) {
+        // GoBack() escapes for HTML; the views escape again, so it is undone here.
+        foreach ([(string)$given, (string)($this->query['back'] ?? ''), html_entity_decode($this->GoBack(), ENT_QUOTES, 'UTF-8')] as $c) {
             $c = trim($c);
-            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || strpbrk($c, "\r\n") !== false) { continue; }
+            // A path on this host only: "//host" and "/\\host" both leave the site in a browser.
+            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || strpbrk($c, "\\\r\n") !== false) { continue; }
             if (preg_match('#/projects/(add|edit|add_update|edit_update)(/|$|\?)#', $c)) { continue; }
             if (rtrim($c, '/') === rtrim((string)$this->L(""), '/')) { continue; }   // no referer at all: GoBack() answers with the site root
             return $c;
