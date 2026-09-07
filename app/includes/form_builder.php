@@ -164,6 +164,12 @@ function createDropDown($name, $field, $data) {
 //            $limit ++;
 //        }
         $html .= '<select '.$selectElement.' class="form-control populate" name="'.$name.'" id="'.md5($name).'" '.$disabled.' '.$required.'>';
+        if ($required !== '' && !isset($field['add_zero_value']) && !isset($field['add_all_value']) && !$multiselect) {
+            // A required box starts with nothing chosen, so the first option
+            // is never saved by nobody's choice; "required" then holds until
+            // a real one is made (or the wording suggests one).
+            $html .= "<option value=''" . ((is_array($data) || trim((string)$data) === '' || (string)$data === '0') ? ' selected' : '') . ">Choose\u{2026}</option>";
+        }
         if(isset($field['add_zero_value'])) {
             $html .= "<option value='0'";
             $html .= ($data==0) ? ' selected ' : '';

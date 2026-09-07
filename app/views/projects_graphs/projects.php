@@ -3,6 +3,7 @@
 // deliverable it rolls up to. Sorting, search and paging come from DataTables
 // (initialised in /js/page_projects_graphs_projects.js).
 $activities = $data['activities'] ?? [];
+$gaps       = $data['gaps'] ?? [];
 $filters    = $data['filters'] ?? ['lens' => [], 'wbs' => [], 'indicator' => []];
 $esc = static function ($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'UTF-8'); };
 ?>
@@ -80,7 +81,7 @@ $esc = static function ($v) { return htmlspecialchars((string)$v, ENT_QUOTES, 'U
                                 <td><?= $esc($a['deliverable'] ?: '—'); ?></td>
                                 <td class="afcdc-awp"><?= $esc($a['awp_code'] ?: '—'); ?></td>
                                 <td>
-                                    <a href="<?= $this->L("projects_graphs/project/".(int)$a['id']); ?>"><?= $esc($a['name']); ?></a>
+                                    <?= activity_flag($gaps[(int)$a['id']] ?? []); ?><a href="<?= $this->L("projects_graphs/project/".(int)$a['id']); ?>"><?= $esc($a['name']); ?></a>
                                 </td>
                                 <td><?= $esc($a['indicator'] ?: '—'); ?></td>
                             </tr>

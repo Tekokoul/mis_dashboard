@@ -1079,7 +1079,10 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
         // it is clearly ahead of the next.
         $confident = ($secondPrg[$top] === null) || ($best > 0 && $ahead($best, $secondPrg[$top]));
     }
-    return ['candidates' => $out, 'confident' => $confident];
+    // The per-level scores as well, so a caller can judge a place that is
+    // not one of the candidates (the check after a save needs the score of
+    // the programme a person chose, which may be a sibling of the best).
+    return ['candidates' => $out, 'confident' => $confident, 'scores' => ['objective' => $oscores, 'programme' => $pscores]];
 }
 
 
@@ -1290,15 +1293,19 @@ function allocation_reviews($db, array $ids) {
     $ids = array_values(array_filter(array_map('intval', $ids)));
     if (!$ids || !allocation_review_available($db)) { return []; }
     $marks = implode(',', array_fill(0, count($ids), '?'));
-    $rows = (array)$db->MQ("SELECT r.*, g.abbr AS old_programme_abbr, o.abbr AS old_objective_abbr
+    $rows = (array)$db->MQ("SELECT r.*, g.abbr AS old_programme_abbr, o.abbr AS old_objective_abbr,
+                                     ng.abbr AS new_programme_abbr, ng.name AS new_programme_name, nob.abbr AS new_objective_abbr
                               FROM pm_allocation_review_tbl r
                               LEFT JOIN pm_programmes_tbl g ON g.id = r.old_programme_id
                               LEFT JOIN pm_objectives_tbl o ON o.id = r.old_objective_id
+                              LEFT JOIN pm_programmes_tbl ng ON ng.id = r.new_programme_id
+                              LEFT JOIN pm_objectives_tbl nob ON nob.id = r.new_objective_id
                              WHERE r.project_id IN (" . $marks . ")", "all", $ids);
     $out = [];
     foreach ($rows as $r) {
         $r['old_programme_label'] = $r['old_programme_abbr'] !== null ? (string)$r['old_programme_abbr']
                                   : ((int)$r['old_programme_id'] > 0 ? 'a programme that no longer exists (#' . (int)$r['old_programme_id'] . ')' : 'no programme');
+        $r['new_programme_label'] = trim((string)($r['new_objective_abbr'] ?? '?') . ' / ' . (string)($r['new_programme_abbr'] ?? '?') . ' ' . (string)($r['new_programme_name'] ?? ''));
         $out[(int)$r['project_id']] = $r;
     }
     return $out;
@@ -1314,10 +1321,21 @@ function allocation_pending_count($db) {
 /** The vetting note under a moved activity's name, or "" when there is none to show. */
 function allocation_review_note(array $review) {
     $status = (string)$review['status'];
-    if ($status === 'reverted') { return ''; }
-    $tag = ['proposed' => ['agreed' => 'Proposed by AI', 'split' => 'Check: judges disagreed', 'low' => 'Check', 'code' => 'Code fixed'],
-            'accepted' => 'Accepted'];
-    $label = $status === 'accepted' ? $tag['accepted'] : ($tag['proposed'][$review['confidence']] ?? 'Proposed by AI');
+    // Only what still needs a person shows: once a move is accepted or
+    // undone, or a check answered, the activity simply sits where it sits.
+    if ($status !== 'proposed') { return ''; }
+    // A "check placement" row is not a move: the activity sits where a
+    // person put it, and the wording points elsewhere.
+    if ((string)$review['confidence'] === 'check') {
+        $html  = '<div class="afcdc-review__note"><span class="afcdc-review__tag">Check placement</span> ';
+        $html .= 'the wording points to <strong>' . display($review['new_programme_label']) . '</strong>';
+        if (trim((string)$review['reason']) !== '') { $html .= ' <span class="afcdc-review__why">' . display($review['reason']) . '</span>'; }
+        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Keep here</a>';
+        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="move" data-id="' . (int)$review['project_id'] . '">Move there</a>';
+        return $html . '</div>';
+    }
+    $tag = ['agreed' => 'Proposed by AI', 'split' => 'Check: judges disagreed', 'low' => 'Check', 'code' => 'Code fixed'];
+    $label = $tag[$review['confidence']] ?? 'Proposed by AI';
     $html  = '<div class="afcdc-review__note">';
     $html .= '<span class="afcdc-review__tag">' . display($label) . '</span> ';
     // A code-only fix names just the old code; a move names where it sat.
@@ -1326,12 +1344,8 @@ function allocation_review_note(array $review) {
         $html .= ' under ' . display($review['old_objective_abbr'] ?? '?') . ' / ' . display($review['old_programme_label']);
     }
     if (trim((string)$review['reason']) !== '') { $html .= ' <span class="afcdc-review__why">' . display($review['reason']) . '</span>'; }
-    if ($status === 'proposed') {
-        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Accept</a>';
-        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="revert" data-id="' . (int)$review['project_id'] . '">Undo</a>';
-    } elseif ($status === 'accepted') {
-        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="revert" data-id="' . (int)$review['project_id'] . '">Undo</a>';
-    }
+    $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Accept</a>';
+    $html .= ' <a href="#" class="afcdc-review__act" data-review-action="revert" data-id="' . (int)$review['project_id'] . '">Undo</a>';
     return $html . '</div>';
 }
 
@@ -1340,9 +1354,15 @@ function allocation_review_note(array $review) {
  * the panel's left edge, so the vetting reads the same in both places.
  */
 function allocation_review_panel($review) {
-    if (!$review || $review['status'] === 'reverted') { return ''; }
-    return '<div class="afcdc-review-panel afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) . '">'
-        . allocation_review_note($review) . '</div>';
+    if (!$review) { return ''; }
+    $note = allocation_review_note($review);
+    if ($note === '') { return ''; }   // undone, or a check that was answered: nothing to show
+    return '<div class="afcdc-review-panel afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) . '">' . $note . '</div>';
+}
+
+/** Whether a review row still has something to show on a list row (band + note). */
+function allocation_review_visible($review) {
+    return $review && (string)$review['status'] === 'proposed';
 }
 
 /**
@@ -1399,6 +1419,12 @@ function activity_unfinished_count($db) {
     static $n = null;
     if ($n === null) { $r = $db->MQ("SELECT COUNT(*) AS n FROM pm_projects_tbl WHERE " . activity_gaps_sql(), "one"); $n = (int)($r['n'] ?? 0); }
     return $n;
+}
+
+/** A flag beside the code of an activity that still needs input; the tooltip names what. */
+function activity_flag(array $gaps) {
+    if (!$gaps) { return ''; }
+    return '<i class="bx bxs-flag afcdc-flag" role="img" aria-label="Needs input" title="Needs input: ' . display(implode(', ', $gaps)) . '"></i>';
 }
 
 /** The red "Unfinished" tag with what is missing, for a list cell or the edit form. */

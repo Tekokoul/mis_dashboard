@@ -1,0 +1,313 @@
+[
+ {
+  "id": 57,
+  "abbr": "7.1.2",
+  "confidence": "code",
+  "reason": "Code '7.1.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 58,
+  "abbr": "7.1.1",
+  "confidence": "code",
+  "reason": "Code '7.1.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 59,
+  "abbr": "7.1.3",
+  "confidence": "code",
+  "reason": "Code '7.1.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 64,
+  "abbr": "7.4.1",
+  "confidence": "code",
+  "reason": "Code '7.4.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 65,
+  "abbr": "7.1.4",
+  "confidence": "code",
+  "reason": "Code '7.1.4 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 66,
+  "abbr": "7.1.5",
+  "confidence": "code",
+  "reason": "Code '7.1.5 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 74,
+  "abbr": "7.2.1",
+  "confidence": "code",
+  "reason": "Code '7.2.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 77,
+  "abbr": "7.2.2",
+  "confidence": "code",
+  "reason": "Code '7.2.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 84,
+  "abbr": "7.2.3",
+  "confidence": "code",
+  "reason": "Code '7.2.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 85,
+  "abbr": "7.2.4",
+  "confidence": "code",
+  "reason": "Code '7.2.4 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 86,
+  "abbr": "7.2.5",
+  "confidence": "code",
+  "reason": "Code '7.2.5 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 87,
+  "abbr": "7.2.6",
+  "confidence": "code",
+  "reason": "Code '7.2.6 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 88,
+  "abbr": "7.2.7",
+  "confidence": "code",
+  "reason": "Code '7.2.7 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 89,
+  "abbr": "7.2.8",
+  "confidence": "code",
+  "reason": "Code '7.2.8 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 90,
+  "abbr": "7.2.9",
+  "confidence": "code",
+  "reason": "Code '7.2.9 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 91,
+  "abbr": "7.2.10",
+  "confidence": "code",
+  "reason": "Code '7.2.10 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 92,
+  "abbr": "7.2.11",
+  "confidence": "code",
+  "reason": "Code '7.2.11 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 100,
+  "abbr": "7.4.2",
+  "confidence": "code",
+  "reason": "Code '7.4.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 101,
+  "abbr": "8.1.1",
+  "confidence": "code",
+  "reason": "Code '8.1.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 102,
+  "abbr": "7.4.3",
+  "confidence": "code",
+  "reason": "Code '7.4.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 103,
+  "abbr": "8.1.2",
+  "confidence": "code",
+  "reason": "Code '8.1.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 104,
+  "abbr": "8.1.3",
+  "confidence": "code",
+  "reason": "Code '8.1.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 105,
+  "abbr": "7.4.4",
+  "confidence": "code",
+  "reason": "Code '7.4.4 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 106,
+  "abbr": "8.1.4",
+  "confidence": "code",
+  "reason": "Code '8.1.4 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 107,
+  "abbr": "8.1.5",
+  "confidence": "code",
+  "reason": "Code '8.1.5 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 108,
+  "abbr": "7.4.5",
+  "confidence": "code",
+  "reason": "Code '7.4.5 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 110,
+  "abbr": "8.2.1",
+  "confidence": "code",
+  "reason": "Code '8.2.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 111,
+  "abbr": "8.2.2",
+  "confidence": "code",
+  "reason": "Code '8.2.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 112,
+  "abbr": "8.2.3",
+  "confidence": "code",
+  "reason": "Code '8.2.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 113,
+  "abbr": "8.2.4",
+  "confidence": "code",
+  "reason": "Code '8.2.4 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 114,
+  "abbr": "8.2.5",
+  "confidence": "code",
+  "reason": "Code '8.2.5 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 115,
+  "abbr": "8.2.6",
+  "confidence": "code",
+  "reason": "Code '8.2.6 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 116,
+  "abbr": "8.3.1",
+  "confidence": "code",
+  "reason": "Code '8.3.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 117,
+  "abbr": "8.3.2",
+  "confidence": "code",
+  "reason": "Code '8.3.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 118,
+  "abbr": "8.3.3",
+  "confidence": "code",
+  "reason": "Code '8.3.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 119,
+  "abbr": "8.3.4",
+  "confidence": "code",
+  "reason": "Code '8.3.4 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 120,
+  "abbr": "8.3.5",
+  "confidence": "code",
+  "reason": "Code '8.3.5 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 121,
+  "abbr": "8.4.1",
+  "confidence": "code",
+  "reason": "Code '8.4.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 122,
+  "abbr": "8.4.2",
+  "confidence": "code",
+  "reason": "Code '8.4.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 123,
+  "abbr": "8.4.3",
+  "confidence": "code",
+  "reason": "Code '8.4.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 124,
+  "abbr": "7.5.1",
+  "confidence": "code",
+  "reason": "Code '7.5.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 125,
+  "abbr": "7.5.2",
+  "confidence": "code",
+  "reason": "Code '7.5.2 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 126,
+  "abbr": "7.5.3",
+  "confidence": "code",
+  "reason": "Code '7.5.3 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 127,
+  "abbr": "7.5.4",
+  "confidence": "code",
+  "reason": "Code '7.5.4 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 128,
+  "abbr": "7.5.5",
+  "confidence": "code",
+  "reason": "Code '7.5.5 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 129,
+  "abbr": "7.5.6",
+  "confidence": "code",
+  "reason": "Code '7.5.6 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 130,
+  "objective_id": 9,
+  "programme_id": 42,
+  "confidence": "low",
+  "reason": "Its code 9.1.2 and its wording, 'Finalize the Continental Health Data Governance Framework', both point at 9.1 PRG under 9.0, but it was filed under 6.0 / 6.1 PRG; please check."
+ },
+ {
+  "id": 131,
+  "abbr": "9.1.1",
+  "confidence": "code",
+  "reason": "Code '9.1.1 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 132,
+  "abbr": "14.1.1",
+  "confidence": "code",
+  "reason": "Code '14. 1' was not a valid activity code; numbered as the first activity of 14.1."
+ },
+ {
+  "id": 210,
+  "abbr": "7.1.6",
+  "confidence": "code",
+  "reason": "Code '7.1.6 Act' carried the word 'Act'; activity codes are the plain number."
+ },
+ {
+  "id": 213,
+  "confidence": "low",
+  "reason": "Filed under 12.8 (Financial inclusion) but coded 12.1.6 as if under 12.1 PRG; the code now follows the programme it is filed under - check that 12.8 is the intended programme for 'Software installation'."
+ },
+ {
+  "id": 214,
+  "confidence": "low",
+  "reason": "Filed under 12.8 (Financial inclusion) but coded 12.1.7 as if under 12.1 PRG; the code now follows the programme it is filed under - check that 12.8 is the intended programme for 'Buid capacity'."
+ }
+]

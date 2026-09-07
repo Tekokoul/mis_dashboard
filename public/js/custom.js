@@ -35,21 +35,27 @@ $(function () {
     // automatic as well: when the item is moved to another parent on the
     // edit form the code follows, and moving it back restores the code it
     // had. Anything typed by hand in this session is left alone.
-    var typed = false, origParent = parentSel ? $(parentSel).val() : null, origCode = $abbr.val();
+    var typed = false, origParent = parentSel ? $(parentSel).val() : null, origCode = $abbr.val(), seq = 0;
+    var $form = $abbr.closest('form');
+    function pending(on) { $abbr.attr('data-afcdc-code-pending', on ? '1' : null); if (!on) { $form.trigger('afcdc:code'); } }
     function fill(moved) {
+        var mine = ++seq;   // anything older in flight may no longer touch the box
         var v = $abbr.val();
         var automatic = v === '' || $abbr.attr('data-auto') === '1' || (moved && !typed && /^\d+(\.\d+)+$/.test(v));
-        if (!automatic) { return; }
+        if (!automatic) { pending(false); return; }
         var parent = parentSel ? parseInt($(parentSel).val(), 10) || 0 : 0;
-        if (parentSel && !parent) { return; }
-        if (moved && !typed && origCode !== '' && String(parent) === String(origParent)) { $abbr.val(origCode).attr('data-auto', '1'); return; }
+        if (parentSel && !parent) { pending(false); return; }
+        if (moved && !typed && origCode !== '' && String(parent) === String(origParent)) { $abbr.val(origCode).attr('data-auto', '1'); pending(false); return; }
+        pending(true);
         $.getJSON(prefix + '/core/next_code/' + model + '/' + parent, function (r) {
+            if (mine !== seq || typed) { return; }
+            if (parentSel && String(parseInt($(parentSel).val(), 10) || 0) !== String(parent)) { return; }
             var d = (r && r.data) ? r.data : r;
             if (!d || !d.code) { return; }
             $abbr.val(d.code).attr('data-auto', '1');
-        });
+        }).always(function () { if (mine === seq) { pending(false); } });
     }
-    $abbr.on('input', function () { typed = $(this).val() !== ''; $(this).attr('data-auto', typed ? '0' : '1'); });
+    $abbr.on('input', function () { seq++; typed = $(this).val() !== ''; $(this).attr('data-auto', typed ? '0' : '1'); pending(false); });
     if (parentSel) { $(document).on('change', parentSel, function () { fill(true); }); }
     fill(false);
 });
@@ -90,7 +96,17 @@ $(function () {
             $sug[f].val(c && c[f] !== undefined ? String(c[f]) : '');
         });
     }
-    var manual = false, auto = false, timer = null, lastText = '', last = null, seq = 0;
+    var manual = false, auto = false, timer = null, lastText = '', last = null, seq = 0, inflight = false, pendingSubmit = null, bypass = false, settling = false, deferred = null;
+    // The three boxes wear gold while what they show came from the wording
+    // and nobody has touched them; a pick by hand takes it off.
+    function markSuggested(on) {
+        $.each(['pillar_id', 'objective_id', 'programme_id'], function (i, f) {
+            var $g = $form.find('select[name="' + f + '"]').closest('.form-group');
+            $g.toggleClass('afcdc-field--suggested', on);
+            if (on && !$g.find('.afcdc-field__suggested').length) { $('<div class="afcdc-field__suggested">Suggested from the wording; change it if it is wrong.</div>').appendTo($g.children().last()); }
+            if (!on) { $g.find('.afcdc-field__suggested').remove(); }
+        });
+    }
 
     function value(name) { var $s = $form.find('select[name="' + name + '"]'); return $s.length ? String($s.val()) : ''; }
     function key(c) {
@@ -115,16 +131,21 @@ $(function () {
         $s.val(String(v)).trigger('change');
         return true;
     }
+    // Returns true when a cascade was started (options are being reloaded
+    // beneath a change) and the place is not settled yet.
     function apply(c) {
-        if (model === 'pm_objectives') { setSelect('pillar_id', c.pillar_id); return; }
-        if (model === 'pm_programmes') { setSelect('objective_id', c.objective_id); return; }
+        if (model === 'pm_objectives') { setSelect('pillar_id', c.pillar_id); return false; }
+        if (model === 'pm_programmes') { setSelect('objective_id', c.objective_id); return false; }
         // Goal -> objective -> programme through the cascade in pm_projects.js,
         // which keeps these two when it reloads the options beneath a change.
         window.afcdcPreselect = { objective_id: String(c.objective_id), programme_id: String(c.programme_id) };
-        if (setSelect('pillar_id', c.pillar_id)) { return; }
-        if (setSelect('objective_id', c.objective_id)) { return; }
-        delete window.afcdcPreselect;
-        setSelect('programme_id', c.programme_id);
+        if (setSelect('pillar_id', c.pillar_id)) { return true; }
+        if (setSelect('objective_id', c.objective_id)) { return true; }
+        var $p = $form.find('select[name="programme_id"]');
+        // The preselect is only spent once the option is there; a programme
+        // list still loading keeps it and picks it up when it arrives.
+        if ($p.find('option[value="' + String(c.programme_id) + '"]').length) { delete window.afcdcPreselect; setSelect('programme_id', c.programme_id); return false; }
+        return true;
     }
     function link(text, onClick) {
         // Runner-up labels can run long (two full names); show the start, keep the whole in the tooltip.
@@ -134,9 +155,10 @@ $(function () {
     function render() {
         $hint.empty();
         var list = (last && last.candidates) || [];
-        if (!list.length) { return; }
+        if (!list.length) { markSuggested(false); return; }
         var selected = selectedKey(), current = null, others = [];
         $.each(list, function (i, c) { if (!current && key(c) === selected) { current = c; } else { others.push(c); } });
+        markSuggested(model === 'pm_projects' && isAdd && auto && !manual && current !== null);
         if (current) {
             var lead = current.learned ? 'Filed here before for wording like this: '
                      : (auto && !manual) ? (last.confident ? 'Filed under ' : 'Best guess from the wording: ') : '';
@@ -159,24 +181,65 @@ $(function () {
             $hint.append($alt);
         }
     }
-    function ask() {
+    function currentText() {
         var parts = [];
         $fields.each(function () { parts.push($.trim($(this).val())); });
-        var text = $.trim(parts.join('. '));
-        if (text === lastText) { return; }
+        return $.trim(parts.join('. '));
+    }
+    // A save held back until the suggestion matches the final wording goes
+    // through here. requestSubmit() re-runs the browser's own checks; the
+    // submit handler below lets it pass once.
+    function codePending() { return $form.find('input[name="abbr"][data-afcdc-code-pending="1"]').length > 0; }
+    function flush() {
+        if (!pendingSubmit || inflight || settling || codePending()) { return; }
+        var f = pendingSubmit; pendingSubmit = null;
+        bypass = true;
+        if (typeof f.requestSubmit === 'function') { f.requestSubmit(); } else { f.submit(); }
+        bypass = false;
+    }
+    function ask() {
+        var text = currentText();
+        if (text === lastText) { flush(); return; }
         lastText = text;
-        if (text.length < 4) { last = null; render(); return; }
+        if (text.length < 4) { last = null; render(); flush(); return; }
         var mine = ++seq;
+        inflight = true;
         $.getJSON(prefix + '/core/suggest_parent/' + model, { text: text.substr(0, 4000), exclude: rowId }, function (r) {
             if (mine !== seq) { return; }
             last = (r && r.data) ? r.data : r;
             var best = last && last.candidates && last.candidates[0];
             remember(best);
-            if (best && isAdd && !manual) { auto = true; apply(best); }
+            if (best && isAdd && !manual) {
+                auto = true;
+                // Not while a dropdown is open under the person's hand: the
+                // cascade would empty the list they are choosing from.
+                if ($('.select2-container--open').length) { deferred = best; } else { deferred = null; settling = apply(best); }
+            }
             render();
-        });
+        }).always(function () { if (mine === seq) { inflight = false; flush(); } });
     }
+    $form.on('select2:close', 'select', function () {
+        if (deferred && isAdd && !manual) { var c = deferred; deferred = null; window.setTimeout(function () { settling = apply(c); render(); }, 0); }
+    });
     $fields.on('input change', function () { clearTimeout(timer); timer = setTimeout(ask, 600); });
+    // Leaving a text box asks at once, and Save waits for the answer (at
+    // most two seconds): what is recorded as "suggested" is what was shown
+    // for the wording that was saved, which is what the learning relies on.
+    $fields.on('blur', function () { clearTimeout(timer); ask(); });
+    $form.on('submit', function (e) {
+        if (bypass) { return; }
+        if (currentText() === lastText && !inflight && !settling && !codePending()) { return; }
+        e.preventDefault();
+        pendingSubmit = this;
+        clearTimeout(timer);
+        ask();
+        var gen = seq;
+        window.setTimeout(function () { if (gen === seq) { inflight = false; } settling = false; flush(); }, 2000);
+    });
+    // The cascade ends at the programme box, and the code box says when its
+    // number has arrived: a held save goes on from either.
+    $parent.on('change', function () { settling = false; flush(); });
+    $form.on('afcdc:code', function () { flush(); });
     // A pick made by a person: select2 raises select2:select only for one,
     // and a plain dropdown's change carries the browser event.
     $form.on('select2:select', 'select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"], select[data-afcdc-cascade-parent]', function () { manual = true; });
@@ -359,7 +422,12 @@ $(function () {
         if (window.jQuery && $.magnificPopup && $.magnificPopup.instance && $.magnificPopup.instance.isOpen) { return; }
         var dirty = false;
         $('form.ecommerce-form').find('input[type="text"], input:not([type]), textarea').each(function () {
+            if (this.name === 'abbr' && this.getAttribute('data-auto') === '1') { return; }   // filled by the form, not typed
             if (this.value !== this.defaultValue) { dirty = true; }
+        });
+        $('form.ecommerce-form').find('select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"]').each(function () {
+            var was = $(this).find('option[selected]').val();
+            if (was !== undefined && String(this.value) !== String(was)) { dirty = true; }
         });
         if (dirty && !window.confirm('Leave without saving your changes?')) { return; }
         e.preventDefault();
@@ -390,4 +458,68 @@ $(function () {
         });
     }
     $form.on('change', 'select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"]', function () { window.setTimeout(mark, 0); });
+});
+
+/* Under the programme box on the activity form: what the programme is for
+ * and what already sits there (projects/programme_context). A placement is
+ * judged far better by its neighbours than by a title. */
+$(function () {
+    var $p = $('form.ecommerce-form input[name="tablename"][value="pm_projects"]').closest('form').find('select[name="programme_id"]');
+    if (!$p.length) { return; }
+    var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
+    var rowId = (typeof project_id === 'number') ? project_id : 0;
+    var $box = $('<div class="afcdc-neighbours" aria-live="polite"></div>').appendTo($p.parent());
+    var seq = 0;
+    function show() {
+        var id = parseInt($p.val(), 10) || 0, mine = ++seq;
+        if (!id) { $box.empty(); return; }
+        $.getJSON(prefix + '/projects/programme_context/' + id, { exclude: rowId }, function (r) {
+            if (mine !== seq) { return; }
+            var d = (r && r.data) ? r.data : r;
+            if (!d || !d.label) { $box.empty(); return; }
+            $box.empty();
+            if (d.description) { $box.append($('<p class="afcdc-neighbours__what"></p>').text(d.description)); }
+            var $l = $('<div class="afcdc-neighbours__list"></div>');
+            if (d.activities && d.activities.length) {
+                $l.append($('<span class="afcdc-neighbours__lead"></span>').text('Already here (' + d.count + '): '));
+                $.each(d.activities, function (i, a) {
+                    if (i) { $l.append(', '); }
+                    $l.append($('<span class="afcdc-code"></span>').text(a.abbr)).append(document.createTextNode(' ' + a.name));
+                });
+                if (d.count > d.activities.length) { $l.append(' …'); }
+            } else {
+                $l.text('Nothing filed here yet.');
+            }
+            $box.append($l);
+        });
+    }
+    $p.on('change', show);
+    show();
+});
+
+/* The "…" between page numbers opens a small box to type a page number.
+ * The link carries the page URL with __PAGE__ where the number goes. */
+$(function () {
+    function close() { $('.afcdc-jump__box').remove(); $('.afcdc-jump').removeClass('is-open'); }
+    $(document).on('click', '[data-afcdc-jump]', function (e) {
+        e.preventDefault();
+        var $a = $(this), $li = $a.closest('li');
+        if ($li.hasClass('is-open')) { close(); return; }
+        close();
+        var last = parseInt($a.attr('data-afcdc-last'), 10) || 1, page = parseInt($a.attr('data-afcdc-page'), 10) || 1;
+        var $box = $('<form class="afcdc-jump__box" role="dialog" aria-label="Go to a page"></form>');
+        var $in = $('<input type="number" class="form-control form-control-sm" min="1" max="' + last + '" required>').val(page);
+        $box.append($('<label></label>').text('Go to page ').append($in))
+            .append($('<span class="afcdc-jump__of"></span>').text(' of ' + last + ' '))
+            .append('<button type="submit" class="btn btn-sm btn-primary">Go</button>');
+        $box.on('submit', function (ev) {
+            ev.preventDefault();
+            var n = Math.min(last, Math.max(1, parseInt($in.val(), 10) || 1));
+            window.location.href = $a.attr('data-afcdc-jump').replace('__PAGE__', String(n));
+        });
+        $li.addClass('is-open').append($box);
+        $in.trigger('focus').trigger('select');
+    });
+    $(document).on('keydown', function (e) { if (e.key === 'Escape' && $('.afcdc-jump__box').length) { close(); e.stopImmediatePropagation(); } });
+    $(document).on('click', function (e) { if (!$(e.target).closest('.afcdc-jump').length) { close(); } });
 });

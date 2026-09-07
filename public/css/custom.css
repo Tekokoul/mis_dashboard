@@ -871,3 +871,36 @@ html .afcdc-field--changed .form-control, html .afcdc-field--changed .select2-co
  * measures a few characters wide, and the box shrank to a letter. */
 html form.ecommerce-form .form-group .select2-container { width: 100% !important; }
 html .afcdc-field__changed { margin-top: 0.25rem; padding-left: 0.5rem; border-left: 3px solid var(--au-gold); font-size: 0.75rem; color: var(--afcdc-ink-soft); }
+
+/* Needs input: a flag beside the code, on lists and drill-downs. */
+html .afcdc-flag { color: var(--au-red); font-size: 0.95em; vertical-align: -0.1em; margin-right: 0.15rem; }
+
+/* "Check placement": a placement a person chose that the wording disagrees with. Red, like the other checks. */
+html #datatable-list tr.afcdc-review--proposed.afcdc-review--check td:first-child { box-shadow: inset 4px 0 0 var(--au-red); }
+html #datatable-list tr.afcdc-review--proposed.afcdc-review--check { background-color: #FBEFF2 !important; }
+html tr.afcdc-review--proposed.afcdc-review--check .afcdc-review__tag, html .afcdc-review-panel.afcdc-review--proposed.afcdc-review--check .afcdc-review__tag { background: var(--au-red); color: #FFF; }
+html .afcdc-review-panel.afcdc-review--proposed.afcdc-review--check { border-left-color: var(--au-red); background: #FBEFF2; }
+/* An accepted check or move is green whatever its confidence was. */
+html #datatable-list tr.afcdc-review--accepted { background-color: #F0F6F1 !important; }
+html #datatable-list tr.afcdc-review--accepted td:first-child { box-shadow: inset 4px 0 0 var(--au-green); }
+/* The flag stays hoverable on drill-down rows, above the stretched link's overlay. */
+html .afcdc-drill .afcdc-flag { position: relative; z-index: 2; }
+
+/* Boxes filled from the wording on the add form, until a person touches them. */
+html .afcdc-field--suggested .select2-container .select2-selection--single { border-color: var(--au-gold) !important; background-color: #FBF8EE !important; }
+html .afcdc-field__suggested { margin-top: 0.25rem; padding-left: 0.5rem; border-left: 3px solid var(--au-gold); font-size: 0.75rem; color: var(--afcdc-ink-soft); }
+
+/* What a programme is for and what already sits there, under the programme box. */
+html .afcdc-neighbours { margin-top: 0.4rem; font-size: 0.75rem; line-height: 1.5; color: var(--afcdc-ink-soft); }
+html .afcdc-neighbours__what { margin: 0 0 0.2rem; }
+html .afcdc-neighbours__lead { font-weight: 600; color: var(--afcdc-ink); }
+html .afcdc-neighbours .afcdc-code { font-size: 0.75rem; }
+
+/* "…" in the page numbers: pressable, with a small go-to-page box beneath. */
+html .pagination .afcdc-jump { position: relative; }
+html .pagination .afcdc-jump > .page-link { cursor: pointer; }
+html .pagination .afcdc-jump.is-open > .page-link { background: var(--au-green-deep); color: #FFF; }
+html .afcdc-jump__box { position: absolute; left: 50%; bottom: calc(100% + 0.4rem); transform: translateX(-50%); z-index: 20; display: flex; align-items: center; gap: 0.4rem; padding: 0.5rem 0.6rem; background: #FFF; border: 1px solid #D9DCD6; border-radius: 4px; box-shadow: 0 6px 18px rgba(0,0,0,0.12); white-space: nowrap; font-size: 0.8125rem; }
+html .afcdc-jump__box label { margin: 0; display: flex; align-items: center; gap: 0.4rem; font-weight: 600; }
+html .afcdc-jump__box input { width: 4.5rem; }
+html .afcdc-jump__of { color: var(--afcdc-ink-soft); }

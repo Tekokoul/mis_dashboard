@@ -39,12 +39,12 @@ $(document).ready(function() {
     //     });
     // });
 
-// Goal -> objective -> programme. Each reload of a dropdown's options keeps
-// the choice named in window.afcdcPreselect (set by the filing-by-content
-// code in custom.js, which reads the name and description) when it is among
-// the new options; otherwise the first option is selected, as before. The
-// objective's change fires once per reload (it fired once per option), and
-// the programme's fires too, so the code box follows the programme shown.
+// Goal -> objective -> programme. Each box below a change is emptied to a
+// "Choose..." placeholder and refilled; nothing is selected by default, so
+// an activity is never saved under the first option by nobody's choice. The
+// choice named in window.afcdcPreselect (set by the filing-by-content code
+// in custom.js, which reads the name and description) is kept when it is
+// among the new options. A late answer to an earlier request is dropped.
 function afcdcPreselect($select, key) {
     var pre = window.afcdcPreselect || {};
     if (pre[key] !== undefined && $select.find('option[value="' + pre[key] + '"]').length) {
@@ -52,15 +52,23 @@ function afcdcPreselect($select, key) {
     }
     delete pre[key];
 }
+var afcdcSeq = { objective_id: 0, programme_id: 0 };
+function afcdcReset($select, label) {
+    $select.empty().append($('<option></option>').attr('value', '').text(label));
+}
 
 $('select[name="pillar_id"]').change(function(){
+    var goal = parseInt($(this).val(), 10) || 0;
+    var $objective = $('select[name="objective_id"]'), $programme = $('select[name="programme_id"]');
+    var mine = ++afcdcSeq.objective_id;
+    afcdcReset($objective, 'Choose an objective\u2026');
+    afcdcReset($programme, 'Choose a programme\u2026');
+    if (!goal) { $objective.trigger("change"); return; }
     $.ajax({
-        url: lang_prefix + "/projects/get_objectives/" + $(this).val(),
+        url: lang_prefix + "/projects/get_objectives/" + goal,
         dataType: "json",
         success: function(data){
-            var $objective = $('select[name="objective_id"]');
-            $objective.empty();
-            $('select[name="programme_id"]').empty();
+            if (mine !== afcdcSeq.objective_id) { return; }
             $.each(data.data, function(key, element){
                 $objective.append($("<option></option>")
                     .attr("value", element.id)
@@ -73,12 +81,16 @@ $('select[name="pillar_id"]').change(function(){
 });
 
 $('select[name="objective_id"]').change(function(){
+    var objective = parseInt($(this).val(), 10) || 0;
+    var $programme = $('select[name="programme_id"]');
+    var mine = ++afcdcSeq.programme_id;
+    afcdcReset($programme, 'Choose a programme\u2026');
+    if (!objective) { $programme.trigger("change"); return; }
     $.ajax({
-        url: lang_prefix + "/projects/get_programmes/" + $(this).val(),
+        url: lang_prefix + "/projects/get_programmes/" + objective,
         dataType: "json",
         success: function(data){
-            var $programme = $('select[name="programme_id"]');
-            $programme.empty();
+            if (mine !== afcdcSeq.programme_id) { return; }
             $.each(data.data, function(key, element){
                 $programme.append($("<option></option>")
                     .attr("value", element.id)
@@ -90,9 +102,12 @@ $('select[name="objective_id"]').change(function(){
     });
 });
 
-// A new activity starts from the first goal's objectives and programmes.
-if(project_id === 0){
-    $('select[name="pillar_id"]').trigger("change");
+// A new activity starts with nothing chosen: the objective and programme
+// boxes hold only their placeholder until a goal is picked or the wording
+// suggests one. After a refused save the posted choices are kept as rendered.
+if (project_id === 0 && !$('select[name="pillar_id"]').val()) {
+    afcdcReset($('select[name="objective_id"]'), 'Choose an objective\u2026');
+    afcdcReset($('select[name="programme_id"]'), 'Choose a programme\u2026');
 }
 
 

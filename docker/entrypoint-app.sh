@@ -295,7 +295,7 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
                 created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
                 KEY idx_filing_feedback_model (model, accepted)
-              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" \
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
             || die "could not create pm_filing_feedback_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
@@ -315,7 +315,7 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
                 vec MEDIUMBLOB NOT NULL,
                 updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                 PRIMARY KEY (kind, ref_id, model)
-              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" \
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
             || die "could not create pm_embeddings_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
@@ -347,7 +347,7 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
                 PRIMARY KEY (id),
                 UNIQUE KEY uq_allocation_review_project (project_id),
                 KEY idx_allocation_review_status (status)
-              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4" \
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
             || die "could not create pm_allocation_review_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 

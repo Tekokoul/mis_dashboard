@@ -261,17 +261,23 @@ fix is a move, recorded for a person to check, never a silent rewrite.
    `pm_allocation_review_tbl` with status **proposed**. Tasks and recorded
    deliveries hang off the activity id and are untouched. Re-running skips
    anything already recorded.
-2. On the local copy, the Projects and Progress lists band every moved row:
-   gold while it waits, red where the two judges disagreed or the text was
-   too thin, green once accepted. The note under the name says where it was
-   and why it moved, with **Accept** and **Undo**. Undo puts the row back
-   exactly and teaches the matcher that the proposal was wrong. A "Vetting"
-   filter appears while anything is pending, with **Accept all pending** for
-   the remainder once you have looked.
+2. On the local copy, the Projects and Progress lists band every row that
+   still waits for a person: gold for a proposal, red where the two judges
+   disagreed or the text was too thin. The note under the name says where it
+   was and why it moved, with **Accept** and **Undo**. Undo puts the row back
+   exactly and teaches the matcher that the proposal was wrong. Once a row is
+   accepted or undone it looks like any other activity - only the result
+   shows, on the local copy and on live alike. A "Vetting" filter appears
+   while anything is pending, with **Accept all pending** for the remainder
+   once you have looked.
 3. `tools/export-allocations.php [accepted|all] > allocations.sql` turns the
-   vetted moves into one `UPDATE ... WHERE id=` per row, with a commented
-   rollback block, to run on the live database as root. Nothing reaches the
-   server any other way.
+   vetted moves into one `UPDATE ... WHERE id= AND abbr=<old code>` per row
+   inside a transaction, with two checks that must come back empty and a
+   commented rollback block. On the server, as root, after a backup:
+   `docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' < /tmp/programme-codes.sql`
+   then the same with `allocations.sql`, then the code deploy. Applying the
+   SQL before the deploy is fine: the running code lists the rows under their
+   new parents. Nothing reaches the server any other way.
 
 The judges' decisions file for the first run is produced from the local
 matcher's proposals plus two independent readings of each activity; where
@@ -309,12 +315,39 @@ the list URL travels in a hidden `back` field and `?back=` instead
 site root). Esc asks first when a text box holds an unsaved change; it does
 nothing while a dropdown or a dialog is open, as they use Esc themselves.
 
+**"Check placement" after a save.** Saving an activity never blocks on where
+it was filed, but when the wording points clearly elsewhere (the best place
+scores well ahead and the chosen programme reaches less than 60% of it), a
+"Check placement" row is recorded and the activity carries the red band and a
+note with **Keep here** and **Move there** (`projectsController::checkPlacement`,
+`allocation_move`). Keep here records a correction the guesser learns from;
+Move there re-files the activity with the next free code and becomes an
+accepted move like any other. A placement kept once is not questioned again,
+a proposal a person undid is not raised again, and rows still under vetting
+or with a move waiting to reach live are left alone. Kept checks are never
+exported: the export ships rows whose placement differs from live, whatever
+their status, so an undone proposal re-filed by hand travels too.
+
+**The activity form starts empty.** Goal, objective and programme open on
+"Choose…" and are required, so nothing is saved under the first option by
+nobody's choice. Boxes filled from the wording wear gold ("Suggested from the
+wording") until a person touches them. Leaving a text box asks the guesser at
+once, and Save waits (two seconds at most) for the answer to the final
+wording, so what is recorded as suggested is what was shown. Under the
+programme box the programme's description and up to six activities already
+filed there are listed (`projects/programme_context`).
+
+**Needs input.** Every unfinished activity carries a red flag beside its
+code, on both lists and on the objective, programme and per-project pages;
+the tooltip names what is missing.
+
 Where the 7 September 2026 round stands: the local copy was refreshed from
 the live content tables first (goals, objectives, programmes, activities,
 tasks, deliveries - accounts and learned corrections untouched), the two
-judges ran against that catalogue, and 107 proposals are recorded (55 moves,
-52 code fixes; 49 + 49 gold, 4 split, 5 to check). `programme-codes.sql` (8
-rows) sits with the export for the live run.
+judges ran against that catalogue, and 107 proposals were recorded (56 moves,
+51 code fixes). Vetted the same day: 105 accepted, 2 re-filed by hand;
+`allocations-live.sql` (107 rows) and `programme-codes.sql` (8 rows) are the
+live run. The judges' inputs live in `db/refiling/2026-09-07/`.
 
 ## How an activity gets filed
 

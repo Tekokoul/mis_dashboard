@@ -1,0 +1,552 @@
+[
+ {
+  "id": 1,
+  "objective_id": 1,
+  "programme_id": 13,
+  "confidence": "agreed",
+  "reason": "Microsoft 365 E5/E1 licences described as the common operating platform are the shared email, messaging and collaboration suite that 1.8 Unified Communications and Collaboration deploys.",
+  "_old": "4.2.4.06.01 obj 1 prg 1",
+  "_new": "1.0 / 1.8 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 2,
+  "objective_id": 1,
+  "programme_id": 7,
+  "confidence": "agreed",
+  "reason": "Fibre internet, air fibre, simcards and phone line at HQ, called core connectivity and the one network component, are the bandwidth and redundancy scope of 1.2 Network Connectivity.",
+  "_old": "4.2.4.06.03 obj 1 prg 1",
+  "_new": "1.0 / 1.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 3,
+  "objective_id": 1,
+  "programme_id": 7,
+  "confidence": "agreed",
+  "reason": "A network health monitoring tool for the Network Operations Centre matches the central monitoring in 1.2 Network Connectivity, though the security half could sit under 1.6 Cybersecurity.",
+  "_old": "4.2.4.06.06 obj 1 prg 1",
+  "_new": "1.0 / 1.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 4,
+  "objective_id": 1,
+  "programme_id": 7,
+  "confidence": "agreed",
+  "reason": "Toolkits for network expansion to connect sites is site connectivity work under 1.2 Network Connectivity.",
+  "_old": "4.2.4.06.09 obj 1 prg 1",
+  "_new": "1.0 / 1.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 5,
+  "objective_id": 1,
+  "programme_id": 13,
+  "confidence": "agreed",
+  "reason": "Support, patches and maintenance for internal communication systems, email servers and enterprise messaging platforms are the common email and messaging tools of 1.8 Unified Communications and Collaboration.",
+  "_old": "4.2.4.06.11 obj 1 prg 1",
+  "_new": "1.0 / 1.8 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 6,
+  "objective_id": 1,
+  "programme_id": 14,
+  "confidence": "agreed",
+  "reason": "An Endpoint Management Operating Model for one managed device estate across HQ and the RCCs is device management under 1.9 Endpoint and Workplace Technology.",
+  "_old": "4.2.4.06.25 obj 1 prg 1",
+  "_new": "1.0 / 1.9 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 7,
+  "objective_id": 1,
+  "programme_id": 14,
+  "confidence": "agreed",
+  "reason": "Deploying and operationalising Endpoint Management infrastructure for one managed device estate is device management under 1.9 Endpoint and Workplace Technology.",
+  "_old": "4.2.4.06.26 obj 1 prg 1",
+  "_new": "1.0 / 1.9 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 8,
+  "objective_id": 1,
+  "programme_id": 14,
+  "confidence": "agreed",
+  "reason": "Endpoint Management performance monitoring and governance over the managed device estate stays with 1.9 Endpoint and Workplace Technology rather than generic architecture governance.",
+  "_old": "4.2.4.06.27 obj 1 prg 1",
+  "_new": "1.0 / 1.9 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 9,
+  "objective_id": 1,
+  "programme_id": 12,
+  "confidence": "agreed",
+  "reason": "A consolidated IT Service Management Operating Model and a single service desk across the organisation is exactly the one service desk of 1.7 IT Service Management.",
+  "_old": "4.2.4.06.28 obj 1 prg 1",
+  "_new": "1.0 / 1.7 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 10,
+  "objective_id": 1,
+  "programme_id": 12,
+  "confidence": "agreed",
+  "reason": "Operationalising IT Service Management and IT Asset Governance processes for a single service desk is the incident, change and service catalogue scope of 1.7 IT Service Management.",
+  "_old": "4.2.4.06.29 obj 1 prg 1",
+  "_new": "1.0 / 1.7 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 11,
+  "objective_id": 1,
+  "programme_id": 12,
+  "confidence": "agreed",
+  "reason": "Maturing IT Service Management with continuous improvement for a single service desk is the ITSM tool and process scope of 1.7 IT Service Management.",
+  "_old": "4.2.4.06.30 obj 1 prg 1",
+  "_new": "1.0 / 1.7 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 12,
+  "objective_id": 1,
+  "programme_id": 7,
+  "confidence": "agreed",
+  "reason": "'Network upgrades', 'segmentation' and 'eliminate single points of failure' are the redundancy and reliability work of 1.2 PRG Network Connectivity, not the architecture-policy work of 1.1 PRG where it was filed.",
+  "_old": "4.2.4.06.46 obj 1 prg 1",
+  "_new": "1.0 / 1.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 13,
+  "objective_id": 1,
+  "programme_id": 7,
+  "confidence": "agreed",
+  "reason": "'Redundancy across core network components' matches the 'redundancy' and 'reliable bandwidth' remit of 1.2 PRG Network Connectivity under the filed objective 1.0.",
+  "_old": "4.2.4.06.47 obj 1 prg 1",
+  "_new": "1.0 / 1.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 14,
+  "objective_id": 1,
+  "programme_id": 7,
+  "confidence": "agreed",
+  "reason": "A 'Network Operations Centre' for 'proactive monitoring' is the 'central monitoring' of 1.2 PRG Network Connectivity, though 'incident response' also brushes 1.6 PRG Cybersecurity and 1.7 PRG ITSM.",
+  "_old": "4.2.4.06.48 obj 1 prg 1",
+  "_new": "1.0 / 1.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 15,
+  "objective_id": 2,
+  "programme_id": 19,
+  "confidence": "agreed",
+  "reason": "'Procurement of Microsoft Azure' as the 'hosting substrate for always-on continental infrastructure' is a provider contract, which under objective 2.0 sits in 2.4 PRG Governance, Contract and Performance Management; the filed 1.1 PRG belongs to objective 1.0.",
+  "_old": "4.2.4.06.02 obj 2 prg 1",
+  "_new": "2.0 / 2.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 16,
+  "objective_id": 2,
+  "programme_id": 17,
+  "confidence": "agreed",
+  "reason": "'99.9% uptime', 'backup' and 'failover' for the '24/7/365 commitment' keep it under objective 2.0, where the availability SLA belongs to 2.2 PRG Service Management and Operating Model; the wording also mirrors 1.10 PRG BC/DR but that programme belongs to objective 1.0.",
+  "_old": "4.2.4.06.12 obj 2 prg 1",
+  "_new": "2.0 / 2.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 17,
+  "objective_id": 2,
+  "programme_id": 17,
+  "confidence": "agreed",
+  "reason": "'Cloud Operating Model Operationalization' names the 2.2 PRG Service Management and Operating Model programme directly; the filed 1.2 PRG Network Connectivity belongs to objective 1.0.",
+  "_old": "4.2.4.06.22 obj 2 prg 7",
+  "_new": "2.0 / 2.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 18,
+  "objective_id": 2,
+  "programme_id": 19,
+  "confidence": "agreed",
+  "reason": "'Governance' and 'cost management controls across Azure workloads' are the contract, cost and governance remit of 2.4 PRG; 'security' alone would point at 2.3 PRG, and the filed 1.3 PRG IAM belongs to objective 1.0.",
+  "_old": "4.2.4.06.23 obj 2 prg 8",
+  "_new": "2.0 / 2.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 19,
+  "objective_id": 2,
+  "programme_id": 17,
+  "confidence": "agreed",
+  "reason": "'Institutionalize Cloud Operating Model as standard operating framework' is the operating-model work of 2.2 PRG Service Management and Operating Model; the filed 1.1 PRG belongs to objective 1.0.",
+  "_old": "4.2.4.06.24 obj 2 prg 1",
+  "_new": "2.0 / 2.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 20,
+  "objective_id": 2,
+  "programme_id": 17,
+  "confidence": "low",
+  "reason": "'Stable, secure, and resilient IT infrastructure supporting business operations' is generic, but the 'continental data centre infrastructure' description keeps it under 2.0 where day-to-day operations sit in 2.2 PRG; the filed 1.10 PRG belongs to objective 1.0.",
+  "_old": "4.2.4.06.34 obj 2 prg 15",
+  "_new": "2.0 / 2.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 21,
+  "objective_id": 2,
+  "programme_id": 17,
+  "confidence": "agreed",
+  "reason": "'Service management and preventive maintenance frameworks' for 'the data centre estate' is the 2.2 PRG Service Management and Operating Model programme; the filed 1.10 PRG belongs to objective 1.0.",
+  "_old": "4.2.4.06.39 obj 2 prg 15",
+  "_new": "2.0 / 2.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 22,
+  "objective_id": 2,
+  "programme_id": 17,
+  "confidence": "agreed",
+  "reason": "'Disaster recovery and business continuity' for the 'always-on estate' stays under the filed objective 2.0, where continuity of operations sits in 2.2 PRG Service Management; the filed 1.10 PRG BC/DR matches the words exactly but belongs to objective 1.0.",
+  "_old": "4.2.4.06.50 obj 2 prg 15",
+  "_new": "2.0 / 2.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 23,
+  "objective_id": 2,
+  "programme_id": 17,
+  "confidence": "split",
+  "reason": "'Backup, recovery, and redundancy' for the 'always-on estate' stays under 2.0 Data Centre 24/7/365, and the filed 1.10 BC/DR programme belongs to objective 1, so the operational-resilience home under 2.0 is 2.2 Service Management and Operating Model (SLAs, incident management). (The other judge preferred 2.3 PRG: 'Resilience of the always-on estate' keeps it in the Data Centre 24/7/365 objective, and 'backup, recovery, and redundancy' is a risk and data-protection matter there, so 2.3 Security, Risk and Compliance is the nearest fit since the literal 1.10 BC/DR programme belongs to objective 1.)",
+  "_old": "4.2.4.06.55 obj 2 prg 15",
+  "_new": "2.0 / 2.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 24,
+  "objective_id": 3,
+  "programme_id": 21,
+  "confidence": "agreed",
+  "reason": "'RBAC', 'MFA' and 'account lifecycle management' described as an 'ISO/IEC 27001 control area' are exactly the 'access controls, identity management' named in 3.2 Data Protection and Cybersecurity Controls; the filed 1.3 IAM programme sits under objective 1.",
+  "_old": "4.2.4.06.13 obj 3 prg 8",
+  "_new": "3.0 / 3.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 25,
+  "objective_id": 3,
+  "programme_id": 22,
+  "confidence": "agreed",
+  "reason": "Moving 'critical institutional data from personal accounts to secure institutional cloud environments' is described as 'data sovereignty', which points to 3.3 Data Residency, Sovereignty, and Compliance (where data can be stored and accessed); the filed 1.10 BC/DR is an objective-1 programme.",
+  "_old": "4.2.4.06.14 obj 3 prg 15",
+  "_new": "3.0 / 3.3 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 26,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "low",
+  "reason": "A 'centralized technical documentation repository' framed as ISO 27001 'documented information' fits 3.4 Operating Model, Assurance, and Change (procedures, audits) better than the filed 1.3 IAM, but the activity name alone reads as generic enterprise architecture documentation (1.1) so the fit is not clear-cut.",
+  "_old": "4.2.4.06.15 obj 3 prg 8",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 27,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Achieve ISO/IEC 27001 certification' is an assurance and audit outcome, matching 3.4 Operating Model, Assurance, and Change ('compliance reviews, risk assessments, audits'); the filed 1.6 programme belongs to objective 1, and 3.2 controls work is a plausible alternative.",
+  "_old": "4.2.4.06.35 obj 3 prg 11",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 28,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Independent IT Audit' with 'risks remediated' and the description 'assurance over the security posture' are the 'audits' and 'risk assessments' of 3.4 Operating Model, Assurance, and Change; the filed 2.3 programme belongs to objective 2.",
+  "_old": "4.2.4.06.36 obj 3 prg 18",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 29,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Remediate ... audit findings' under 'assurance over the security posture' is audit follow-through, squarely 3.4 Operating Model, Assurance, and Change; the filed 2.3 programme belongs to objective 2.",
+  "_old": "4.2.4.06.37 obj 3 prg 18",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 30,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Structured operational procedures and documentation' for the 'ISMS' are the 'operational procedures' and 'approval processes' that 3.4 Operating Model, Assurance, and Change defines; the filed 1.1 programme belongs to objective 1.",
+  "_old": "4.2.4.06.38 obj 3 prg 1",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 31,
+  "objective_id": 3,
+  "programme_id": 21,
+  "confidence": "agreed",
+  "reason": "'Vulnerability assessments and penetration testing' ('security testing') are technical security control work under 3.2 Data Protection and Cybersecurity Controls, though 3.4's 'risk assessments, audits' is a defensible alternative; the filed 1.6 programme belongs to objective 1.",
+  "_old": "4.2.4.06.41 obj 3 prg 11",
+  "_new": "3.0 / 3.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 32,
+  "objective_id": 3,
+  "programme_id": 21,
+  "confidence": "agreed",
+  "reason": "A 'Security Operations Centre' for 'centralized security oversight' is the 'monitoring' capability of 3.2 Data Protection and Cybersecurity Controls, with 3.4 as the operating-model alternative; the filed 1.6 programme belongs to objective 1.",
+  "_old": "4.2.4.06.42 obj 3 prg 11",
+  "_new": "3.0 / 3.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 33,
+  "objective_id": 3,
+  "programme_id": 21,
+  "confidence": "agreed",
+  "reason": "A 'SIEM' for 'real-time threat detection, correlation, and incident management' is monitoring tooling, matching the 'monitoring' technical control in 3.2 Data Protection and Cybersecurity Controls; the filed 1.6 programme belongs to objective 1.",
+  "_old": "4.2.4.06.43 obj 3 prg 11",
+  "_new": "3.0 / 3.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 34,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Security policies, procedures, and control frameworks' for an 'ISMS policy set' is the operating-model and assurance layer of 3.4, not the objective-1 IAM programme it was filed under.",
+  "_old": "4.2.4.06.44 obj 3 prg 8",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 35,
+  "objective_id": 3,
+  "programme_id": 21,
+  "confidence": "agreed",
+  "reason": "'Logical and physical access controls' is named directly in 3.2's 'access controls' technical-controls scope; the filed 1.6 programme belongs to objective 1.",
+  "_old": "4.2.4.06.45 obj 3 prg 11",
+  "_new": "3.0 / 3.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 36,
+  "objective_id": 3,
+  "programme_id": 21,
+  "confidence": "agreed",
+  "reason": "'Endpoint, network, and perimeter security controls' are the technical 'security controls' that 3.2 implements; the filed 1.6 programme sits under objective 1.",
+  "_old": "4.2.4.06.49 obj 3 prg 11",
+  "_new": "3.0 / 3.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 37,
+  "objective_id": 3,
+  "programme_id": 21,
+  "confidence": "agreed",
+  "reason": "'Incident response procedures aligned with SOC operations' is security-operations monitoring under 3.2, though the word 'procedures' could argue for 3.4.",
+  "_old": "4.2.4.06.51 obj 3 prg 11",
+  "_new": "3.0 / 3.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 38,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Risk assessments, gap analysis, and control effectiveness reviews' match 3.4's 'compliance reviews, risk assessments, audits' word for word; the filed programme 3 no longer exists.",
+  "_old": "4.2.4.06.52 obj 3 prg 3",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 39,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Corrective and preventive actions' for 'ISO/IEC 27001 compliance gaps' is the assurance-and-change cycle of 3.4 rather than the data-residency compliance of 3.3; the filed programme 3 no longer exists.",
+  "_old": "4.2.4.06.53 obj 3 prg 3",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 40,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "'Continuous risk monitoring and reporting mechanisms' maps to 3.4's 'risk assessments... and reporting dashboards'; the filed programme 3 no longer exists.",
+  "_old": "4.2.4.06.54 obj 3 prg 3",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 41,
+  "objective_id": 4,
+  "programme_id": 25,
+  "confidence": "agreed",
+  "reason": "'Dynamics 365... integrated digital solution for all Africa CDC business processes' is the ERP solution of 4.2, not the objective-1 architecture programme it was filed under; 4.1 governance was the alternative.",
+  "_old": "4.2.4.06.05 obj 4 prg 1",
+  "_new": "4.0 / 4.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 42,
+  "objective_id": 4,
+  "programme_id": 25,
+  "confidence": "agreed",
+  "reason": "'Fleet Management System' described as 'asset and supply chain operations within the ERP scope' with the ERP KPI belongs under objective 4, where 4.2 covers 'supply chain, assets' process design; moved from objective 1.",
+  "_old": "4.2.4.06.18 obj 1 prg 1",
+  "_new": "4.0 / 4.2 PRG",
+  "_moves_objective": true
+ },
+ {
+  "id": 43,
+  "objective_id": 4,
+  "programme_id": 26,
+  "confidence": "agreed",
+  "reason": "'Financial Management Module with real-time SAP integration, automated budget tracking' is ERP integration and reporting under 4.3; objective 14 has no programmes and programme 4 no longer exists.",
+  "_old": "4.2.4.06.20 obj 14 prg 4",
+  "_new": "4.0 / 4.3 PRG",
+  "_moves_objective": true
+ },
+ {
+  "id": 44,
+  "objective_id": 4,
+  "programme_id": 25,
+  "confidence": "agreed",
+  "reason": "'Automate business processes for asset management' within 'the ERP scope' is 4.2's business-process standardisation, though 'data synchronization' hints at 4.3; programme 4 no longer exists.",
+  "_old": "4.2.4.06.21 obj 4 prg 4",
+  "_new": "4.0 / 4.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 45,
+  "objective_id": 5,
+  "programme_id": 29,
+  "confidence": "agreed",
+  "reason": "\"Training workshops\" for Africa CDC/RCC analysts on dashboard design and data storytelling is staff skills development, which sits under 5.0 Capacity building; 5.2 is the skills-development and training programme there, though it is AI-labelled and this training is not AI-specific.",
+  "_old": "3.2.1.01.01 obj 5 prg 5",
+  "_new": "5.0 / 5.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 46,
+  "objective_id": 5,
+  "programme_id": 29,
+  "confidence": "agreed",
+  "reason": "\"DHIS team capacity building\" and \"training\" on DHIS2 administration, Azure, security and project management is internal workforce training, so it stays under 5.0 and goes to the 5.2 training programme, the only training-type programme under that objective (the filed programme 5 no longer exists).",
+  "_old": "4.2.4.06.04 obj 5 prg 5",
+  "_new": "5.0 / 5.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 47,
+  "objective_id": 5,
+  "programme_id": 29,
+  "confidence": "agreed",
+  "reason": "\"Capacity building: attend international seminars, conferences\" is professional development for the division's own staff, so it stays under 5.0 with the 5.2 skills-development programme rather than moving to the CPHIA conference objective, which is about running the conference, not attending events.",
+  "_old": "4.2.4.06.07 obj 5 prg 5",
+  "_new": "5.0 / 5.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 48,
+  "objective_id": 5,
+  "programme_id": 29,
+  "confidence": "agreed",
+  "reason": "\"Training Accreditation Platform\" with \"course catalog, accreditation workflow, certificate generation\" is the delivery vehicle for workforce training, so the existing filing under 5.2 Skills Development and Training is kept; it is not an AI tool so 5.3 does not fit.",
+  "_old": "4.2.4.06.16 obj 5 prg 29",
+  "_new": "5.0 / 5.2 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 49,
+  "objective_id": 5,
+  "programme_id": 28,
+  "confidence": "agreed",
+  "reason": "\"AI & Advanced Analytics Capability governance and framework\" is exactly the strategy/policy/governance-structure work of 5.1 AI Strategy, Governance, and Responsible Use, not the training programme it is filed under.",
+  "_old": "4.2.4.06.31 obj 5 prg 29",
+  "_new": "5.0 / 5.1 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 50,
+  "objective_id": 5,
+  "programme_id": 28,
+  "confidence": "agreed",
+  "reason": "\"Formalize and institutionalize AI capability within DHIS\" is about giving the AI capability a formal structure and mandate, which belongs to 5.1 (governance structure) rather than 1.1 Enterprise Architecture where it is filed; 5.4 adoption/change is the alternative if it is read as organisational uptake.",
+  "_old": "4.2.4.06.32 obj 5 prg 1",
+  "_new": "5.0 / 5.1 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 51,
+  "objective_id": 5,
+  "programme_id": 30,
+  "confidence": "agreed",
+  "reason": "\"Implement and operationalize AI flagship use cases\" matches 5.3 AI Tools, Platforms, and Use Case Deployment word for word (the filed programme 48 no longer exists).",
+  "_old": "4.2.4.06.33 obj 5 prg 48",
+  "_new": "5.0 / 5.3 PRG",
+  "_moves_objective": false
+ },
+ {
+  "id": 52,
+  "objective_id": 3,
+  "programme_id": 23,
+  "confidence": "agreed",
+  "reason": "\"Cybersecurity awareness and training programs for staff\", \"KnowBe4\" and the \"ISO plan\" date make this part of operationalising the security framework (objective 3.0) rather than the AI-skills objective it was filed under, and 3.4 Operating Model, Assurance, and Change is the people/procedures/training programme there.",
+  "_old": "4.2.4.06.40 obj 5 prg 5",
+  "_new": "3.0 / 3.4 PRG",
+  "_moves_objective": true
+ },
+ {
+  "id": 53,
+  "objective_id": 7,
+  "programme_id": 79,
+  "confidence": "split",
+  "reason": "The \"launch/dissemination event\" for the \"flagship report\" is the ADHOPT State of Digital Health report from rows 54-55, so it stays with them under the filed objective 7.0 and 7.6 OKAPI (Open Knowledge Analytics for Public Health Insights), the only knowledge/insights programme there; CPHIA Registrations is about the registration platform, not side events, and OKAPI's empty description leaves this a name-based guess. (The other judge preferred 7.4 PRG: The 'launch/dissemination event for the flagship report' is the Member State dissemination leg of the ADHOPT observatory report, so it stays under objective 7 with the 7.4 Member States to Africa CDC data exchange programme; CPHIA 16.1 is only the registration platform, and the text is too thin for more than a low call.)",
+  "_old": "3.2.1.01.03 obj 7 prg 6",
+  "_new": "7.0 / 7.6 PGR",
+  "_moves_objective": false
+ },
+ {
+  "id": 54,
+  "objective_id": 7,
+  "programme_id": 79,
+  "confidence": "split",
+  "reason": "\"Partner Investment Dialogue using ADHOPT data\" and the \"dissemination event for annual report\" are outputs of the ADHOPT observatory cycle, so they are kept with row 55 under the filed objective 7.0 and 7.6 OKAPI; the partnerships objective's only programme is a specific GAVI proposal and CPHIA's only programme is registrations, so neither is a better home despite the \"mobilize resources\" and conference wording. (The other judge preferred 7.4 PRG: 'Partner Investment Dialogue using ADHOPT data' and the annual report dissemination are built on the Member State to Africa CDC ADHOPT data exchange, which under the filed objective 7 is 7.4 Member States to Africa CDC Health Data Exchange (programme 6 no longer exists).)",
+  "_old": "3.2.2.01.01 obj 7 prg 6",
+  "_new": "7.0 / 7.6 PGR",
+  "_moves_objective": false
+ },
+ {
+  "id": 55,
+  "objective_id": 7,
+  "programme_id": 79,
+  "confidence": "split",
+  "reason": "\"Africa Digital Health Observatory (ADHOPT)\", \"MS data validation workshops\" and \"produce knowledge outputs: annual State of Digital Health in Africa report\" describe a Member State to Africa CDC knowledge/analytics product, so it stays under the filed objective 7.0 with 7.6 OKAPI (Open Knowledge Analytics for Public Health Insights); 7.4 data-exchange pipelines and 7.3 onboarding are the technical-interoperability alternatives and the filed programme 6 no longer exists. (The other judge preferred 7.4 PRG: 'Annual country updates cycles for the Africa Digital Health Observatory (ADHOPT)' with 'MS data validation workshops' is Member State to Africa CDC data collection and validation, which under objective 7 fits 7.4 Member States to Africa CDC Health Data Exchange (programme 6 no longer exists).)",
+  "_old": "3.2.2.01.04 obj 7 prg 6",
+  "_new": "7.0 / 7.6 PGR",
+  "_moves_objective": false
+ }
+]

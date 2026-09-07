@@ -134,6 +134,7 @@ class projectsController extends coreController{
                     'objective_id' => $this->query['suggest_objective_id'] ?? 0,
                     'programme_id' => $this->query['suggest_programme_id'] ?? 0,
                 ], (int)$new_id);
+                $this->checkPlacement((int)$new_id, $this->query);
             }
             redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo($back)));
         } else {
@@ -205,9 +206,132 @@ class projectsController extends coreController{
                 // Moving an activity is the clearest correction there is: the
                 // place it sat in was wrong for this wording, whoever chose it.
                 record_filing_feedback($this->DB, 'pm_projects', $this->query, $previous, (int)$validated['id']);
+                $this->checkPlacement((int)$validated['id'], $this->query, is_array($previous) ? $previous : null);
             }
             redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo($back)));
         }
+    }
+
+    /**
+     * A safety net after a save, not a gate before it. When the programme
+     * chosen for an activity scores well below where its wording points, a
+     * "Check placement" row is recorded: the activity keeps the red band and
+     * a note with Keep here / Move there until a person answers.
+     *
+     * The review table doubles as the ledger of what live still has (old_*),
+     * which the export relies on, so an existing row's old_* is never
+     * rewritten here. Rows under vetting, moves waiting to reach live, a
+     * placement kept once, and a proposal a person has undone are left alone.
+     * $previous is the row as it was before this save (edit only): what live
+     * holds when no review row exists yet.
+     */
+    private function checkPlacement($id, array $row, $previous = null) {
+        if (!allocation_review_available($this->DB)) { return; }
+        $chosen = ['pillar_id' => (int)($row['pillar_id'] ?? 0), 'objective_id' => (int)($row['objective_id'] ?? 0), 'programme_id' => (int)($row['programme_id'] ?? 0)];
+        if ($chosen['programme_id'] <= 0) { return; }
+        $text = trim((string)($row['name'] ?? '') . '. ' . (string)($row['description'] ?? '') . ' ' . (string)($row['kpi'] ?? ''));
+        if (mb_strlen($text) < 12) { return; }
+        $current = $this->DB->MQ("SELECT abbr FROM pm_projects_tbl WHERE id = ?", "one", [$id]);
+        $curAbbr = (string)($current['abbr'] ?? '');
+        $existing = $this->DB->MQ("SELECT * FROM pm_allocation_review_tbl WHERE project_id = ?", "one", [$id]);
+        $sitsAtOld = false; $isCheck = false;
+        if (is_set($existing)) {
+            $isCheck   = (string)$existing['confidence'] === 'check';
+            $sitsAtOld = (int)$existing['old_programme_id'] === $chosen['programme_id'] && (int)$existing['old_objective_id'] === $chosen['objective_id']
+                      && (string)$existing['old_abbr'] === $curAbbr;
+            $sitsAtNew = (int)$existing['new_programme_id'] === $chosen['programme_id'] && (int)$existing['new_objective_id'] === $chosen['objective_id'];
+            if ($existing['status'] === 'proposed' && !$isCheck) { return; }              // being vetted
+            if (!$isCheck && !$sitsAtOld) { return; }                                     // a move not yet shipped to live
+            if ($isCheck && $existing['status'] !== 'proposed' && $sitsAtNew) { return; } // kept once (new_* = the kept place)
+            if ($isCheck && $existing['status'] === 'proposed' && !$sitsAtOld && !$sitsAtNew) {
+                // The person moved it by hand while a check was open: their
+                // choice answers the check; the row keeps old_* for the export.
+                $this->DB->MQ("UPDATE pm_allocation_review_tbl SET new_pillar_id=?, new_objective_id=?, new_programme_id=?, new_abbr=?, status='accepted', decided_by=?, decided_at=NOW() WHERE id=?", false,
+                    [$chosen['pillar_id'], $chosen['objective_id'], $chosen['programme_id'], $curAbbr, (int)($_SESSION['user']['user_id'] ?? 0), (int)$existing['id']]);
+                return;
+            }
+        }
+        $s = suggest_parent($this->DB, 'pm_projects', $text, 3, $id);
+        $best = $s['candidates'][0] ?? null;
+        $doubt = false;
+        if ($best && !empty($s['confident']) && (int)$best['programme_id'] !== $chosen['programme_id']) {
+            $bestScore   = (float)$best['score'];
+            // The chosen place scored like a candidate: its objective plus its programme.
+            $chosenScore = (float)($s['scores']['objective'][$chosen['objective_id']] ?? 0) + (float)($s['scores']['programme'][$chosen['programme_id']] ?? 0);
+            $doubt = $bestScore > 0 && $chosenScore < 0.6 * $bestScore;
+            // A proposal a person has already undone is not raised again.
+            if ($doubt && is_set($existing) && $existing['status'] === 'reverted' && (int)$existing['new_programme_id'] === (int)$best['programme_id']) { $doubt = false; }
+        }
+        if (!$doubt) {
+            // The wording and the place agree: an open check on this row is over.
+            if (is_set($existing) && $isCheck && $existing['status'] === 'proposed' && $sitsAtOld) {
+                $this->DB->MQ("DELETE FROM pm_allocation_review_tbl WHERE id = ?", false, [(int)$existing['id']]);
+            }
+            return;
+        }
+        $reason = 'Filed under ' . $this->placementLabel($chosen['objective_id'], $chosen['programme_id']) . '; the wording fits ' . (string)$best['label'] . ' better.';
+        $new = [(int)$best['pillar_id'], (int)$best['objective_id'], (int)$best['programme_id'], mb_substr($reason, 0, 1000)];
+        if (is_set($existing)) {
+            // old_* untouched: it is what live has.
+            $this->DB->MQ("UPDATE pm_allocation_review_tbl SET new_pillar_id=?, new_objective_id=?, new_programme_id=?, new_abbr='', confidence='check', reason=?, status='proposed', decided_by=0, decided_at=NULL WHERE id=?", false, array_merge($new, [(int)$existing['id']]));
+        } else {
+            // What live holds: the row before this save on an edit; on an add
+            // the activity does not exist on live yet, and an empty old code
+            // keeps it out of the export.
+            $old = is_array($previous)
+                 ? [(int)$previous['pillar_id'], (int)$previous['objective_id'], (int)$previous['programme_id'], (string)$previous['abbr']]
+                 : [$chosen['pillar_id'], $chosen['objective_id'], $chosen['programme_id'], ''];
+            $this->DB->MQ("INSERT INTO pm_allocation_review_tbl (project_id, old_pillar_id, old_objective_id, old_programme_id, old_abbr, new_pillar_id, new_objective_id, new_programme_id, new_abbr, confidence, reason, status)
+                           VALUES (?,?,?,?,?,?,?,?,'','check',?,'proposed')", false, array_merge([$id], $old, $new));
+        }
+    }
+
+    private function placementLabel($objectiveId, $programmeId) {
+        $o = $this->DB->MQ("SELECT abbr FROM pm_objectives_tbl WHERE id = ?", "one", [(int)$objectiveId]);
+        $p = $this->DB->MQ("SELECT abbr, name FROM pm_programmes_tbl WHERE id = ?", "one", [(int)$programmeId]);
+        return trim((string)($o['abbr'] ?? '?') . ' / ' . (string)($p['abbr'] ?? '?') . ' ' . (string)($p['name'] ?? ''));
+    }
+
+    /** POST projects/allocation_move/<id>: a "check placement" answered with "move there" - the activity goes where the wording points. */
+    public function allocation_move() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        $this->mapRoute("id");
+        $id = (int)($this->parts['id'] ?? 0);
+        $r = $this->DB->MQ("SELECT * FROM pm_allocation_review_tbl WHERE project_id = ? AND status = 'proposed' AND confidence = 'check'", "one", [$id]);
+        if (!is_set($r)) { $this->setAnswer(404, "Nothing to move.", [], "json"); }
+        $p = $this->DB->MQ("SELECT id, objective_id FROM pm_programmes_tbl WHERE id = ?", "one", [(int)$r['new_programme_id']]);
+        if (!is_set($p) || (int)$p['objective_id'] !== (int)$r['new_objective_id']) { $this->setAnswer(409, "That programme no longer sits under that objective.", [], "json"); }
+        $o = $this->DB->MQ("SELECT pillar_id FROM pm_objectives_tbl WHERE id = ?", "one", [(int)$r['new_objective_id']]);
+        if (!is_set($o)) { $this->setAnswer(409, "That objective no longer exists.", [], "json"); }
+        $pillar = (int)$o['pillar_id'];   // the goal follows the objective, as on every other write
+        $code = auto_wbs_code($this->DB, 'pm_projects', ['programme_id' => (int)$r['new_programme_id']]);
+        $this->DB->MQ("UPDATE pm_projects_tbl SET pillar_id = ?, objective_id = ?, programme_id = ?, abbr = ? WHERE id = ?", false,
+            [$pillar, (int)$r['new_objective_id'], (int)$r['new_programme_id'], $code, $id]);
+        // From here on it is an accepted move like any other: green, and exported.
+        $this->DB->MQ("UPDATE pm_allocation_review_tbl SET new_pillar_id = ?, new_abbr = ?, confidence = 'agreed', status = 'accepted', decided_by = ?, decided_at = NOW() WHERE id = ?", false,
+            [$pillar, $code, (int)($_SESSION['user']['user_id'] ?? 0), (int)$r['id']]);
+        $row = $this->DB->MQ("SELECT name, description, kpi, pillar_id, objective_id, programme_id FROM pm_projects_tbl WHERE id = ?", "one", [$id]);
+        if (is_set($row)) { record_filing_feedback($this->DB, 'pm_projects', $row, ['pillar_id' => $pillar, 'objective_id' => (int)$r['new_objective_id'], 'programme_id' => (int)$r['new_programme_id']], $id); }
+        $this->setAnswer(200, "Moved.", ['code' => $code, 'pending' => allocation_pending_count($this->DB)], "json");
+    }
+
+    /** GET projects/programme_context/<id>?exclude=<activity>: what a programme is for and what already sits under it, for the activity form. */
+    public function programme_context() {
+        $this->checkMethod("GET");
+        $this->mapRoute("id");
+        $id = (int)($this->parts['id'] ?? 0); $exclude = (int)($this->query['exclude'] ?? 0);
+        $p = $this->DB->MQ("SELECT g.id, g.abbr, g.name, g.description, o.abbr AS objective_abbr, o.name AS objective_name FROM pm_programmes_tbl g LEFT JOIN pm_objectives_tbl o ON o.id = g.objective_id WHERE g.id = ?", "one", [$id]);
+        if (!is_set($p)) { $this->setAnswer(404, "No such programme", [], "json"); }
+        $n = $this->DB->MQ("SELECT COUNT(*) AS n FROM pm_projects_tbl WHERE programme_id = ? AND id <> ?", "one", [$id, $exclude]);
+        $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_projects_tbl WHERE programme_id = ? AND id <> ? ORDER BY " . coreModel::natural_order_sql('abbr') . " LIMIT 6", "all", [$id, $exclude]);
+        $this->setAnswer(200, "OK", [
+            'id' => (int)$p['id'], 'label' => trim((string)$p['abbr'] . ' ' . (string)$p['name']),
+            'objective' => trim((string)$p['objective_abbr'] . ' ' . (string)$p['objective_name']),
+            'description' => mb_substr(trim(preg_replace('/\s+/', ' ', (string)$p['description'])), 0, 400),
+            'count' => (int)($n['n'] ?? 0),
+            'activities' => array_map(function ($r) { return ['id' => (int)$r['id'], 'abbr' => (string)$r['abbr'], 'name' => mb_substr((string)$r['name'], 0, 80)]; }, $rows),
+        ], "json");
     }
 
     /**
@@ -322,7 +446,7 @@ class projectsController extends coreController{
         $data["model"] = $this->model->get_table_fields($validated['model']);
         $data['meta_name'] = $this->model->get_meta_name($validated['model']);
         $data['meta_actions'] = $this->model->get_meta_actions($validated['model']);
-        $data['data'] = ($validated['id']!="new") ? $this->model->get_data($validated['model'], $validated['id']) : ["project_id"=>$validated['project_id'], "user_id"=>$_SESSION['user']['id']];
+        $data['data'] = ($validated['id']!="new") ? $this->model->get_data($validated['model'], $validated['id']) : ["project_id"=>$validated['project_id'], "user_id"=>$_SESSION['user']['user_id']];
         $this->prepare_edit_mode();
         $this->partial_render($data, "html", "popup");
     }
@@ -401,8 +525,8 @@ class projectsController extends coreController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->parts, $rules);
-        $query = "select id, name, abbr from pm_objectives_tbl where pillar_id = ".$validated['id']." and active=1 order by " . coreModel::natural_order_sql('abbr');
-        $data = $this->DB->MQ($query, "all");
+        $pillar = (int)($validated['id'] ?? 0);
+        $data = $pillar > 0 ? (array)$this->DB->MQ("select id, name, abbr from pm_objectives_tbl where pillar_id = ? and active=1 order by " . coreModel::natural_order_sql('abbr'), "all", [$pillar]) : [];
         $this->setAnswer(200, "Got ".count($data)." objectives", $data, "json");
     }
 
@@ -414,8 +538,8 @@ class projectsController extends coreController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->parts, $rules);
-        $query = "select id, name, abbr from pm_programmes_tbl where objective_id = ".$validated['id']." and active=1 order by " . coreModel::natural_order_sql('abbr');
-        $data = $this->DB->MQ($query, "all");
+        $objective = (int)($validated['id'] ?? 0);
+        $data = $objective > 0 ? (array)$this->DB->MQ("select id, name, abbr from pm_programmes_tbl where objective_id = ? and active=1 order by " . coreModel::natural_order_sql('abbr'), "all", [$objective]) : [];
         $this->setAnswer(200, "Got ".count($data)." programmes", $data, "json");
     }
 
@@ -941,15 +1065,16 @@ class projectsController extends coreController{
                 'sql'         => "AND ? = 'unfinished' AND " . activity_gaps_sql(),
             ];
         }
-        if (!allocation_review_available($this->DB)) { return; }
-        $r = $this->DB->MQ("SELECT SUM(status='proposed') p, SUM(status='accepted') a, SUM(status='reverted') u FROM pm_allocation_review_tbl", "one");
-        if (!is_set($r) || ((int)$r['p'] + (int)$r['a'] + (int)$r['u']) === 0) { return; }
+        // Only while something waits for a person: accepted and undone rows
+        // look like any other activity, on the local copy and on live alike.
+        $pending = allocation_pending_count($this->DB);
+        if ($pending === 0) { return; }
         $data['meta_filters'][] = [
-            'title'       => 'Vetting' . ((int)$r['p'] > 0 ? ' (' . (int)$r['p'] . ' pending)' : ''),
+            'title'       => 'Vetting (' . $pending . ' pending)',
             'key'         => 'review',
             'type'        => 'dropdown',
             'values_from' => 'values_list',
-            'values_list' => ['proposed' => 'Pending (' . (int)$r['p'] . ')', 'accepted' => 'Accepted (' . (int)$r['a'] . ')', 'reverted' => 'Undone (' . (int)$r['u'] . ')'],
+            'values_list' => ['proposed' => 'Pending (' . $pending . ')'],
             'all_label'   => 'Everything',
             'sql'         => "AND `id` IN (SELECT `project_id` FROM `pm_allocation_review_tbl` WHERE `status` = ?)",
         ];
@@ -963,10 +1088,20 @@ class projectsController extends coreController{
         $id = (int)($this->parts['id'] ?? 0);
         $review = allocation_review_available($this->DB) ? $this->DB->MQ("SELECT * FROM pm_allocation_review_tbl WHERE project_id = ?", "one", [$id]) : null;
         if (!is_set($review)) { $this->setAnswer(404, "No move is recorded for that activity.", [], "json"); exit; }
+        $row = $this->DB->MQ("SELECT name, description, kpi, pillar_id, objective_id, programme_id, abbr FROM pm_projects_tbl WHERE id = ?", "one", [$id]);
+        if ((string)$review['confidence'] === 'check') {
+            // "Keep here": the wording's pointer (new_*) was wrong for this
+            // text and the kept place is right - a correction the guesser
+            // learns from. The row then records the kept place as new_*, so
+            // the same question is not asked again; old_* stays what live has.
+            if (is_set($row)) { record_filing_feedback($this->DB, 'pm_projects', $row, ['pillar_id' => (int)$review['new_pillar_id'], 'objective_id' => (int)$review['new_objective_id'], 'programme_id' => (int)$review['new_programme_id']], $id); }
+            $this->DB->MQ("UPDATE pm_allocation_review_tbl SET new_pillar_id = ?, new_objective_id = ?, new_programme_id = ?, new_abbr = ?, status = 'accepted', decided_by = ?, decided_at = NOW() WHERE project_id = ?", false,
+                          [(int)($row['pillar_id'] ?? 0), (int)($row['objective_id'] ?? 0), (int)($row['programme_id'] ?? 0), (string)($row['abbr'] ?? ''), (int)($_SESSION['user']['user_id'] ?? 0), $id]);
+            $this->setAnswer(200, "Kept.", ['pending' => allocation_pending_count($this->DB)], "json");
+        }
         $this->DB->MQ("UPDATE pm_allocation_review_tbl SET status = 'accepted', decided_by = ?, decided_at = NOW() WHERE project_id = ?", false,
                       [(int)($_SESSION['user']['user_id'] ?? 0), $id]);
         // A confirmation for the matcher: the new place was right for this wording.
-        $row = $this->DB->MQ("SELECT name, description, kpi, pillar_id, objective_id, programme_id FROM pm_projects_tbl WHERE id = ?", "one", [$id]);
         if (is_set($row)) { record_filing_feedback($this->DB, 'pm_projects', $row, ['pillar_id' => $row['pillar_id'], 'objective_id' => $row['objective_id'], 'programme_id' => $row['programme_id']], $id); }
         $this->setAnswer(200, "Accepted.", ['pending' => allocation_pending_count($this->DB)], "json");
     }

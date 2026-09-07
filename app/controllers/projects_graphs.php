@@ -342,6 +342,7 @@ class projects_graphsController extends coreController{
             $otherTotal += $t; $otherProgress += $d;
         }
         $data['other'] = ["totals" => $otherTotal, "completed" => $otherProgress, "progress" => ($otherTotal > 0) ? round(($otherProgress / $otherTotal) * 100, 2) : 0];
+        $data['gaps'] = activity_gaps_for($this->DB, array_column($data['other_projects'], 'id'));
         $objectiveTotal += $otherTotal;
         $objectiveProgress += $otherProgress;
     
@@ -403,6 +404,7 @@ class projects_graphsController extends coreController{
         $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . (int)$validated['id'] . " AND objective_id = " . (int)$programme['objective_id'] . " ORDER BY " . coreModel::natural_order_sql('abbr');
         $projects = $this->DB->MQ($query, "all");
         $data['projects'] = [];
+        $data['gaps'] = activity_gaps_for($this->DB, array_column((array)$projects, 'id'));
     
         foreach ($projects as $project) {
             $projectTotal = 0;
@@ -649,6 +651,7 @@ class projects_graphsController extends coreController{
                   LEFT JOIN pm_programmes_tbl  g ON g.id = p.programme_id
                   ORDER BY l.position, o.position, o.id, " . coreModel::natural_order_sql('p.abbr') . ", p.id";
         $data['activities'] = $this->DB->MQ($query, "all") ?: [];
+        $data['gaps'] = activity_gaps_for($this->DB, array_column($data['activities'], 'id'));
 
         // Distinct values for the filter selects, taken from what is actually
         // on the page so a filter can never offer an empty result.

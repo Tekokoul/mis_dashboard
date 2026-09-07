@@ -52,7 +52,7 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
             <?php foreach ($data['other_projects'] as $p): ?>
             <div class="row afcdc-drill">
                 <div class="col col-7">
-                    <a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$p['id']);?>"><?= display(trim($p['abbr'] . ' ' . $p['name'])); ?></a><br>
+                    <?= activity_flag($data['gaps'][(int)$p['id']] ?? []); ?><a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$p['id']);?>"><?= display(trim($p['abbr'] . ' ' . $p['name'])); ?></a><br>
                     <small class="text-muted"><?= $p['programme_name'] !== null && $p['programme_name'] !== '' ? display($p['programme_name']) : 'No programme'; ?></small>
                 </div>
                 <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
