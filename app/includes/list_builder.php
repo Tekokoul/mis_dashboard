@@ -318,12 +318,15 @@ function list_cell_attrs($field, array $properties, $cell) {
  * a narrow screen it wraps under the first filter instead of being pushed
  * alone to the far right in a differently styled pill.
  */
-function list_search_box($value) {
+function list_search_box($value, $model = '', $open = '') {
     $value = (string)$value;
     $html  = '<label class="afcdc-filter afcdc-filter--search' . ($value !== '' ? ' is-active' : '') . '"><span>Search</span>';
     $html .= '<div class="input-group input-group-sm afcdc-search">';
+    // With a model named, custom.js shows matches under the box as you type
+    // (projects/search_suggest); a pick opens "<open>/<id>" or sets a filter.
     $html .= '<input type="search" class="search-term form-control form-control-sm" name="search-term" id="search-term"'
-           . ' placeholder="Name, code or programme" value="' . display($value) . '" autocomplete="off">';
+           . ' placeholder="Name, code or programme" value="' . display($value) . '" autocomplete="off"'
+           . ($model !== '' ? ' data-afcdc-suggest="' . display($model) . '" data-afcdc-open="' . display($open) . '" role="combobox" aria-autocomplete="list" aria-expanded="false"' : '') . '>';
     $html .= '<button class="btn btn-light border" type="submit" aria-label="Search"><i class="bx bx-search" aria-hidden="true"></i></button>';
     $html .= '</div></label>';
     return $html;

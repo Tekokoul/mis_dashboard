@@ -32,6 +32,7 @@ class protectedController extends vanillaController {
         'projects/task_progress_update' => [1, 2, 3],
         'projects/get_task_details'     => [1, 2, 3],
         'projects/get_tasks_details'    => [1, 2, 3],
+        'projects/search_suggest'       => [1, 2, 3],   // the search dropdown on the lists (users only for 1, 2 - checked inside)
         // Content editing
         'projects/*'                    => [1, 2],
         'core/*'                        => [1, 2],

@@ -341,6 +341,16 @@ filed there are listed (`projects/programme_context`).
 code, on both lists and on the objective, programme and per-project pages;
 the tooltip names what is missing.
 
+**Search as you type.** On every list the search box shows what it would
+find under the box (`projects/search_suggest/<model>`): rows of the list (a
+pick opens one) and the parents the list can be filtered by (a pick sets
+that filter), then "Search for …" which submits as before. Arrow keys move,
+Enter picks, Esc closes. Only names and codes travel; the users list answers
+only for administrators and executives.
+
+**Go to a page.** The "…" between page numbers, on the lists and on the Per
+Project table, opens a small box to type a page number.
+
 Where the 7 September 2026 round stands: the local copy was refreshed from
 the live content tables first (goals, objectives, programmes, activities,
 tasks, deliveries - accounts and learned corrections untouched), the two

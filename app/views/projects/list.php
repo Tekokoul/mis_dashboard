@@ -47,7 +47,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                             }
                             // One row for everything that narrows the list: the filters, the search, and Clear.
                             print '<div class="col-12 col-lg mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">'
-                                . $html . list_search_box($data['search'] ?? '')
+                                . $html . list_search_box($data['search'] ?? '', 'pm_projects', 'projects/edit')
                                 . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
                                 // While moves are pending, one control accepts everything left after the person has looked.
                                 . ((allocation_pending_count($this->DB) > 0) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-review-action="accept_all">Accept all pending</a>' : '')

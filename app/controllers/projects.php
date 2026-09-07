@@ -316,6 +316,68 @@ class projectsController extends coreController{
         $this->setAnswer(200, "Moved.", ['code' => $code, 'pending' => allocation_pending_count($this->DB)], "json");
     }
 
+    /**
+     * GET projects/search_suggest/<model>?q=: what the list search would find,
+     * as you type. Two groups: rows of the list itself (a pick opens one) and
+     * the parents a row can be filtered by (a pick sets that filter). Words
+     * are ANDed the way the list search does; six rows and three parents at
+     * most, in code order. Only names and codes leave here.
+     */
+    public function search_suggest() {
+        $this->checkMethod("GET");
+        $this->mapRoute("model");
+        $model = (string)($this->parts['model'] ?? '');
+        $q = trim((string)($this->query['q'] ?? ''));
+        $terms = array_slice(preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY), 0, 4);
+        if ($terms === [] || mb_strlen($q) < 2) { $this->setAnswer(200, "OK", ['groups' => []], "json"); }
+        $group = (int)($_SESSION['user']['group']['id'] ?? 0);
+        $like = function (array $cols) use ($terms, &$bind) {
+            $parts = [];
+            foreach ($terms as $t) {
+                $one = [];
+                foreach ($cols as $c) { $one[] = "$c LIKE ?"; $bind[] = '%' . $t . '%'; }
+                $parts[] = '(' . implode(' OR ', $one) . ')';
+            }
+            return implode(' AND ', $parts);
+        };
+        $groups = [];
+        $order = coreModel::natural_order_sql('abbr');
+        if ($model === 'pm_projects') {
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT p.id, p.abbr, p.name, g.abbr AS prg FROM pm_projects_tbl p LEFT JOIN pm_programmes_tbl g ON g.id = p.programme_id WHERE " . $like(['p.name', 'p.abbr', 'p.description']) . " ORDER BY " . coreModel::natural_order_sql('p.abbr') . " LIMIT 6", "all", $bind);
+            $groups[] = ['label' => 'Activities', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'hint' => (string)($r['prg'] ?? '')]; }, $rows)];
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_programmes_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY $order LIMIT 3", "all", $bind);
+            $groups[] = ['label' => 'Programmes', 'items' => array_map(function ($r) { return ['label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'filter' => 'programme_id', 'value' => (int)$r['id']]; }, $rows)];
+        } elseif ($model === 'pm_programmes') {
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_programmes_tbl WHERE " . $like(['name', 'abbr', 'description']) . " ORDER BY $order LIMIT 6", "all", $bind);
+            $groups[] = ['label' => 'Programmes', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name'])]; }, $rows)];
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_objectives_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY $order LIMIT 3", "all", $bind);
+            $groups[] = ['label' => 'Objectives', 'items' => array_map(function ($r) { return ['label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'filter' => 'objective_id', 'value' => (int)$r['id']]; }, $rows)];
+        } elseif ($model === 'pm_objectives') {
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_objectives_tbl WHERE " . $like(['name', 'abbr', 'description']) . " ORDER BY $order LIMIT 6", "all", $bind);
+            $groups[] = ['label' => 'Objectives', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name'])]; }, $rows)];
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, name FROM pm_pillars_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY position LIMIT 3", "all", $bind);
+            $groups[] = ['label' => 'Goals', 'items' => array_map(function ($r) { return ['label' => (string)$r['name'], 'filter' => 'pillar_id', 'value' => (int)$r['id']]; }, $rows)];
+        } elseif ($model === 'pm_pillars') {
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_pillars_tbl WHERE " . $like(['name', 'abbr', 'description']) . " ORDER BY position LIMIT 6", "all", $bind);
+            $groups[] = ['label' => 'Goals', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['name'])]; }, $rows)];
+        } elseif ($model === 'core_users' && in_array($group, [1, 2], true)) {
+            $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, username, givenname, sn FROM core_users_tbl WHERE " . $like(['username', 'givenname', 'sn']) . " ORDER BY sn, givenname LIMIT 6", "all", $bind);
+            $groups[] = ['label' => 'Users', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['givenname'] . ' ' . (string)$r['sn']) ?: (string)$r['username'], 'hint' => (string)$r['username']]; }, $rows)];
+        } else {
+            $this->setAnswer(404, "No such list", [], "json");
+        }
+        $groups = array_values(array_filter($groups, function ($g) { return !empty($g['items']); }));
+        $this->setAnswer(200, "OK", ['groups' => $groups], "json");
+    }
+
     /** GET projects/programme_context/<id>?exclude=<activity>: what a programme is for and what already sits under it, for the activity form. */
     public function programme_context() {
         $this->checkMethod("GET");

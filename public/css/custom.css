@@ -904,3 +904,19 @@ html .afcdc-jump__box { position: absolute; left: 50%; bottom: calc(100% + 0.4re
 html .afcdc-jump__box label { margin: 0; display: flex; align-items: center; gap: 0.4rem; font-weight: 600; }
 html .afcdc-jump__box input { width: 4.5rem; }
 html .afcdc-jump__of { color: var(--afcdc-ink-soft); }
+
+/* What the list search would find, under the box as you type. */
+html .afcdc-search { position: relative; }
+html .afcdc-typeahead { position: absolute; top: calc(100% + 0.25rem); left: 0; right: 0; z-index: 30; max-height: 22rem; overflow-y: auto; background: #FFF; border: 1px solid #D9DCD6; border-radius: 4px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); font-size: 0.8125rem; text-align: left; }
+html .afcdc-typeahead__group { padding: 0.35rem 0.75rem 0.15rem; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--afcdc-ink-soft); }
+html .afcdc-typeahead__item { display: flex; align-items: baseline; gap: 0.5rem; padding: 0.35rem 0.75rem; cursor: pointer; line-height: 1.35; }
+html .afcdc-typeahead__item > span { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--afcdc-ink); }
+html .afcdc-typeahead__item > small { flex: 0 0 auto; max-width: 40%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--afcdc-ink-soft); }
+html .afcdc-typeahead__act { text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700; color: var(--au-green-deep) !important; }
+html .afcdc-typeahead__item.is-active, html .afcdc-typeahead__item:hover { background: #F0F6F1; }
+html .afcdc-typeahead__all { border-top: 1px solid #EEF0EC; font-weight: 600; color: var(--au-green-deep); }
+html .dataTables_paginate .ellipsis { position: relative; cursor: pointer; padding: 0 0.5em; }
+html .dataTables_paginate .ellipsis.is-open { color: var(--au-green-deep); font-weight: 700; }
+/* The Bootstrap skin marks the dots "disabled", which switches clicks off. */
+html .dataTables_paginate .page-item.disabled > [data-dt-idx="ellipsis"] { pointer-events: auto; cursor: pointer; color: var(--afcdc-ink-soft); }
+html .dataTables_paginate .page-item.is-open > [data-dt-idx="ellipsis"] { background: var(--au-green-deep); color: #FFF; }

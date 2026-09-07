@@ -498,15 +498,14 @@ $(function () {
 });
 
 /* The "…" between page numbers opens a small box to type a page number.
- * The link carries the page URL with __PAGE__ where the number goes. */
+ * On the server-paged lists the link carries the page URL with __PAGE__
+ * where the number goes; on a DataTables table (Per Project) the box turns
+ * the table's own page instead. */
 $(function () {
     function close() { $('.afcdc-jump__box').remove(); $('.afcdc-jump').removeClass('is-open'); }
-    $(document).on('click', '[data-afcdc-jump]', function (e) {
-        e.preventDefault();
-        var $a = $(this), $li = $a.closest('li');
-        if ($li.hasClass('is-open')) { close(); return; }
+    function openBox($host, last, page, go) {
+        if ($host.hasClass('is-open')) { close(); return; }
         close();
-        var last = parseInt($a.attr('data-afcdc-last'), 10) || 1, page = parseInt($a.attr('data-afcdc-page'), 10) || 1;
         var $box = $('<form class="afcdc-jump__box" role="dialog" aria-label="Go to a page"></form>');
         var $in = $('<input type="number" class="form-control form-control-sm" min="1" max="' + last + '" required>').val(page);
         $box.append($('<label></label>').text('Go to page ').append($in))
@@ -514,12 +513,98 @@ $(function () {
             .append('<button type="submit" class="btn btn-sm btn-primary">Go</button>');
         $box.on('submit', function (ev) {
             ev.preventDefault();
-            var n = Math.min(last, Math.max(1, parseInt($in.val(), 10) || 1));
+            go(Math.min(last, Math.max(1, parseInt($in.val(), 10) || 1)));
+        });
+        $host.addClass('afcdc-jump is-open').append($box);
+        $in.trigger('focus').trigger('select');
+    }
+    $(document).on('click', '[data-afcdc-jump]', function (e) {
+        e.preventDefault();
+        var $a = $(this);
+        openBox($a.closest('li'), parseInt($a.attr('data-afcdc-last'), 10) || 1, parseInt($a.attr('data-afcdc-page'), 10) || 1, function (n) {
             window.location.href = $a.attr('data-afcdc-jump').replace('__PAGE__', String(n));
         });
-        $li.addClass('is-open').append($box);
-        $in.trigger('focus').trigger('select');
+    });
+    // DataTables draws its own "…" (span.ellipsis, or a disabled page-link
+    // with data-dt-idx="ellipsis" in the Bootstrap skin); the box drives the table.
+    $(document).on('click', '.dataTables_paginate .ellipsis, .dataTables_paginate [data-dt-idx="ellipsis"]', function (e) {
+        e.preventDefault(); e.stopImmediatePropagation();
+        var $el = $(this), $host = $el.closest('li').length ? $el.closest('li') : $el;
+        var $wrap = $el.closest('.dataTables_wrapper'), $tbl = $wrap.find('table.dataTable').first();
+        if (!$tbl.length || !$.fn.DataTable) { return; }
+        var table = $tbl.DataTable(), info = table.page.info();
+        openBox($host, info.pages || 1, (info.page || 0) + 1, function (n) { close(); table.page(n - 1).draw('page'); });
     });
     $(document).on('keydown', function (e) { if (e.key === 'Escape' && $('.afcdc-jump__box').length) { close(); e.stopImmediatePropagation(); } });
     $(document).on('click', function (e) { if (!$(e.target).closest('.afcdc-jump').length) { close(); } });
+});
+
+/* The list search shows what it would find as you type: rows of the list
+ * (a pick opens one) and the parents it can be filtered by (a pick sets
+ * that filter), then "Search for …" which submits as before. Arrow keys
+ * move, Enter picks, Esc closes. projects/search_suggest answers. */
+$(function () {
+    var $in = $('input[data-afcdc-suggest]').first();
+    if (!$in.length) { return; }
+    var model = $in.attr('data-afcdc-suggest'), open = $in.attr('data-afcdc-open') || '';
+    var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
+    var $form = $in.closest('form'), $wrap = $in.closest('.afcdc-search');
+    var $box = $('<div class="afcdc-typeahead" role="listbox" hidden></div>').appendTo($wrap);
+    var timer = null, seq = 0, items = [], active = -1;
+    function close() { $box.attr('hidden', true).empty(); items = []; active = -1; $in.attr('aria-expanded', 'false'); }
+    function go(item) {
+        if (item.filter) {
+            var $sel = $form.find('select[name="' + item.filter + '"]');
+            if ($sel.length && $sel.find('option[value="' + item.value + '"]').length) { $in.val(''); $sel.val(String(item.value)); $form.submit(); return; }
+            $in.val(item.label); $form.submit(); return;
+        }
+        if (item.id !== undefined && open) { window.location.href = prefix + '/' + open + '/' + item.id; return; }
+        $form.submit();
+    }
+    function render(groups, q) {
+        $box.empty(); items = []; active = -1;
+        $.each(groups, function (i, g) {
+            $box.append($('<div class="afcdc-typeahead__group"></div>').text(g.label));
+            $.each(g.items, function (j, it) {
+                var $row = $('<div class="afcdc-typeahead__item" role="option"></div>').append($('<span></span>').text(it.label));
+                if (it.hint) { $row.append($('<small></small>').text(it.hint)); }
+                if (it.filter) { $row.append($('<small class="afcdc-typeahead__act"></small>').text('filter')); }
+                $row.data('item', it); $box.append($row); items.push($row);
+            });
+        });
+        var $all = $('<div class="afcdc-typeahead__item afcdc-typeahead__all" role="option"></div>').text('Search for "' + q + '"').data('item', { search: true });
+        $box.append($all); items.push($all);
+        $box.removeAttr('hidden'); $in.attr('aria-expanded', 'true');
+    }
+    function ask() {
+        var q = $.trim($in.val());
+        if (q.length < 2) { close(); return; }
+        var mine = ++seq;
+        $.getJSON(prefix + '/projects/search_suggest/' + model, { q: q }, function (r) {
+            if (mine !== seq) { return; }
+            var d = (r && r.data) ? r.data : r;
+            render((d && d.groups) || [], q);
+        });
+    }
+    function highlight(n) {
+        active = n;
+        $.each(items, function (i, $r) { $r.toggleClass('is-active', i === n); });
+        if (n >= 0) { items[n][0].scrollIntoView({ block: 'nearest' }); }
+    }
+    $in.on('input', function () { clearTimeout(timer); timer = setTimeout(ask, 250); });
+    $in.on('keydown', function (e) {
+        if ($box.attr('hidden') !== undefined && $box.is('[hidden]')) { return; }
+        if (e.key === 'ArrowDown') { e.preventDefault(); highlight(Math.min(items.length - 1, active + 1)); }
+        else if (e.key === 'ArrowUp') { e.preventDefault(); highlight(Math.max(-1, active - 1)); }
+        else if (e.key === 'Enter' && active >= 0) { e.preventDefault(); go(items[active].data('item')); }
+        else if (e.key === 'Escape') { close(); e.stopImmediatePropagation(); }
+    });
+    $box.on('mousedown', '.afcdc-typeahead__item', function (e) { e.preventDefault(); go($(this).data('item')); });
+    $box.on('mousemove', '.afcdc-typeahead__item', function () {
+        var el = this, n = -1;
+        $.each(items, function (i, $r) { if ($r[0] === el) { n = i; } });
+        if (n !== active) { highlight(n); }
+    });
+    $in.on('blur', function () { window.setTimeout(close, 150); });
+    $(document).on('click', function (e) { if (!$(e.target).closest('.afcdc-search').length) { close(); } });
 });

@@ -45,7 +45,7 @@ $page_link_suffix = (count($suffix_terms) > 0) ? "?" . implode("&", $suffix_term
                                 }
                                 // One row for everything that narrows the list: the filters, the search, and Clear.
                                 print '<div class="col-12 col-lg mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">'
-                                    . $html . list_search_box($data['search'] ?? '')
+                                    . $html . list_search_box($data['search'] ?? '', 'core_users', 'users/edit')
                                     . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
                                     . '</div></div>';
 
