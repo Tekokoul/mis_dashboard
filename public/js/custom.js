@@ -431,14 +431,29 @@ $(function () {
     });
 });
 
-/* Full screen, however it was entered. A page put there through the
- * Fullscreen API says so; one the person put there with F11 does not, and
- * is recognised by the window filling the screen. Escape leaves full screen
- * either way, and that is all one press should do. */
+/* Escape leaves full screen, and that is the whole job of that press: the
+ * page must not step back as well. A page put into full screen through the
+ * Fullscreen API says so, but one the person put there with F11 or the green
+ * button does not - and its window can still show the browser's toolbar, so
+ * measuring the screen misses it. What always happens is the window
+ * resizing, so the move is scheduled a moment ahead and dropped if the
+ * window changes size first. The wait is short enough not to be felt. */
 function afcdcFullScreen() {
-    if (document.fullscreenElement || document.webkitFullscreenElement) { return true; }
-    return window.screen && Math.abs(window.innerHeight - window.screen.height) <= 2
-        && Math.abs(window.innerWidth - window.screen.width) <= 2;
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+
+function afcdcEscapeGo(go) {
+    var cancelled = false;
+    function cancel() { cancelled = true; }
+    window.addEventListener('resize', cancel);
+    document.addEventListener('fullscreenchange', cancel);
+    document.addEventListener('webkitfullscreenchange', cancel);
+    window.setTimeout(function () {
+        window.removeEventListener('resize', cancel);
+        document.removeEventListener('fullscreenchange', cancel);
+        document.removeEventListener('webkitfullscreenchange', cancel);
+        if (!cancelled) { go(); }
+    }, 180);
 }
 
 /* Esc leaves the activity form the way the Back button does - to the list
@@ -486,7 +501,7 @@ $(function () {
         if (afcdcFullScreen()) { return; }   // this press is leaving full screen; one thing per key
         e.preventDefault();
         var to = $back.attr('href');
-        window.setTimeout(function () { window.location.href = to; }, 0);
+        afcdcEscapeGo(function () { window.location.href = to; });
     });
 });
 
@@ -518,9 +533,9 @@ $(function () {
         // In full screen this press is what leaves it: that is the whole
         // action, and stepping back as well would lose the page too.
         if (afcdcFullScreen()) { return; }
-        if (sameSite(document.referrer)) { e.preventDefault(); window.setTimeout(function () { window.history.back(); }, 0); return; }
+        if (sameSite(document.referrer)) { e.preventDefault(); afcdcEscapeGo(function () { window.history.back(); }); return; }
         var up = upLink();
-        if (up) { e.preventDefault(); window.setTimeout(function () { window.location.href = up; }, 0); }
+        if (up) { e.preventDefault(); afcdcEscapeGo(function () { window.location.href = up; }); }
     });
 });
 
