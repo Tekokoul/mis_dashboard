@@ -439,7 +439,22 @@ $(function () {
  * resizing, so the move is scheduled a moment ahead and dropped if the
  * window changes size first. The wait is short enough not to be felt. */
 function afcdcFullScreen() {
-    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+    // A page put into full screen through the Fullscreen API says so.
+    if (document.fullscreenElement || document.webkitFullscreenElement) { return true; }
+    // A window the person put there with F11, or the green button on a Mac,
+    // does not - but the browser reports its display mode, which is the one
+    // signal that holds however full screen was entered. Measuring the window
+    // against the screen does not: in full screen on a Mac the toolbar is
+    // still shown, so the window is never quite the height of the screen.
+    if (window.matchMedia) {
+        var q = window.matchMedia('(display-mode: fullscreen)');
+        if (q && q.media !== 'not all' && q.matches) { return true; }
+    }
+    // Last resort where the display mode is unknown: the window covering the
+    // whole screen, chrome included (outerHeight is 0 in some embedded views).
+    var sc = window.screen;
+    return !!(sc && sc.height && window.outerHeight
+        && window.outerHeight >= sc.height - 2 && window.outerWidth >= sc.width - 2);
 }
 
 function afcdcEscapeGo(go) {
@@ -453,7 +468,7 @@ function afcdcEscapeGo(go) {
         document.removeEventListener('fullscreenchange', cancel);
         document.removeEventListener('webkitfullscreenchange', cancel);
         if (!cancelled) { go(); }
-    }, 180);
+    }, 260);
 }
 
 /* Esc leaves the activity form the way the Back button does - to the list
