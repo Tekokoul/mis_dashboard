@@ -43,7 +43,10 @@ $col_width = 12/$columns;
             // Tasks can be typed before the activity exists: they are created
             // with it (projectsController::add_update). With none, a single
             // task "Delivered" is created, as before.
-            $newTasks = array_values(array_filter((array)($data['data']['new_tasks'] ?? []), function ($t) { return is_array($t) && trim((string)($t['name'] ?? '')) !== ''; }));
+            // Anything typed comes back, name or description: keeping only the
+            // named rows threw away the very row a refusal is about, leaving
+            // "a name for every task" on screen with no row to name.
+            $newTasks = array_values(array_filter((array)($data['data']['new_tasks'] ?? []), function ($t) { return is_array($t) && (trim((string)($t['name'] ?? '')) !== '' || trim((string)($t['description'] ?? '')) !== ''); }));
             ?>
             <div class="card card-modern" id="afcdc-new-tasks">
                 <div class="card-body">

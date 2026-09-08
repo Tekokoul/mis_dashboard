@@ -128,6 +128,14 @@ class projectsController extends coreController{
         if ($validated['tablename'] === 'pm_projects') {
             $this->normaliseParents($this->query);
             $blocking = $this->activityBlockers($this->query);
+            // Same rule as the edit form: a row with something typed in it and
+            // no name is a mistake to point at, not something to drop quietly.
+            foreach ((array)($this->query['new_tasks'] ?? []) as $t) {
+                if (!is_array($t)) { continue; }
+                if (trim((string)($t['name'] ?? '')) !== '' || trim((string)($t['description'] ?? '')) === '') { continue; }
+                $blocking[] = 'a name for every task';
+                break;
+            }
             if ($blocking) { $this->renderActivityForm('add', $this->query, $blocking, $back); }
             if (trim((string)($this->query['abbr'] ?? '')) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }
             // Tasks typed on the add form; created right after the activity.
@@ -194,17 +202,23 @@ class projectsController extends coreController{
     }
 
     /**
-     * The tasks of an activity, each with the number of deliveries recorded
-     * against it. That count is what decides whether a task may be removed on
-     * the form: a task somebody has already reported against is never thrown
-     * away by a careless click, because its deliveries would be orphaned.
+     * The tasks of an activity, with what has been reported against each.
+     *
+     * Two counts, because they answer different questions. "reports" is every
+     * row on the Progress page, delivered or not, and it is what decides
+     * whether a task may be removed: reporting "not delivered" with a comment
+     * is somebody's work too, and the row hangs off this task's id.
+     * "deliveries" is only the ones marked delivered, and it is there so the
+     * form can say what is actually on the task instead of calling a
+     * not-delivered note a delivery.
      */
     private function activityTasks($projectId) {
         $projectId = (int)$projectId;
         if ($projectId <= 0) { return []; }
         return (array)$this->DB->MQ(
             "SELECT t.id, t.name, t.description,
-                    (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id) AS deliveries
+                    (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id) AS reports,
+                    (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.result = 1) AS deliveries
                FROM pm_projects_tasks_tbl t
               WHERE t.project_id = ?
               ORDER BY t.id", "all", [$projectId]);
@@ -230,6 +244,9 @@ class projectsController extends coreController{
             $mine = $this->DB->MQ("SELECT id FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", "one", [$id, $projectId]);
             if (!is_set($mine)) { continue; }
             if ((string)($t['remove'] ?? '0') === '1') {
+                // Any progress row at all, not only a delivery: a "not
+                // delivered" note is a record of somebody looking, and
+                // deleting the task would orphan it.
                 $d = $this->DB->MQ("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE task_id = ?", "one", [$id]);
                 if ((int)($d['n'] ?? 0) > 0) { $kept[] = $id; continue; }
                 $this->DB->MQ("DELETE FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", false, [$id, $projectId]);
@@ -276,6 +293,16 @@ class projectsController extends coreController{
             foreach ((array)($this->query['tasks'] ?? []) as $t) {
                 if (!is_array($t) || (string)($t['remove'] ?? '0') === '1') { continue; }
                 if (trim((string)($t['name'] ?? '')) === '') { $blocking[] = 'a name for every task'; break; }
+            }
+            // A new row with a description and no name used to be dropped on
+            // save without a word, taking what was typed with it. An entirely
+            // empty row is still just an unused row and is ignored.
+            foreach ((array)($this->query['new_tasks'] ?? []) as $t) {
+                if (!is_array($t)) { continue; }
+                if (trim((string)($t['name'] ?? '')) !== '') { continue; }
+                if (trim((string)($t['description'] ?? '')) === '') { continue; }
+                if (!in_array('a name for every task', $blocking, true)) { $blocking[] = 'a name for every task'; }
+                break;
             }
             if ($blocking) { $this->renderActivityForm('edit', $this->query, $blocking, $back); }
             if (array_key_exists('abbr', $this->query) && trim((string)$this->query['abbr']) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }

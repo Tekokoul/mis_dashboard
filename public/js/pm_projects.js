@@ -15,6 +15,9 @@ $(document).ready(function() {
             });
             $newTasks.find('.afcdc-new-tasks__empty').prop('hidden', (rows.length + saved) > 0);
         }
+        // Rows that came back with a refused save have no number until this
+        // runs, so the list read "1, 2, 3, blank, blank".
+        renumber();
         $newTasks.on('click', '[data-add-task]', function (e) {
             e.preventDefault();
             var i = $newTasks.find('tr.afcdc-new-task').length;
@@ -52,8 +55,10 @@ $(document).ready(function() {
             $(this).prop('hidden', true);
             $row.find('[data-remove-existing-task]').prop('hidden', false);
         });
-        // Enter in a task row adds the next row instead of submitting the form.
-        $newTasks.on('keydown', 'input', function (e) { if (e.key === 'Enter') { e.preventDefault(); $newTasks.find('[data-add-task]').trigger('click'); } });
+        // Enter in a row being TYPED adds the next one instead of submitting.
+        // Only in those rows: in a saved task's box Enter means "I have fixed
+        // this, save it", and adding a blank row there is never what was meant.
+        $newTasks.on('keydown', 'tr.afcdc-new-task input', function (e) { if (e.key === 'Enter') { e.preventDefault(); $newTasks.find('[data-add-task]').trigger('click'); } });
     }
     // Nothing saved yet means no details panel to load, and an activity
     // reported through tasks has no panel at all any more - they are edited in

@@ -408,17 +408,26 @@ $(function () {
         var field = e.target;
         if (!field || !field.form || !$(field.form).hasClass('ecommerce-form')) { return; }
         e.preventDefault();
+        // Most fields are wrapped by the form builder; the task rows on the
+        // activity form are bare inputs in a table cell. Without this fallback
+        // the mark went nowhere, the message was appended to an empty set, and
+        // the scroll below threw on undefined - which, because preventDefault
+        // above has already suppressed the browser's own bubble, left the Save
+        // button doing nothing at all with no explanation.
         var $group = $(field).closest('.form-group');
+        var grouped = $group.length > 0;
+        if (!grouped) { $group = $(field).closest('td, .afcdc-field-wrap'); }
         var why = (field.tagName === 'SELECT' && !field.options.length) ? 'Nothing to choose from yet' : 'Required';
         $group.addClass('afcdc-field--missing');
         var $msg = $group.find('.afcdc-field__msg');
-        if (!$msg.length) { $msg = $('<div class="afcdc-field__msg" role="alert"></div>').appendTo($group.children().last()); }
+        if (!$msg.length && $group.length) { $msg = $('<div class="afcdc-field__msg" role="alert"></div>').appendTo(grouped ? $group.children().last() : $group); }
         $msg.text(why);
         if (!pending) {
             pending = field;
             window.setTimeout(function () {
                 var first = pending; pending = null;
-                $(first).closest('.form-group')[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
+                var $scroll = $(first).closest('.form-group');
+                ($scroll[0] || first).scrollIntoView({ block: 'center', behavior: 'smooth' });
                 // A dropdown opened here is the form's doing, not the person's: a
                 // suggestion that lands meanwhile may still fill the boxes.
                 if ($(first).data('select2')) { $(first).attr('data-afcdc-auto-open', '1').one('select2:close', function () { $(this).removeAttr('data-afcdc-auto-open'); }).select2('open'); } else { first.focus(); }
@@ -427,7 +436,7 @@ $(function () {
     }, true);
     // The mark goes as soon as the field is filled.
     $(document).on('input change', 'form.ecommerce-form [required]', function () {
-        if (this.value !== '' && this.value !== null) { $(this).closest('.form-group').removeClass('afcdc-field--missing').find('.afcdc-field__msg').remove(); }
+        if (this.value !== '' && this.value !== null) { $(this).closest('.form-group, td, .afcdc-field-wrap').first().removeClass('afcdc-field--missing').find('.afcdc-field__msg').remove(); }
     });
 });
 
@@ -504,6 +513,15 @@ $(function () {
         $('form.ecommerce-form').find('input[type="text"], input:not([type]), textarea').each(function () {
             if (this.name === 'abbr' && this.getAttribute('data-auto') === '1') { return; }   // filled by the form, not typed
             if (this.value !== this.defaultValue) { dirty = true; }
+        });
+        // A task struck through for removal is a decision, not a keystroke: it
+        // has no typed text to compare, so it has to be looked for on its own.
+        // Not against defaultValue - for a hidden input the value property is
+        // the attribute itself, so the two are never different and this test
+        // silently passed everything.
+        $('form.ecommerce-form').find('input[name$="[remove]"]').each(function () {
+            var was = this.getAttribute('data-afcdc-was');
+            if (this.value !== (was === null ? '0' : was)) { dirty = true; }
         });
         // Not option[selected]: the cascade rebuilds these options in script,
         // so none carries the attribute and a re-filing was read as "nothing
