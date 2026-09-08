@@ -1,7 +1,13 @@
 {
   "meta": {
     "name": "Goals",
-    "actions": []
+    "actions": [],
+    "child": {
+      "model": "pm_objectives",
+      "route": "core/db_add/pm_objectives",
+      "parent_field": "pillar_id",
+      "label": "objective"
+    }
   },
   "fields": {
     "id": {

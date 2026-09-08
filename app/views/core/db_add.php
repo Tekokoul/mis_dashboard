@@ -19,6 +19,8 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
 </header>
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("core/db_add_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
+    <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
+    <?php if (!empty($data['data'])): ?><input type="hidden" name="filed_from_parent" value="1"><?php endif; ?>
     <div class="row mb-4">
         <?php
         if(isset($data['model']['common'])){
@@ -104,13 +106,21 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
         <!---->
         <!--                </div>-->
 
-        <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0 ms-auto">
+        <?php if (!empty($data['child'])): ?>
+        <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0">
+            <?php // Saves this one, then opens the child's form with it as the parent. ?>
+            <button type="submit" name="after_save" value="child" class="submit-button btn btn-default btn-px-4 py-3 d-flex align-items-center line-height-1" data-loading-text="Loading...">
+                <i class="bx bx-plus-medical text-4 me-2"></i> Save and <?= display(strtolower(child_add_label($data['child']))); ?>
+            </button>
+        </div>
+        <?php endif; ?>
+        <div class="col-12 col-md-auto <?= empty($data['child']) ? 'ms-md-auto ' : ''; ?>mt-3 mt-md-0 ms-auto">
             <button type="submit" class="submit-button btn btn-primary btn-px-4 py-3 d-flex align-items-center font-weight-semibold line-height-1" data-loading-text="Loading...">
                 <i class="bx bx-save text-4 me-2"></i> Update
             </button>
         </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
-            <a href="<?=$this->GoBack();?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
+            <a href="<?= display($data['back'] ?? $this->L('core/db_list/' . $data['model_name'])); ?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1" data-afcdc-back title="Back to the list (Esc)">Back</a>
         </div>
     </div>
 </form>

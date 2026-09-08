@@ -93,7 +93,18 @@ class projectsController extends coreController{
         $data['model_name'] = "pm_projects";
         $data["model"] = $this->model->get_table_fields("pm_projects");
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
-        $data['back'] = $this->backTo();
+        $data['back'] = $this->backTo('projects/list');
+        // Opened from a programme's "Add an activity" button: that programme
+        // is preselected, with the objective and goal it belongs to, so the
+        // three boxes agree and nothing is filed where nobody put it.
+        if ((string)($this->query['from'] ?? '') === 'parent') {
+            $programme = (int)($this->query['programme_id'] ?? 0);
+            $row = $programme > 0 ? $this->DB->MQ("SELECT g.id, g.objective_id, o.pillar_id FROM pm_programmes_tbl g LEFT JOIN pm_objectives_tbl o ON o.id = g.objective_id WHERE g.id = ?", "one", [$programme]) : null;
+            if (is_set($row)) {
+                $data['data'] = ['programme_id' => (int)$row['id'], 'objective_id' => (int)$row['objective_id'], 'pillar_id' => (int)$row['pillar_id']];
+                $data['filed_from_parent'] = true;
+            }
+        }
         $this->AddJS("/js/pm_projects.js");
         $this->prepare_edit_mode();
         $this->render($data);
@@ -111,6 +122,8 @@ class projectsController extends coreController{
         unset($this->query['additional_tables']);
 
         $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
+        $deliberate = (string)($this->query['filed_from_parent'] ?? '') === '1';
+        unset($this->query['from'], $this->query['after_save']);
         $newTasks = [];
         if ($validated['tablename'] === 'pm_projects') {
             $this->normaliseParents($this->query);
@@ -146,10 +159,10 @@ class projectsController extends coreController{
                     'pillar_id'    => $this->query['suggest_pillar_id']    ?? 0,
                     'objective_id' => $this->query['suggest_objective_id'] ?? 0,
                     'programme_id' => $this->query['suggest_programme_id'] ?? 0,
-                ], (int)$new_id);
+                ], (int)$new_id, $deliberate);
                 $this->checkPlacement((int)$new_id, $this->query);
             }
-            redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo($back)));
+            redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo('projects/list', $back)));
         } else {
             $this->setAnswer(500, "Problem adding the entry.");
         }
@@ -173,7 +186,7 @@ class projectsController extends coreController{
         // missing are shown on the form too, not only in the list.
         $data['review'] = allocation_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
         $data['gaps'] = is_array($data['data']) ? activity_gaps($this->DB, $data['data']) : [];
-        $data['back'] = $this->backTo();
+        $data['back'] = $this->backTo('projects/list');
         $this->AddJS("/js/pm_projects.js");
         $this->prepare_edit_mode();
         $this->render($data);
@@ -221,7 +234,7 @@ class projectsController extends coreController{
                 record_filing_feedback($this->DB, 'pm_projects', $this->query, $previous, (int)$validated['id']);
                 $this->checkPlacement((int)$validated['id'], $this->query, is_array($previous) ? $previous : null);
             }
-            redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo($back)));
+            redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo('projects/list', $back)));
         }
     }
 
@@ -433,7 +446,8 @@ class projectsController extends coreController{
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['data'] = $posted;
         $data['form_errors'] = $errors;
-        $data['back'] = $this->backTo($back);
+        $data['back'] = $this->backTo('projects/list', $back);
+        $data['filed_from_parent'] = (string)($posted['filed_from_parent'] ?? '') === '1';
         if ($mode === 'edit') {
             $id = (int)($posted['id'] ?? 0);
             $data['review'] = allocation_reviews($this->DB, [$id])[$id] ?? null;
@@ -447,24 +461,6 @@ class projectsController extends coreController{
         $this->render($data);
     }
 
-    /**
-     * Where Back (and the Esc key) on the activity form should go: the list
-     * page the form was opened from, never the form itself. After a save the
-     * form is reached by a redirect, so the browser's referer would be the
-     * form - which is why Back used to lead nowhere.
-     */
-    private function backTo($given = '') {
-        // GoBack() escapes for HTML; the views escape again, so it is undone here.
-        foreach ([(string)$given, (string)($this->query['back'] ?? ''), html_entity_decode($this->GoBack(), ENT_QUOTES, 'UTF-8')] as $c) {
-            $c = trim($c);
-            // A path on this host only: "//host" and "/\\host" both leave the site in a browser.
-            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || strpbrk($c, "\\\r\n") !== false) { continue; }
-            if (preg_match('#/projects/(add|edit|add_update|edit_update)(/|$|\?)#', $c)) { continue; }
-            if (rtrim($c, '/') === rtrim((string)$this->L(""), '/')) { continue; }   // no referer at all: GoBack() answers with the site root
-            return $c;
-        }
-        return $this->L("projects/list");
-    }
 
     /**
      * pm_projects_tbl stores pillar_id and objective_id side by side, and the

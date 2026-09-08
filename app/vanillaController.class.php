@@ -175,6 +175,26 @@ class vanillaController {
         return _MULTILINGUAL ? "/".$this->lang."/".$destination : "/".$destination;
     }
 
+    /**
+     * Where "Back" and the Esc key on a form should go: the list the form was
+     * opened from, never the form itself. After a save the form is reached by
+     * a redirect, so the browser's referer would be the form - which is why
+     * the list URL travels in a hidden "back" field and in ?back= as well.
+     * Only a path on this host is accepted: "//host" and "/\host" both leave
+     * the site in a browser.
+     */
+    public function backTo($default, $given = '') {
+        // GoBack() escapes for HTML and the views escape again, so it is undone here.
+        foreach ([(string)$given, (string)($this->query['back'] ?? ''), html_entity_decode($this->GoBack(), ENT_QUOTES, 'UTF-8')] as $c) {
+            $c = trim($c);
+            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || strpbrk($c, "\\\r\n") !== false) { continue; }
+            if (preg_match('#/(?:projects/(?:add|edit|add_update|edit_update)|core/db_(?:add|edit|add_update|edit_update))(?:/|$|\?)#', $c)) { continue; }
+            if (rtrim($c, '/') === rtrim((string)$this->L(""), '/')) { continue; }   // no referer at all: GoBack() answers with the site root
+            return $c;
+        }
+        return $this->L($default);
+    }
+
     // The "Back" link on every form. The Referer is request data: only a
     // same-origin path is accepted (no scheme, no host, no "javascript:"),
     // and it is escaped for the href attribute it lands in.

@@ -16,7 +16,13 @@
         "sql": "AND `objective_id` IN (SELECT `id` FROM `pm_objectives_tbl` WHERE `pillar_id` = ?)",
         "all_label": "All goals"
       }
-    ]
+    ],
+    "child": {
+      "model": "pm_projects",
+      "route": "projects/add",
+      "parent_field": "programme_id",
+      "label": "activity"
+    }
   },
   "fields": {
     "id": {

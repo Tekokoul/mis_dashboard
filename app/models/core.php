@@ -42,6 +42,12 @@ class coreModel
         return (isset($settings['meta']['actions'])) ? $settings['meta']['actions'] : [];
     }
 
+    /** meta.child: the level below this one, for the "Add a ..." button on its forms. */
+    function get_meta_child($table_name, $mode = "C"){
+        $settings = (file_exists(_MODELS_SETTINGS_PATH . $this->get_table_name($table_name, $mode) . ".json")) ? readJSONFile(_MODELS_SETTINGS_PATH . $this->get_table_name($table_name, $mode) . ".json") : [];
+        return (isset($settings['meta']['child'])) ? $settings['meta']['child'] : [];
+    }
+
     function get_meta_filters($table_name, $mode = "C"){
         $settings = (file_exists(_MODELS_SETTINGS_PATH . $this->get_table_name($table_name, $mode) . ".json")) ? readJSONFile(_MODELS_SETTINGS_PATH . $this->get_table_name($table_name, $mode) . ".json") : [];
         return (isset($settings['meta']['filters'])) ? $settings['meta']['filters'] : [];

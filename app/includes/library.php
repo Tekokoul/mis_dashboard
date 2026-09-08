@@ -1112,7 +1112,7 @@ function filing_feedback_available($db) {
  * Saving an unchanged item records nothing: ignoring a hint is not a
  * correction, and recording it would damp good places on every save.
  */
-function record_filing_feedback($db, $model, array $posted, $suggested, $rowId = 0) {
+function record_filing_feedback($db, $model, array $posted, $suggested, $rowId = 0, $deliberate = false) {
     if (!in_array($model, ['pm_objectives', 'pm_programmes', 'pm_projects'], true)) { return; }
     if (!filing_feedback_available($db)) { return; }
     $suggested = (array)$suggested;
@@ -1121,7 +1121,10 @@ function record_filing_feedback($db, $model, array $posted, $suggested, $rowId =
         'objective' => (int)($suggested['objective_id'] ?? 0),
         'programme' => (int)($suggested['programme_id'] ?? 0),
     ];
-    if ($sug['pillar'] <= 0 && $sug['objective'] <= 0 && $sug['programme'] <= 0) { return; }
+    // A placement made from the parent's own "Add a ..." button is a
+    // statement about where this wording belongs, so it is worth recording
+    // even when the guesser had nothing to say about it.
+    if (!$deliberate && $sug['pillar'] <= 0 && $sug['objective'] <= 0 && $sug['programme'] <= 0) { return; }
     $chosen = [
         'pillar'    => (int)($posted['pillar_id']    ?? 0),
         'objective' => (int)($posted['objective_id'] ?? 0),
@@ -1135,7 +1138,8 @@ function record_filing_feedback($db, $model, array $posted, $suggested, $rowId =
     // The level this model is filed AT: an objective sits in a goal, a
     // programme in an objective, an activity in a programme.
     $level = $model === 'pm_objectives' ? 'pillar' : ($model === 'pm_programmes' ? 'objective' : 'programme');
-    if ($sug[$level] <= 0 || $chosen[$level] <= 0) { return; }
+    if ($chosen[$level] <= 0) { return; }
+    if ($sug[$level] <= 0 && !$deliberate) { return; }
     // Accepted means nothing moved AT ANY level. Judging this by the filing
     // level alone missed the commonest correction in this data: an activity
     // kept its programme but was moved to another objective, because a
@@ -1144,6 +1148,10 @@ function record_filing_feedback($db, $model, array $posted, $suggested, $rowId =
     foreach (['pillar', 'objective', 'programme'] as $lvl) {
         if ($sug[$lvl] > 0 && $sug[$lvl] !== $chosen[$lvl]) { $accepted = 0; }
     }
+    // Nothing was suggested at this level and the person said where it goes:
+    // a clean example. It reads back as "filed here before for wording like
+    // this" and damps nothing, because there is no wrong place to damp.
+    if ($deliberate && $sug[$level] <= 0) { $accepted = 0; }
     $db->MQ("INSERT INTO pm_filing_feedback_tbl
                 (model, words, chosen_pillar_id, chosen_objective_id, chosen_programme_id,
                  suggested_pillar_id, suggested_objective_id, suggested_programme_id,
@@ -1362,6 +1370,25 @@ function allocation_review_panel($review) {
     $note = allocation_review_note($review);
     if ($note === '') { return ''; }   // undone, or a check that was answered: nothing to show
     return '<div class="afcdc-review-panel afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) . '">' . $note . '</div>';
+}
+
+/**
+ * "Add an objective", "Add a programme", "Add an activity": the button that
+ * carries a parent into the child's form. A child opened this way is never
+ * filed under a parent nobody picked, and the placement is recorded as an
+ * example the guesser learns from. meta.child in the model settings says
+ * where it goes; child_add_href() returns the path, and the view prefixes it
+ * with the language the way it does every other link.
+ */
+function child_add_label(array $child) {
+    $label = (string)($child['label'] ?? 'entry');
+    return 'Add ' . (preg_match('/^[aeiou]/i', $label) ? 'an ' : 'a ') . $label;
+}
+
+function child_add_href(array $child, $parentId) {
+    $parentId = (int)$parentId;
+    if ($parentId <= 0 || empty($child['route']) || empty($child['parent_field'])) { return ''; }
+    return (string)$child['route'] . '?' . rawurlencode((string)$child['parent_field']) . '=' . $parentId . '&from=parent';
 }
 
 /**

@@ -96,7 +96,12 @@ $(function () {
             $sug[f].val(c && c[f] !== undefined ? String(c[f]) : '');
         });
     }
-    var manual = false, auto = false, timer = null, lastText = '', last = null, seq = 0, inflight = false, pendingSubmit = null, bypass = false, settling = false, deferred = null;
+    var manual = false, auto = false, timer = null, lastText = '', last = null, seq = 0, inflight = false, pendingSubmit = null, pendingSubmitter = null, bypass = false, settling = false, deferred = null;
+    // Opened from a parent's "Add a ..." button: that parent is a choice a
+    // person made, so the wording only suggests here - it never moves the
+    // boxes. The suggestion is still asked for and still posted, which is
+    // how the placement teaches the guesser when the two disagree.
+    if ($form.find('input[name="filed_from_parent"]').length) { manual = true; }
     // The three boxes wear gold while what they show came from the wording
     // and nobody has touched them; a pick by hand takes it off.
     function markSuggested(on) {
@@ -192,9 +197,14 @@ $(function () {
     function codePending() { return $form.find('input[name="abbr"][data-afcdc-code-pending="1"]').length > 0; }
     function flush() {
         if (!pendingSubmit || inflight || settling || codePending()) { return; }
-        var f = pendingSubmit; pendingSubmit = null;
+        var f = pendingSubmit, sub = pendingSubmitter;
+        pendingSubmit = null; pendingSubmitter = null;
         bypass = true;
-        if (typeof f.requestSubmit === 'function') { f.requestSubmit(); } else { f.submit(); }
+        // Through the button that was pressed: "Save and add a programme"
+        // carries a name and a value, and a plain requestSubmit() drops them.
+        if (typeof f.requestSubmit === 'function') {
+            if (sub && f.contains(sub)) { f.requestSubmit(sub); } else { f.requestSubmit(); }
+        } else { f.submit(); }
         bypass = false;
     }
     function ask() {
@@ -233,6 +243,7 @@ $(function () {
         if (currentText() === lastText && !inflight && !settling && !codePending()) { return; }
         e.preventDefault();
         pendingSubmit = this;
+        pendingSubmitter = (e.originalEvent && e.originalEvent.submitter) || null;
         clearTimeout(timer);
         ask();
         var gen = seq;
@@ -447,6 +458,37 @@ $(function () {
         if (dirty && !window.confirm('Leave without saving your changes?')) { return; }
         e.preventDefault();
         window.location.href = $back.attr('href');
+    });
+});
+
+/* Esc anywhere else in the dashboard goes back one step: the page you came
+ * from when that was a page of this site, otherwise the parent named in the
+ * breadcrumb (Overview > Objective > Programme). Forms are handled above,
+ * and anything that uses Esc for itself - a dropdown, a dialog, the search
+ * suggestions, the go-to-page box - stops the key before it reaches here. */
+$(function () {
+    function sameSite(url) {
+        if (!url) { return false; }
+        var a = document.createElement('a');
+        a.href = url;
+        return a.protocol === window.location.protocol && a.host === window.location.host;
+    }
+    function upLink() {
+        // The breadcrumb's last link is the level above; the last one in the
+        // header is the page itself on a list, which is not a step back.
+        var $links = $('header.page-header').find('h2 a, .breadcrumbs a');
+        return $links.length ? $links.last().attr('href') : '';
+    }
+    $(document).on('keydown', function (e) {
+        if (e.key !== 'Escape' || e.isDefaultPrevented()) { return; }
+        if ($('a[data-afcdc-back]').length) { return; }            // a form: handled above
+        if ($('.select2-container--open, .afcdc-jump__box').length) { return; }
+        if (window.jQuery && $.magnificPopup && $.magnificPopup.instance && $.magnificPopup.instance.isOpen) { return; }
+        var tag = (document.activeElement && document.activeElement.tagName) || '';
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { return; }
+        if (sameSite(document.referrer)) { e.preventDefault(); window.history.back(); return; }
+        var up = upLink();
+        if (up) { e.preventDefault(); window.location.href = up; }
     });
 });
 

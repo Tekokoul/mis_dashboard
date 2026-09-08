@@ -119,9 +119,32 @@ class coreController extends protectedController{
         $data['model_name'] = $validated['model'];
         $data["model"] = $this->model->get_table_fields($validated['model']);
         $data['meta_name'] = $this->model->get_meta_name($validated['model']);
+        // Opened from a parent's "Add a ..." button: the parent arrives in the
+        // query and is preselected, so the child is never filed under a parent
+        // nobody picked. Only this model's own parent dropdowns may be preset.
+        $data['data'] = $this->presetFromParent($data['model']);
+        $data['child'] = $this->model->get_meta_child($validated['model']);
+        $data['back'] = $this->backTo('core/db_list/' . $validated['model']);
         $this->AutoInclude($this->model->get_includes($validated['model'], "add"));
         $this->prepare_edit_mode();
         $this->render($data);
+    }
+
+    /**
+     * The parent a "Add a ..." button carried over, as prepopulated values.
+     * Empty unless the link said so (from=parent), and never a column this
+     * model does not own or that is not a parent dropdown.
+     */
+    private function presetFromParent(array $modelFields) {
+        if ((string)($this->query['from'] ?? '') !== 'parent') { return []; }
+        $common = (array)($modelFields['common'] ?? []);
+        $preset = [];
+        foreach ($this->query as $field => $value) {
+            if (!is_string($field) || !array_key_exists($field, $common)) { continue; }
+            if (($common[$field]['type'] ?? '') !== 'dropdown') { continue; }
+            if ((int)$value > 0) { $preset[$field] = (int)$value; }
+        }
+        return $preset;
     }
 
     public function db_add_update(){
@@ -140,15 +163,28 @@ class coreController extends protectedController{
             // An empty code is numbered from where the row sits (library.php auto_wbs_code).
             $this->query['abbr'] = auto_wbs_code($this->DB, $validated['tablename'], $this->query);
         }
+        // Form markers, not columns: what the wording had suggested is read
+        // below, the rest only steers where the save lands.
+        $deliberate = (string)($this->query['filed_from_parent'] ?? '') === '1';
+        $addChild   = (string)($this->query['after_save'] ?? '') === 'child';
+        $back       = (string)($this->query['back'] ?? '');
+        unset($this->query['filed_from_parent'], $this->query['after_save'], $this->query['from'], $this->query['back']);
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             record_filing_feedback($this->DB, $validated['tablename'], $this->query, [
                 'pillar_id'    => $this->query['suggest_pillar_id']    ?? 0,
                 'objective_id' => $this->query['suggest_objective_id'] ?? 0,
                 'programme_id' => $this->query['suggest_programme_id'] ?? 0,
-            ], (int)$executed['common']);
+            ], (int)$executed['common'], $deliberate);
+            // "Save and add a programme": on to the child's form, with this
+            // row as its parent.
+            $child = $this->model->get_meta_child($validated['tablename']);
+            if ($addChild && $child) {
+                $href = child_add_href($child, (int)$executed['common']);
+                if ($href !== '') { redirect($this->L($href)); }
+            }
             $id_part = ($this->update_redirect=="db_edit") ? "/".$executed['common'] : "";
-            redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part));
+            redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part) . '?back=' . rawurlencode($this->backTo('core/db_list/' . $validated['tablename'], $back)));
         } else {
             $this->setAnswer(500, "Problem adding the entry.");
         }
@@ -168,6 +204,8 @@ class coreController extends protectedController{
         $data["model"] = $this->model->get_table_fields($validated['model']);
         $data['meta_name'] = $this->model->get_meta_name($validated['model']);
         $data['meta_actions'] = $this->model->get_meta_actions($validated['model']);
+        $data['child'] = $this->model->get_meta_child($validated['model']);
+        $data['back'] = $this->backTo('core/db_list/' . $validated['model']);
         $data['data'] = $this->model->get_data($validated['model'], $validated['id']);
         $this->AutoInclude($this->model->get_includes($validated['model'], "edit"));
         $this->prepare_edit_mode();
@@ -176,6 +214,9 @@ class coreController extends protectedController{
 
     public function db_edit_update(){
         $this->checkMethod("POST");
+        $deliberate = (string)($this->query['filed_from_parent'] ?? '') === '1';
+        $back       = (string)($this->query['back'] ?? '');
+        unset($this->query['filed_from_parent'], $this->query['after_save'], $this->query['from'], $this->query['back']);
         $rules = [
             "tablename" => FILTER_UNSAFE_RAW,
             "id" => FILTER_SANITIZE_NUMBER_INT
@@ -201,9 +242,9 @@ class coreController extends protectedController{
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");
         } else {
-            record_filing_feedback($this->DB, $validated['tablename'], $this->query, $previous, (int)$validated['id']);
+            record_filing_feedback($this->DB, $validated['tablename'], $this->query, $previous, (int)$validated['id'], $deliberate);
             $id_part = ($this->update_redirect=="db_edit") ? "/".$validated['id'] : "";
-            redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part));
+            redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part) . '?back=' . rawurlencode($this->backTo('core/db_list/' . $validated['tablename'], $back)));
         }
     }
 

@@ -358,6 +358,31 @@ a search is on).
 **Go to a page.** The "…" between page numbers, on the lists and on the Per
 Project table, opens a small box to type a page number.
 
+**Adding the level below.** A goal's form offers "Add an objective", an
+objective's "Add a programme", a programme's "Add an activity"; on a form
+for something that does not exist yet the same button reads "Save and add
+a ..." and saves first. The child's form opens with its parent already
+chosen (an activity also gets that programme's objective and goal, and its
+next code), so nothing is ever filed under a parent nobody picked. The
+level below is declared as `meta.child` in the model settings, beside
+`filters` and the dropdown `cascade`; nothing is hard-coded per level.
+
+A placement made this way is a person saying where this wording belongs, so
+the wording is still scored in the background and the two are compared: when
+the guesser would have filed it elsewhere the difference is recorded as a
+correction, and when the guesser had nothing to say the placement is kept as
+a plain example. Both read back through `pm_filing_feedback_tbl`, which is
+how the suggestions get better at the categories you actually use. The
+preset never moves under a suggestion: on these forms the wording only
+suggests, with Apply.
+
+**Esc goes back.** On a form it returns to the list the form was opened from,
+asking first when something typed or a goal / objective / programme moved by
+hand would be lost. Anywhere else it steps back one page, or up the
+breadcrumb (Overview › Objective › Programme) when there is no page to step
+back to. Anything that uses Esc for itself, a dropdown, a dialog, the search
+suggestions or the go-to-page box, keeps it.
+
 **Tasks on the add form.** The Tasks card on a new activity takes names and
 descriptions before the activity exists (+ adds a row, Enter in a row adds
 the next); they are created with the activity, applying to every active

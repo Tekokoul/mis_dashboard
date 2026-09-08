@@ -22,6 +22,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
 </header>
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("core/db_edit_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
+    <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
     <div class="row mb-4">
         <?php
         if(isset($data['model']['common'])){
@@ -102,6 +103,11 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
     <div class="row action-buttons nopadding">
         <div class="col-12 col-md-auto">
             <?php
+            // The level below this one, carried its parent (meta.child).
+            if (!empty($data['child']) && ($href = child_add_href($data['child'], $data['data']['id'] ?? 0)) !== '') {
+                print '<a href="' . display($this->L($href)) . '" class="btn btn-default btn-px-4 py-3 line-height-1 me-2">'
+                    . '<i class="bx bx-plus-medical text-4 me-2"></i> ' . display(child_add_label($data['child'])) . '</a>';
+            }
             if(isset($data['meta_actions'])){
                 foreach ($data['meta_actions'] as $action) {
                     $show_action = false;
@@ -133,7 +139,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
             </button>
         </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
-            <a href="<?=$this->GoBack();?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
+            <a href="<?= display($data['back'] ?? $this->L('core/db_list/' . $data['model_name'])); ?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1" data-afcdc-back title="Back to the list (Esc)">Back</a>
         </div>
     </div>
 </form>

@@ -15,7 +15,13 @@
         "add_zero_value": true,
         "all_label": "All goals"
       }
-    ]
+    ],
+    "child": {
+      "model": "pm_programmes",
+      "route": "core/db_add/pm_programmes",
+      "parent_field": "objective_id",
+      "label": "programme"
+    }
   },
   "fields": {
     "id": {

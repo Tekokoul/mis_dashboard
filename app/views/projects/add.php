@@ -14,6 +14,7 @@ $col_width = 12/$columns;
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("projects/add_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
     <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
+    <?php if (!empty($data['filed_from_parent'])): ?><input type="hidden" name="filed_from_parent" value="1"><?php endif; ?>
     <div class="row mb-4">
         <div class="col col-lg-<?=$col_width;?> col-md-12">
             <section class="card card-modern mb-5">
