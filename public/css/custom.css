@@ -934,3 +934,9 @@ html .afcdc-typeahead__why b { font-weight: 700; color: var(--au-green-deep); fo
 html .afcdc-new-tasks__lead { margin: 0 0 0.75rem; font-size: 0.8125rem; color: var(--afcdc-ink-soft); }
 html #afcdc-new-tasks td { vertical-align: middle; }
 html #afcdc-new-tasks .afcdc-new-task__num { color: var(--afcdc-ink-soft); }
+
+/* A row that only carries an action, not a way into another page: the same
+   spacing as a drill-down row, without the chevron that promises one. */
+html .afcdc-drill--flat { padding-right: .5rem; }
+html .afcdc-drill--flat::after { content: none; }
+html .afcdc-drill--flat:hover, html .afcdc-drill--flat:focus-within { background: transparent; }

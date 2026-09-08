@@ -60,23 +60,34 @@ foreach ($members as $member){
         </div>
     </div>
     <div class="col-lg-7 col-md-12">
-            <h3 class="pb-4">Assignees</h3>
+            <h3 class="pb-4">Tasks</h3>
             <?php
-            $members = $data['project']['members'] ?? [];
-            foreach ($members as $member){
+            // What this activity is delivered through, each with what has been
+            // recorded against it and a way to record the rest - the same
+            // button the programme page puts beside every activity.
+            $tasks = $data['project']['tasks'] ?? [];
+            $mayRecord = in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true);
+            if (!$tasks) {
+                print '<p class="text-muted">No task on this activity yet, so there is nothing to deliver against it.</p>';
+            }
+            foreach ($tasks as $task){
                 ?>
-                <div class="row">
-                    <div class="col col-6">
-                        <?= htmlspecialchars((string)$member['member_state']['name'], ENT_QUOTES, 'UTF-8'); ?>
-                        <span class="afcdc-deliverable__meta"><?= (int)$member['completed_tasks']; ?> of <?= (int)$member['assigned_tasks']; ?> delivered</span>
+                <div class="row afcdc-drill afcdc-drill--flat">
+                    <div class="col col-7">
+                        <?= display($task['name']); ?>
+                        <?php if ($mayRecord): ?>
+                            <a href="<?=$this->L("projects/progress_edit/".(int)$data['project']['id']);?>" class="btn btn-xs btn-light border ms-2 afcdc-record-link"><i class="bx bx-edit"></i> Record delivery</a>
+                        <?php endif; ?>
+                        <br><span class="afcdc-deliverable__meta"><?= (int)$task['completed']; ?> of <?= (int)$task['assignments']; ?> delivered</span>
                     </div>
-                    <div class="col col-6"><div class="progress progress-lg progress-squared m-2">
-                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$member['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$member['progress'];?>%;">
-                                <?php if ((float)$member['progress'] >= 12): ?><?= pct($member['progress']); ?>%<?php endif; ?>
+                    <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
+                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$task['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$task['progress'];?>%;">
+                                <?php if ((float)$task['progress'] >= 12): ?><?= pct($task['progress']); ?>%<?php endif; ?>
                             </div>
                         </div>
-                        <?php if ((float)$member['progress'] < 12): ?><span class="afcdc-progress-zero"><?= pct($member['progress']); ?>%</span><?php endif; ?>
+                        <?php if ((float)$task['progress'] < 12): ?><span class="afcdc-progress-zero"><?= pct($task['progress']); ?>%</span><?php endif; ?>
                     </div>
+                    <hr>
                 </div>
                 <?php
             }

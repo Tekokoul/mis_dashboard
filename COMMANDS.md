@@ -338,6 +338,14 @@ wording, so what is recorded as suggested is what was shown. Under the
 programme box the programme's description and up to six activities already
 filed there are listed (`projects/programme_context`).
 
+**Recording delivery.** An activity's page lists the tasks it is delivered
+through, each with what has been recorded against it and its own **Record
+delivery** button, the same one the programme page puts beside every
+activity. The Projects / Interventions list carries the same action on every
+row, beside Edit and Delete, so delivery can be recorded without going
+through Progress first. All three are shown to administrators, executives
+and Power Users.
+
 **Needs input.** Every unfinished activity carries a red flag beside its
 code, on both lists and on the objective, programme and per-project pages;
 the tooltip names what is missing.

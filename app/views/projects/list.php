@@ -131,6 +131,9 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 }
                                             }
                                             ?>
+                                            <?php if (in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true)): ?>
+                                            <a href="<?=$this->L("projects/progress_edit/".(int)$row['id']);?>" aria-label="Record delivery" title="Record delivery"><i class='bx bx-list-check bx-sm' aria-hidden="true"></i></a>
+                                            <?php endif; ?>
                                             <a href="<?=$this->L($link);?>" aria-label="Edit"><i class='bx bxs-edit bx-sm' aria-hidden="true"></i></a>
                                             <a class="modal-basic" data-id="<?=$row['id'];?>" href="#deleteModal" aria-label="Delete"><i class='bx bx-trash bx-sm' aria-hidden="true"></i></a>
                                         </td>

@@ -498,9 +498,13 @@ class projects_graphsController extends coreController{
         $memberProgress = []; // To track progress per member across tasks
         $totalAssignments = 0; // Total assignments (tasks × assignees)
         $completedAssignments = 0; // Total completed assignments (for project progress)
+        // Each task with its own count, so the page can show what is left to
+        // deliver task by task rather than only per reporting entity.
+        $taskRows = [];
     
         // Loop through tasks and process their `applies_to`
         foreach ($tasks as $task) {
+            $taskDone = 0;
             // Same reduction to positive integers as the other views: `$member`
             // below is interpolated into three queries.
             $applies_to = array_values(array_filter(array_map('intval', (array)json_decode((string)($task['applies_to'] ?? "[]"), true)), fn($v) => $v > 0));
@@ -536,6 +540,7 @@ class projects_graphsController extends coreController{
                 if ($progress > 0) {
                     $memberProgress[$member]['completed_tasks']++;
                     $completedAssignments++;
+                    $taskDone++;
                 }
     
                 // Fetch budget for the member for this task
@@ -545,7 +550,16 @@ class projects_graphsController extends coreController{
                 $budget = $this->DB->MQ($query, "one")['budget'] ?? 0;
                 $memberProgress[$member]['budget'] += $budget;
             }
+            $taskRows[] = [
+                'id'          => (int)$task['id'],
+                'name'        => (string)$task['name'],
+                'description' => (string)($task['description'] ?? ''),
+                'assignments' => $taskAssignments,
+                'completed'   => $taskDone,
+                'progress'    => $taskAssignments > 0 ? round($taskDone / $taskAssignments * 100, 2) : 0,
+            ];
         }
+        $temp['project']['tasks'] = $taskRows;
     
         // Calculate individual member progress percentages
         foreach ($memberProgress as $member => $details) {
