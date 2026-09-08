@@ -37,3 +37,8 @@ logs/
 node_modules/
 .idea/
 .vscode/
+# Operational SQL exported for a live run (activity names, ids): produced by
+# tools/export-allocations.php and its siblings, never committed - this repo is public.
+*-live.sql
+allocations*.sql
+vetting-shortlist-*.md

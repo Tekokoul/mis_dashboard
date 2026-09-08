@@ -169,7 +169,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 <li class="paginate_button page-item previous <?=$previous_disabled;?>"><a href="<?=$this->L($page_link_prefix."/".($data['page']-1).$page_link_suffix);?>" class="page-link"><i class='bx bxs-chevron-left' ></i></a></li>
 												<?php
 												// The dots open a small box to type a page number (custom.js, data-afcdc-jump).
-                                                $dots = '<li class="paginate_button page-item afcdc-jump"><a href="#" class="page-link" title="Go to a page" aria-label="Go to a page" data-afcdc-jump="' . display($this->L($page_link_prefix . '/__PAGE__' . $page_link_suffix)) . '" data-afcdc-last="' . (int)$last_page . '" data-afcdc-page="' . (int)$data['page'] . '"><i class="bx bx-dots-horizontal-rounded"></i></a></li>';
+                                                $dots = '<li class="paginate_button page-item afcdc-jump"><a href="#" class="page-link" title="Go to a page" aria-label="Go to a page" data-afcdc-jump="' . $this->L($page_link_prefix . '/__PAGE__' . $page_link_suffix) . '" data-afcdc-last="' . (int)$last_page . '" data-afcdc-page="' . (int)$data['page'] . '"><i class="bx bx-dots-horizontal-rounded"></i></a></li>';
                                                 if($start_from>=2){ print $dots; }
 												for ($page_num = $start_from; $page_num <= $end_to; $page_num++){
 													$active_page = ($data['page']==$page_num) ? "active" : "";

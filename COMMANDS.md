@@ -460,7 +460,7 @@ n=0; b=0; while IFS= read -r f; do n=$((n+1)); /opt/homebrew/bin/php -l "$f" >/d
 Check the JS, the JSON and the CSS brace balance:
 
 ```bash
-node --check public/js/members_graphs.js && node --check public/js/page_projects_graphs_projects.js && /usr/bin/python3 -c "import json;[json.load(open(f)) for f in ['db/menus/ce_menu.json']];print('json ok')" && /usr/bin/python3 -c "t=open('public/css/custom.css').read();print('css braces ok' if t.count('{')==t.count('}') else 'CSS BRACE MISMATCH')"
+node --check public/js/custom.js && node --check public/js/pm_projects.js && node --check public/js/members_graphs.js && node --check public/js/page_projects_graphs_projects.js && /usr/bin/python3 -c "import json;[json.load(open(f)) for f in ['db/menus/ce_menu.json']];print('json ok')" && /usr/bin/python3 -c "t=open('public/css/custom.css').read();print('css braces ok' if t.count('{')==t.count('}') else 'CSS BRACE MISMATCH')"
 ```
 
 Confirm no local database credentials are about to ship:
