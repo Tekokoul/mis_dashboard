@@ -27,7 +27,11 @@ include __DIR__ . '/../app/configuration/settings.local.php';
 require __DIR__ . '/../app/includes/library.php';
 require __DIR__ . '/../app/db.class.php';
 $mode  = $argv[1] ?? 'accepted';
-$which = $mode === 'all' ? ['accepted', 'proposed', 'reverted'] : ['accepted', 'reverted'];
+// "shipped" runs after a live run and must re-baseline everything that run
+// could have carried, whichever mode produced it - a row left "proposed" and
+// exported with "all" would otherwise keep a stale old_abbr, and the guard on
+// the next export would silently skip it.
+$which = ($mode === 'all' || $mode === 'shipped') ? ['accepted', 'proposed', 'reverted'] : ['accepted', 'reverted'];
 $s = $settings['db_master']; $s['db_provider'] = 'mysql'; $db = new DB($s);
 $marks = implode(',', array_fill(0, count($which), '?'));
 $rows = (array)$db->MQ("SELECT r.*, p.name, p.pillar_id AS cur_pillar_id, p.objective_id AS cur_objective_id, p.programme_id AS cur_programme_id, p.abbr AS cur_abbr

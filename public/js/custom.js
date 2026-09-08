@@ -236,7 +236,12 @@ $(function () {
         clearTimeout(timer);
         ask();
         var gen = seq;
-        window.setTimeout(function () { if (gen === seq) { inflight = false; } settling = false; flush(); }, 5000);
+        window.setTimeout(function () {
+            if (gen === seq) { inflight = false; }
+            settling = false;
+            $form.find('input[name="abbr"]').removeAttr('data-afcdc-code-pending');   // a code request that never answers must not hold Save for ever
+            flush();
+        }, 5000);
     });
     // The cascade ends at the programme box, and the code box says when its
     // number has arrived: a held save goes on from either.
@@ -418,6 +423,12 @@ $(function () {
  * it was opened from. Not while a dropdown or a dialog is open (they take
  * Esc themselves), and not without asking when something typed is unsaved. */
 $(function () {
+    // A goal / objective / programme moved by a person, as opposed to by the
+    // cascade or a suggestion: only a real event carries originalEvent, and
+    // select2 raises select2:select for a pick alone.
+    var placement = 'form.ecommerce-form select[name="pillar_id"], form.ecommerce-form select[name="objective_id"], form.ecommerce-form select[name="programme_id"]';
+    $(document).on('select2:select', placement, function () { $(this).attr('data-afcdc-touched', '1'); });
+    $(document).on('change', placement, function (e) { if (e.originalEvent) { $(this).attr('data-afcdc-touched', '1'); } });
     $(document).on('keydown', function (e) {
         if (e.key !== 'Escape' || e.isDefaultPrevented()) { return; }
         var $back = $('a[data-afcdc-back]').first();
@@ -429,10 +440,10 @@ $(function () {
             if (this.name === 'abbr' && this.getAttribute('data-auto') === '1') { return; }   // filled by the form, not typed
             if (this.value !== this.defaultValue) { dirty = true; }
         });
-        $('form.ecommerce-form').find('select[name="pillar_id"], select[name="objective_id"], select[name="programme_id"]').each(function () {
-            var was = $(this).find('option[selected]').val();
-            if (was !== undefined && String(this.value) !== String(was)) { dirty = true; }
-        });
+        // Not option[selected]: the cascade rebuilds these options in script,
+        // so none carries the attribute and a re-filing was read as "nothing
+        // changed". A box the person moved themselves is marked instead.
+        if ($('form.ecommerce-form').find('select[data-afcdc-touched="1"]').length) { dirty = true; }
         if (dirty && !window.confirm('Leave without saving your changes?')) { return; }
         e.preventDefault();
         window.location.href = $back.attr('href');

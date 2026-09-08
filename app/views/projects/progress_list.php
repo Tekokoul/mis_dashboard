@@ -47,7 +47,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                 . $html . list_search_box($data['search'] ?? '', 'pm_projects', 'projects/progress_edit')
                                 . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
                                 // While moves are pending, one control accepts everything left after the person has looked.
-                                . ((allocation_pending_count($this->DB) > 0) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-review-action="accept_all">Accept all pending</a>' : '')
+                                . ((can_vet() && allocation_pending_count($this->DB) > 0) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-review-action="accept_all">Accept all pending</a>' : '')
                                 . '</div></div>';
 
                             ?>

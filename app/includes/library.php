@@ -1330,8 +1330,10 @@ function allocation_review_note(array $review) {
         $html  = '<div class="afcdc-review__note"><span class="afcdc-review__tag">Check placement</span> ';
         $html .= 'the wording points to <strong>' . display($review['new_programme_label']) . '</strong>';
         if (trim((string)$review['reason']) !== '') { $html .= ' <span class="afcdc-review__why">' . display($review['reason']) . '</span>'; }
-        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Keep here</a>';
-        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="move" data-id="' . (int)$review['project_id'] . '">Move there</a>';
+        if (can_vet()) {
+            $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Keep here</a>';
+            $html .= ' <a href="#" class="afcdc-review__act" data-review-action="move" data-id="' . (int)$review['project_id'] . '">Move there</a>';
+        }
         return $html . '</div>';
     }
     $tag = ['agreed' => 'Proposed by AI', 'split' => 'Check: judges disagreed', 'low' => 'Check', 'code' => 'Code fixed'];
@@ -1344,8 +1346,10 @@ function allocation_review_note(array $review) {
         $html .= ' under ' . display($review['old_objective_abbr'] ?? '?') . ' / ' . display($review['old_programme_label']);
     }
     if (trim((string)$review['reason']) !== '') { $html .= ' <span class="afcdc-review__why">' . display($review['reason']) . '</span>'; }
-    $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Accept</a>';
-    $html .= ' <a href="#" class="afcdc-review__act" data-review-action="revert" data-id="' . (int)$review['project_id'] . '">Undo</a>';
+    if (can_vet()) {
+        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Accept</a>';
+        $html .= ' <a href="#" class="afcdc-review__act" data-review-action="revert" data-id="' . (int)$review['project_id'] . '">Undo</a>';
+    }
     return $html . '</div>';
 }
 
@@ -1358,6 +1362,17 @@ function allocation_review_panel($review) {
     $note = allocation_review_note($review);
     if ($note === '') { return ''; }   // undone, or a check that was answered: nothing to show
     return '<div class="afcdc-review-panel afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) . '">' . $note . '</div>';
+}
+
+/**
+ * May this person act on a vetting proposal? Accepting, undoing or moving an
+ * activity is content editing, which protectedController grants to groups 1
+ * and 2 only ('projects/*'). Power Users can open the Progress list and read
+ * the note, so the note shows for them without the action links - they used
+ * to be offered a button that answered 403.
+ */
+function can_vet() {
+    return in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2], true);
 }
 
 /** Whether a review row still has something to show on a list row (band + note). */
