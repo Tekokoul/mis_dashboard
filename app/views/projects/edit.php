@@ -41,7 +41,69 @@ $col_width = 12/$columns;
                 </section>
             </div>
             <div class="col col-lg-<?=$col_width;?> col-md-12">
+            <?php
+            // An activity is reported through its tasks, so they are edited
+            // HERE, in the form, and saved with everything else. They used to
+            // sit in a panel beside the form that loaded separately and opened
+            // a modal per task: three windows to change one word.
+            $type = (string)($data['data']['type'] ?? '');
+            $tasksHere = ($type === '' || $type === 'pm_projects_tasks');
+            $tasks = $tasksHere ? (array)($data['tasks'] ?? []) : [];
+            // Rows typed but not yet saved: only present when a refused save
+            // brought the form back.
+            $newTasks = array_values(array_filter((array)($data['data']['new_tasks'] ?? []), function ($t) { return is_array($t) && trim((string)($t['name'] ?? '')) !== ''; }));
+            ?>
+            <?php if ($tasksHere) { ?>
+            <div class="card card-modern" id="afcdc-new-tasks">
+                <div class="card-body">
+                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Change them here and press <strong>Save</strong> with everything else.</p>
+                    <div class="table-responsive">
+                        <table class="table table-ecommerce-simple table-borderless table-striped mb-0">
+                            <thead>
+                            <tr>
+                                <th width="4%">#</th>
+                                <th width="38%">Name</th>
+                                <th>Description</th>
+                                <th width="5%"><a href="#" data-add-task aria-label="Add a task" title="Add a task"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <?php $n = 0; foreach ($tasks as $t) { $tid = (int)$t['id']; $delivered = (int)($t['deliveries'] ?? 0); $removed = !empty($t['remove']); $n++; ?>
+                            <tr class="afcdc-task<?= $removed ? ' afcdc-task--removed' : ''; ?>" data-task-id="<?= $tid; ?>">
+                                <td class="afcdc-task__num"><?= $n; ?></td>
+                                <td>
+                                    <input type="hidden" name="tasks[<?= $tid; ?>][remove]" value="<?= $removed ? '1' : '0'; ?>">
+                                    <input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][name]" value="<?= display($t['name']); ?>" maxlength="250"<?= $removed ? '' : ' required'; ?>>
+                                </td>
+                                <td><input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"></td>
+                                <td>
+                                    <?php if ($delivered > 0) { ?>
+                                        <span class="afcdc-task__kept" title="<?= $delivered; ?> deliver<?= $delivered === 1 ? 'y has' : 'ies have'; ?> been recorded against this task, so it cannot be removed here."><i class="bx bx-lock-alt text-3 me-2" aria-hidden="true"></i><span class="sr-only">Kept: <?= $delivered; ?> recorded</span></span>
+                                    <?php } else { ?>
+                                        <a href="#" data-remove-existing-task aria-label="Remove this task"><i class="bx bx-trash text-3 me-2"></i></a>
+                                        <a href="#" data-undo-remove-task aria-label="Keep this task" hidden>Undo</a>
+                                    <?php } ?>
+                                </td>
+                            </tr>
+                            <?php } ?>
+                            <?php foreach ($newTasks as $i => $t) { ?>
+                            <tr class="afcdc-new-task">
+                                <td class="afcdc-new-task__num"></td>
+                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][name]" value="<?= display($t['name']); ?>" placeholder="Task name" maxlength="250"></td>
+                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"></td>
+                                <td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td>
+                            </tr>
+                            <?php } ?>
+                            <tr class="afcdc-new-tasks__empty"<?= ($tasks || $newTasks) ? ' hidden' : ''; ?>><td colspan="4" class="text-muted py-3">No task yet for this activity. Use the + above to add one.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="afcdc-new-tasks__lead mb-0">A task with a recorded delivery is locked, so nothing that has been reported can be thrown away by accident. Remove its deliveries first if it really has to go.</p>
+                </div>
+            </div>
+            <?php } else { ?>
             <div id="project_details"></div>
+            <?php } ?>
             </div>
 
     </div>

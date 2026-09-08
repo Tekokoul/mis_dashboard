@@ -5,12 +5,15 @@ $(document).ready(function() {
     var $newTasks = $('#afcdc-new-tasks');
     if ($newTasks.length) {
         function renumber() {
+            // On the edit form the saved tasks are numbered first, so a row
+            // typed underneath continues the list instead of restarting it.
+            var saved = $newTasks.find('tr.afcdc-task').length;
             var rows = $newTasks.find('tr.afcdc-new-task');
             rows.each(function (i) {
-                $(this).find('.afcdc-new-task__num').text(i + 1);
+                $(this).find('.afcdc-new-task__num').text(saved + i + 1);
                 $(this).find('input').each(function () { this.name = this.name.replace(/new_tasks\[\d+\]/, 'new_tasks[' + i + ']'); });
             });
-            $newTasks.find('.afcdc-new-tasks__empty').prop('hidden', rows.length > 0);
+            $newTasks.find('.afcdc-new-tasks__empty').prop('hidden', (rows.length + saved) > 0);
         }
         $newTasks.on('click', '[data-add-task]', function (e) {
             e.preventDefault();
@@ -26,12 +29,36 @@ $(document).ready(function() {
             $row.find('input').first().trigger('focus');
         });
         $newTasks.on('click', '[data-remove-task]', function (e) { e.preventDefault(); $(this).closest('tr').remove(); renumber(); });
+        // A saved task is marked, not removed from the page: the server has to
+        // be told to delete it, and until Save is pressed nothing has happened,
+        // so the mark can be taken back.
+        $newTasks.on('click', '[data-remove-existing-task]', function (e) {
+            e.preventDefault();
+            var $row = $(this).closest('tr.afcdc-task');
+            $row.addClass('afcdc-task--removed');
+            $row.find('input[name$="[remove]"]').val('1');
+            // A row on its way out must not hold the save up for a blank name.
+            $row.find('input[type="text"]').prop('readonly', true).removeAttr('required')
+                .closest('.form-group').removeClass('afcdc-field--missing');
+            $(this).prop('hidden', true);
+            $row.find('[data-undo-remove-task]').prop('hidden', false);
+        });
+        $newTasks.on('click', '[data-undo-remove-task]', function (e) {
+            e.preventDefault();
+            var $row = $(this).closest('tr.afcdc-task');
+            $row.removeClass('afcdc-task--removed');
+            $row.find('input[name$="[remove]"]').val('0');
+            $row.find('input[type="text"]').prop('readonly', false).eq(0).attr('required', 'required');
+            $(this).prop('hidden', true);
+            $row.find('[data-remove-existing-task]').prop('hidden', false);
+        });
         // Enter in a task row adds the next row instead of submitting the form.
         $newTasks.on('keydown', 'input', function (e) { if (e.key === 'Enter') { e.preventDefault(); $newTasks.find('[data-add-task]').trigger('click'); } });
     }
-    // Nothing saved yet means no details panel to load; the cascade and the
-    // task modal handlers below are still wired up.
-    if (project_id > 0) $.ajax({
+    // Nothing saved yet means no details panel to load, and an activity
+    // reported through tasks has no panel at all any more - they are edited in
+    // the form. The cascade below is wired up either way.
+    if (project_id > 0 && $('#project_details').length) $.ajax({
         url: lang_prefix + "/projects/get_details/" + project_type + "/" + project_id,
         type: "GET",
         dataType: "html",

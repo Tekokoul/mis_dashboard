@@ -940,3 +940,12 @@ html #afcdc-new-tasks .afcdc-new-task__num { color: var(--afcdc-ink-soft); }
 html .afcdc-drill--flat { padding-right: .5rem; }
 html .afcdc-drill--flat::after { content: none; }
 html .afcdc-drill--flat:hover, html .afcdc-drill--flat:focus-within { background: transparent; }
+
+/* Tasks edited inside the activity form. A saved task marked for removal
+   stays on the page, struck through, until Save is pressed: nothing has
+   happened yet and the mark can be taken back. */
+html #afcdc-new-tasks .afcdc-task__num { color: var(--afcdc-ink-soft); }
+html tr.afcdc-task--removed { opacity: 0.55; }
+html tr.afcdc-task--removed input[type="text"] { text-decoration: line-through; background: var(--afcdc-canvas); }
+html [data-undo-remove-task] { font-size: 0.75rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; }
+html .afcdc-task__kept { color: var(--afcdc-ink-soft); cursor: help; }

@@ -186,10 +186,72 @@ class projectsController extends coreController{
         // missing are shown on the form too, not only in the list.
         $data['review'] = allocation_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
         $data['gaps'] = is_array($data['data']) ? activity_gaps($this->DB, $data['data']) : [];
+        $data['tasks'] = $this->activityTasks((int)$validated['id']);
         $data['back'] = $this->backTo('projects/list');
         $this->AddJS("/js/pm_projects.js");
         $this->prepare_edit_mode();
         $this->render($data);
+    }
+
+    /**
+     * The tasks of an activity, each with the number of deliveries recorded
+     * against it. That count is what decides whether a task may be removed on
+     * the form: a task somebody has already reported against is never thrown
+     * away by a careless click, because its deliveries would be orphaned.
+     */
+    private function activityTasks($projectId) {
+        $projectId = (int)$projectId;
+        if ($projectId <= 0) { return []; }
+        return (array)$this->DB->MQ(
+            "SELECT t.id, t.name, t.description,
+                    (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id) AS deliveries
+               FROM pm_projects_tasks_tbl t
+              WHERE t.project_id = ?
+              ORDER BY t.id", "all", [$projectId]);
+    }
+
+    /**
+     * The task rows a person typed, applied when the activity is saved.
+     *
+     * Only ids that really belong to this activity are touched, because a
+     * form is not the only thing that can post here. A row marked for removal
+     * goes only if nothing has been recorded against it. applies_to is never
+     * written: which entities a task counts for is decided elsewhere, and
+     * overwriting it here would quietly drop the task off the Progress page.
+     * Returns the ids that were kept despite being marked for removal.
+     */
+    private function applyTaskEdits($projectId, array $tasks, array $newTasks) {
+        $projectId = (int)$projectId;
+        if ($projectId <= 0) { return []; }
+        $kept = [];
+        foreach ($tasks as $id => $t) {
+            $id = (int)$id;
+            if ($id <= 0 || !is_array($t)) { continue; }
+            $mine = $this->DB->MQ("SELECT id FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", "one", [$id, $projectId]);
+            if (!is_set($mine)) { continue; }
+            if ((string)($t['remove'] ?? '0') === '1') {
+                $d = $this->DB->MQ("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE task_id = ?", "one", [$id]);
+                if ((int)($d['n'] ?? 0) > 0) { $kept[] = $id; continue; }
+                $this->DB->MQ("DELETE FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", false, [$id, $projectId]);
+                continue;
+            }
+            $name = mb_substr(trim((string)($t['name'] ?? '')), 0, 250);
+            if ($name === '') { continue; }   // refused before this point; never blanked here
+            $this->DB->MQ("UPDATE pm_projects_tasks_tbl SET name = ?, description = ? WHERE id = ? AND project_id = ?", false,
+                          [$name, trim((string)($t['description'] ?? '')), $id, $projectId]);
+        }
+        foreach ($newTasks as $t) {
+            if (!is_array($t)) { continue; }
+            $name = mb_substr(trim((string)($t['name'] ?? '')), 0, 250);
+            if ($name === '') { continue; }
+            $this->model->add_data('pm_projects_tasks', [
+                'project_id'  => $projectId,
+                'name'        => $name,
+                'description' => trim((string)($t['description'] ?? '')),
+                'applies_to'  => default_applies_to($this->DB, null),
+            ]);
+        }
+        return $kept;
     }
 
     public function edit_update(){
@@ -205,12 +267,23 @@ class projectsController extends coreController{
 
         $previous = $this->DB->MQ("select * from ".$this->model->get_table_name($validated['tablename'])." where id=".(int)$validated['id'], "one");
         $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
+        $postedTasks = []; $postedNewTasks = [];
         if ($validated['tablename'] === 'pm_projects') {
             $this->normaliseParents($this->query);
             $blocking = $this->activityBlockers($this->query);
+            // A task the form is keeping must still have a name. Checked with
+            // the rest, so the form comes back once with everything named.
+            foreach ((array)($this->query['tasks'] ?? []) as $t) {
+                if (!is_array($t) || (string)($t['remove'] ?? '0') === '1') { continue; }
+                if (trim((string)($t['name'] ?? '')) === '') { $blocking[] = 'a name for every task'; break; }
+            }
             if ($blocking) { $this->renderActivityForm('edit', $this->query, $blocking, $back); }
             if (array_key_exists('abbr', $this->query) && trim((string)$this->query['abbr']) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }
+            // Held back so they are not mistaken for columns of the activity.
+            $postedTasks = (array)($this->query['tasks'] ?? []);
+            $postedNewTasks = (array)($this->query['new_tasks'] ?? []);
         }
+        unset($this->query['tasks'], $this->query['new_tasks']);
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");
@@ -228,6 +301,10 @@ class projectsController extends coreController{
                 }
             }
             if ($validated['tablename'] === 'pm_projects') {
+                // The tasks first: removing the last one leaves the activity
+                // with none, and ensureDefaultTask then gives it "Delivered"
+                // back rather than letting it fall off Progress entirely.
+                $this->applyTaskEdits((int)$validated['id'], $postedTasks, $postedNewTasks);
                 $this->ensureDefaultTask((int)$validated['id']);
                 // Moving an activity is the clearest correction there is: the
                 // place it sat in was wrong for this wording, whoever chose it.
@@ -452,6 +529,17 @@ class projectsController extends coreController{
             $id = (int)($posted['id'] ?? 0);
             $data['review'] = allocation_reviews($this->DB, [$id])[$id] ?? null;
             $data['gaps'] = $errors;
+            // The task rows come back as they were typed, marks included, so a
+            // refused save costs nothing that was entered.
+            $data['tasks'] = $this->activityTasks($id);
+            foreach ($data['tasks'] as &$t) {
+                $p = $posted['tasks'][(int)$t['id']] ?? null;
+                if (!is_array($p)) { continue; }
+                if (array_key_exists('name', $p)) { $t['name'] = (string)$p['name']; }
+                if (array_key_exists('description', $p)) { $t['description'] = (string)$p['description']; }
+                $t['remove'] = (string)($p['remove'] ?? '0') === '1';
+            }
+            unset($t);
         }
         // render() picks the view from the routed action; the registry keeps
         // its url through __set, so the array is replaced whole.
