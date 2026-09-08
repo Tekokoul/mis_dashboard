@@ -108,6 +108,7 @@ define('_SSO_REDIRECT_URI',    $(php_str "${SSO_REDIRECT_URI:-}"));
 define('_MATCHER_URL',     $(php_str "${MATCHER_URL:-}"));
 define('_MATCHER_WEIGHT',  $(php_str "${MATCHER_WEIGHT:-0.35}"));
 define('_MATCHER_MODEL',   $(php_str "${MATCHER_MODEL:-intfloat/multilingual-e5-small}"));
+define('_MATCHER_HISTORY_WEIGHT', $(php_str "${MATCHER_HISTORY_WEIGHT:-0.95}"));
 PHPEOF
 chown www-data:www-data /var/www/html/app/configuration/settings.local.php
 chmod 640 /var/www/html/app/configuration/settings.local.php

@@ -479,32 +479,9 @@ class projectsController extends coreController{
         }
     }
 
-    /**
-     * An activity is reported through its tasks: with none it is missing from
-     * Progress and counts for nothing on the overview. Every seeded activity
-     * has exactly one task, "Delivered", applying to every reporting entity;
-     * an activity added or saved through the form gets the same when it has
-     * none.
-     */
+    /** The "Delivered" task an activity needs to be reported at all (library: ensure_default_task). */
     private function ensureDefaultTask($projectId) {
-        $projectId = (int)$projectId;
-        if ($projectId <= 0) { return; }
-        $project = $this->DB->MQ("SELECT id, abbr, name, type FROM pm_projects_tbl WHERE id = ?", "one", [$projectId]);
-        if (!is_set($project)) { return; }
-        $type = (string)($project['type'] ?? '');
-        if ($type !== '' && $type !== 'pm_projects_tasks') { return; }
-        if ($type === '') {
-            // The add form leaves the type empty; every seeded activity is the
-            // task-reported kind, and the progress pages pick their view by it.
-            $this->DB->MQ("UPDATE pm_projects_tbl SET type = 'pm_projects_tasks' WHERE id = ?", false, [$projectId]);
-        }
-        $has = $this->DB->MQ("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE project_id = ?", "one", [$projectId]);
-        if ((int)($has['n'] ?? 0) > 0) { return; }
-        $ids = [];
-        foreach ((array)$this->DB->MQ("SELECT id FROM pm_members_tbl WHERE active = 1", "all") as $m) { $ids[] = (string)(int)$m['id']; }
-        if (!$ids) { return; }
-        $this->DB->MQ("INSERT INTO pm_projects_tasks_tbl (project_id, name, description, applies_to) VALUES (?, 'Delivered', ?, ?)", false,
-            [$projectId, trim((string)$project['abbr'] . ' ' . (string)$project['name']), json_encode($ids)]);
+        ensure_default_task($this->DB, $projectId);
     }
 
     public function task(){

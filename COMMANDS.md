@@ -437,6 +437,18 @@ docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" 
 `corrected` far outrunning `kept` on a settled catalogue means the suggestion
 is being overruled more than it is helping; that is the number to watch.
 
+**What is already filed there (optional, needs the sidecar).** The three above
+compare the typed text with what an objective SAYS ABOUT ITSELF. This asks the
+other question: does it read like the work already filed under that objective?
+Each objective is represented by the average of its activities' meaning
+vectors, and the wording is measured against that; the word score then breaks
+the ties. Two hundred filed activities describe an objective better than the
+sentence someone wrote before most of them existed, and this is worth more
+than everything else on this page put together. An objective with nothing
+filed under it keeps its description score in full, so an objective created
+this morning can still be suggested. `MATCHER_HISTORY_WEIGHT` in `.env` is how
+much it counts, 0 to 1, default 0.95.
+
 **Meaning matching (optional).** The two above only know words. The sidecar in
 `docker/matcher` turns text into numbers whose closeness reflects sense, so
 "conference sign-ups" reaches "CPHIA Registrations" with no shared words. It
@@ -447,15 +459,45 @@ quietly falls back to word matching. See `.env.example` for switching it on,
 and note the `docker save` route for a server that cannot reach the model
 host. Cost: about 850 MB of memory and 1.3 GB of disk.
 
-Measured by hiding each already-filed activity and asking where it belongs
-(128 activities, correct objective on the first guess):
+Measured by hiding each already-filed activity and asking where it belongs,
+with its own words and its own past corrections left out of the vote
+(`tools/measure-filing.php`, 205 activities, 8 September 2026):
 
-| | correct |
-|---|---|
-| words only | 77.3% |
-| words + meaning | 80.5% |
-| words + corrections | 84.4% |
-| all three | 85.2% |
+| | objective, first guess | programme, first guess |
+|---|---|---|
+| words and corrections | 72.2% | 65.4% |
+| plus meaning matching | 74.1% | 64.9% |
+| plus what is already filed there | **82.0%** | **71.2%** |
+
+The right objective is among the three offered 97.6% of the time, and the
+guesser calls itself confident on 53% of activities and is right on 96% of
+those. Without the sidecar nothing changes: the fallback still scores 72.2%.
+
+```
+docker compose exec -T app php /var/www/html/tools/measure-filing.php --show-misses
+docker compose exec -T app php /var/www/html/tools/measure-filing.php --no-matcher
+```
+
+Re-run these after the catalogue changes shape rather than trusting the
+numbers above forever.
+
+**What was tried and left alone.** A classifier trained on the filed
+activities (a logistic head on the same vectors) scores 78.5%, and fine-tuning
+the embedding model itself with SetFit scores 68.3% - worse than doing
+nothing. Both fail the same way: they are excellent on the six objectives with
+twenty or more activities and score zero on the six with fewer than ten, which
+they cannot file into at all. Averaging keeps the description score for thin
+objectives, which is why it wins and why it is safe the day a new objective is
+created. NVIDIA NeMo Guardrails and Guardrails AI were also looked at: both
+constrain what a language model says, neither classifies a record into a
+taxonomy, and there is no language model here to constrain.
+
+**What no model fixes.** Cybersecurity work is split between programme 1.6 and
+the whole of objective 3.0, and infrastructure work between objectives 1.0 and
+2.0, in both directions. Where the guesser disagrees with the filing it is
+usually one of these, and two independent methods disagreeing the same way
+means the catalogue is ambiguous rather than the guesser wrong. Deciding those
+boundaries raises the ceiling; nothing else on this page does.
 
 `MATCHER_WEIGHT` is how much meaning counts against words. Accuracy peaked on
 a plateau from 0.25 to 0.45 and fell away outside it; meaning alone scored

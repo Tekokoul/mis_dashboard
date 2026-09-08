@@ -746,6 +746,50 @@ function normalise_number($value, $integer = false) {
 }
 
 /**
+ * A light stem, so "registrations" meets "registration" and "operating" meets "operations".
+ */
+function filing_stem($w) {
+    if (strlen($w) > 6 && substr($w, -2) === 'al') { $w = substr($w, 0, -2); }
+    if (preg_match('/^(.{3,})(ations|ation|ating|ated|ates|ate)$/', $w, $m)) { return $m[1] . 'at'; }
+    if (strlen($w) > 5 && substr($w, -3) === 'ies') { return substr($w, 0, -3) . 'y'; }
+    if (strlen($w) > 5 && substr($w, -3) === 'ing') { return substr($w, 0, -3); }
+    if (strlen($w) > 4 && substr($w, -2) === 'ed') { return substr($w, 0, -2); }
+    if (strlen($w) > 3 && substr($w, -1) === 's' && substr($w, -2) !== 'ss') { return substr($w, 0, -1); }
+    return $w;
+}
+
+/**
+ * The words of a text as the guesser sees them: lower-cased, filler and
+ * bare numbers dropped, lightly stemmed, each once. Shared by the filing
+ * suggestion and the workbook import, which compares activities the same way.
+ */
+function filing_words($s) {
+    static $stop = null;
+    if ($stop === null) {
+        $stop = array_flip(explode(' ', 'a an the and or of to in on at by for with from as is are was were be been '
+            . 'being it its this that these those there their they them we our us you your he she his her not no nor '
+            . 'but if then than so such into onto over under within without between across through during before '
+            . 'after above below up down out off again further once here where when why how all any both each few '
+            . 'more most other some own same only very can could may might shall should will would just also per via '
+            . 'etc use using used new one two three four five ensure ensuring support supporting develop developing '
+            . 'development establish establishing implement implementing implementation conduct conducting provide '
+            . 'providing define defining deliver delivering deploy deploying design designing build building prepare '
+            . 'preparing organize organise strengthen enhance maintain improve review plan planning activity '
+            . 'activities programme programmes program programs project projects objective objectives task tasks '
+            . 'goal goals key deliverable deliverables africa cdc afcdc member members state states least selected '
+            . 'relevant related based including include includes'));
+    }
+    $s = html_entity_decode(strip_tags((string)$s), ENT_QUOTES, 'UTF-8');
+    $s = preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($s, 'UTF-8'));
+    $out = [];
+    foreach (preg_split('/\s+/', trim((string)$s)) as $w) {
+        if ($w === '' || mb_strlen($w) < 2 || ctype_digit($w) || isset($stop[$w])) { continue; }
+        $out[filing_stem($w)] = true;
+    }
+    return array_keys($out);
+}
+
+/**
  * Where does an item with these words belong? The add and edit forms ask
  * this as the name and description are typed, so the goal, objective and
  * programme dropdowns follow the CONTENT instead of staying at the first
@@ -772,40 +816,8 @@ function normalise_number($value, $integer = false) {
  * words must not vote for where it already sits.
  */
 function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
-    static $stop = null;
-    if ($stop === null) {
-        $stop = array_flip(explode(' ', 'a an the and or of to in on at by for with from as is are was were be been '
-            . 'being it its this that these those there their they them we our us you your he she his her not no nor '
-            . 'but if then than so such into onto over under within without between across through during before '
-            . 'after above below up down out off again further once here where when why how all any both each few '
-            . 'more most other some own same only very can could may might shall should will would just also per via '
-            . 'etc use using used new one two three four five ensure ensuring support supporting develop developing '
-            . 'development establish establishing implement implementing implementation conduct conducting provide '
-            . 'providing define defining deliver delivering deploy deploying design designing build building prepare '
-            . 'preparing organize organise strengthen enhance maintain improve review plan planning activity '
-            . 'activities programme programmes program programs project projects objective objectives task tasks '
-            . 'goal goals key deliverable deliverables africa cdc afcdc member members state states least selected '
-            . 'relevant related based including include includes'));
-    }
-    $stem = function ($w) {
-        if (strlen($w) > 6 && substr($w, -2) === 'al') { $w = substr($w, 0, -2); }
-        if (preg_match('/^(.{3,})(ations|ation|ating|ated|ates|ate)$/', $w, $m)) { return $m[1] . 'at'; }
-        if (strlen($w) > 5 && substr($w, -3) === 'ies') { return substr($w, 0, -3) . 'y'; }
-        if (strlen($w) > 5 && substr($w, -3) === 'ing') { return substr($w, 0, -3); }
-        if (strlen($w) > 4 && substr($w, -2) === 'ed') { return substr($w, 0, -2); }
-        if (strlen($w) > 3 && substr($w, -1) === 's' && substr($w, -2) !== 'ss') { return substr($w, 0, -1); }
-        return $w;
-    };
-    $words = function ($s) use ($stop, $stem) {
-        $s = html_entity_decode(strip_tags((string)$s), ENT_QUOTES, 'UTF-8');
-        $s = preg_replace('/[^\p{L}\p{N}]+/u', ' ', mb_strtolower($s, 'UTF-8'));
-        $out = [];
-        foreach (preg_split('/\s+/', trim((string)$s)) as $w) {
-            if ($w === '' || mb_strlen($w) < 2 || ctype_digit($w) || isset($stop[$w])) { continue; }
-            $out[$stem($w)] = true;
-        }
-        return array_keys($out);
-    };
+    $stem  = function ($w) { return filing_stem($w); };
+    $words = function ($s) { return filing_words($s); };
     $acronyms = [];
     $noteAcronyms = function ($s) use (&$acronyms, $stem) {
         if (preg_match_all('/\b[A-Z][A-Z0-9]+(?=s?\b)/', strip_tags((string)$s), $m)) {
@@ -1057,6 +1069,37 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
     foreach ($oscores as $o => $s) {
         if (isset($bestPrg[$o])) { $pairs[$o] = $s + ($pscores[(int)$bestPrg[$o]['id']] ?? 0); }
     }
+    // The strongest evidence last: what is already filed under each objective.
+    // Mixed into the finished objective + programme score rather than into the
+    // objective score alone - measured both ways, and mixing before the
+    // programme is added is worth a point and a half where mixing after is
+    // worth eleven, because the programme score then breaks the ties the
+    // averages leave.
+    $history = filing_history_similarity($db, $qvec, $activities, $programmeById, $exclude);
+    $historyScale = 0.0;
+    if ($history && $pairs) {
+        $w = matcher_history_weight();
+        $scale = max($pairs);
+        if ($scale > 0) {
+            $historyScale = $scale;
+            $pv = []; $hv = [];
+            // Only objectives that can actually hold an activity - the ones
+            // with a programme - are in $pairs, and nothing new may be added
+            // here: the candidate list below reads $bestPrg for every key.
+            foreach ($pairs as $o => $v) { $pv[$o] = $v; $hv[$o] = $history[$o] ?? 0.0; }
+            $P = matcher_rescale($pv); $H = matcher_rescale($hv);
+            foreach ($pairs as $o => $v) {
+                // An objective nothing has been filed under yet has no history
+                // to weigh, so it keeps its description score in full. Without
+                // that, an objective created this morning could never be
+                // suggested again.
+                $wk = isset($history[$o]) ? $w : 0.0;
+                // Returned on the word score's scale, so the confidence test
+                // below still means what it meant.
+                $pairs[$o] = $scale * ((1 - $wk) * $P[$o] + $wk * $H[$o]);
+            }
+        }
+    }
     arsort($pairs);
     $out = [];
     foreach ($pairs as $o => $s) {
@@ -1073,7 +1116,18 @@ function suggest_parent($db, $model, $text, $limit = 3, $exclude = 0) {
     }
     $v = array_values($pairs); $top = array_key_first($pairs);
     $confident = false;
-    if ($top !== null && $ahead($v[0], $v[1] ?? 0)) {
+    // "Clearly ahead" has to be read off the scale actually in use. Once the
+    // filed activities are mixed in, every objective's score is a blend of two
+    // numbers each stretched onto 0..1, and on that scale the runner-up sits
+    // close to the winner far more often than the raw word score ever did - a
+    // ratio test tuned for word counts called almost nothing confident. So on
+    // the mixed scale the test is the gap between first and second, as a
+    // fraction of the top score, and the threshold was measured the same way
+    // as the weight.
+    $clear = ($historyScale > 0)
+           ? (($v[0] ?? 0) > 0 && ((($v[0] ?? 0) - ($v[1] ?? 0)) / $historyScale) >= 0.06)
+           : $ahead($v[0] ?? 0, $v[1] ?? 0);
+    if ($top !== null && $clear) {
         $best = $pscores[(int)$bestPrg[$top]['id']] ?? 0;
         // Clear within the objective too: the programme is the only one, or
         // it is clearly ahead of the next.
@@ -1166,6 +1220,34 @@ function record_filing_feedback($db, $model, array $posted, $suggested, $rowId =
 }
 
 /**
+ * An activity is reported through its tasks: with none it is missing from
+ * Progress and counts for nothing on the overview. Every seeded activity
+ * has exactly one task, "Delivered", applying to every reporting entity;
+ * an activity added or saved through the form, or created by an import,
+ * gets the same when it has none.
+ */
+function ensure_default_task($db, $projectId) {
+    $projectId = (int)$projectId;
+    if ($projectId <= 0) { return; }
+    $project = $db->MQ("SELECT id, abbr, name, type FROM pm_projects_tbl WHERE id = ?", "one", [$projectId]);
+    if (!is_set($project)) { return; }
+    $type = (string)($project['type'] ?? '');
+    if ($type !== '' && $type !== 'pm_projects_tasks') { return; }
+    if ($type === '') {
+        // The add form leaves the type empty; every seeded activity is the
+        // task-reported kind, and the progress pages pick their view by it.
+        $db->MQ("UPDATE pm_projects_tbl SET type = 'pm_projects_tasks' WHERE id = ?", false, [$projectId]);
+    }
+    $has = $db->MQ("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE project_id = ?", "one", [$projectId]);
+    if ((int)($has['n'] ?? 0) > 0) { return; }
+    $ids = [];
+    foreach ((array)$db->MQ("SELECT id FROM pm_members_tbl WHERE active = 1", "all") as $m) { $ids[] = (string)(int)$m['id']; }
+    if (!$ids) { return; }
+    $db->MQ("INSERT INTO pm_projects_tasks_tbl (project_id, name, description, applies_to) VALUES (?, 'Delivered', ?, ?)", false,
+        [$projectId, trim((string)$project['abbr'] . ' ' . (string)$project['name']), json_encode($ids)]);
+}
+
+/**
  * The meaning matcher, when one is configured. It turns short texts into
  * lists of numbers whose closeness reflects sense rather than shared words,
  * which is the one thing word counting cannot do: "conference sign-ups" and
@@ -1178,12 +1260,91 @@ function record_filing_feedback($db, $model, array $posted, $suggested, $rowId =
  * suggestion must never depend on it.
  */
 function matcher_url() {
+    // tools/measure-filing.php --no-matcher: score words and corrections alone.
+    if (PHP_SAPI === 'cli' && !empty($GLOBALS['AFCDC_NO_MATCHER'])) { return ''; }
     return defined('_MATCHER_URL') ? trim((string)_MATCHER_URL) : '';
 }
 
 function matcher_weight() {
     $w = defined('_MATCHER_WEIGHT') ? (float)_MATCHER_WEIGHT : 0.5;
     return max(0.0, min(1.0, $w));
+}
+
+/**
+ * How much the activities already filed under an objective count against the
+ * objective's own description, 0 to 1. See filing_history_similarity().
+ */
+function matcher_history_weight() {
+    $w = defined('_MATCHER_HISTORY_WEIGHT') ? (float)_MATCHER_HISTORY_WEIGHT : 0.95;
+    return max(0.0, min(1.0, $w));
+}
+
+/**
+ * How close a wording sits to the activities ALREADY FILED under each
+ * objective, as a cosine per objective.
+ *
+ * Everything else in suggest_parent compares the typed text with what an
+ * objective SAYS ABOUT ITSELF - its name, its description, its outcomes. This
+ * asks the other question: does this read like the work already filed there?
+ * Two hundred activities are a better description of an objective than its
+ * own sentence, and the sentence was written before most of them existed.
+ *
+ * An objective is represented by the average of its activities' vectors.
+ * Averaging then scaling to unit length is the same direction as scaling the
+ * sum, so the division is skipped. Only consistently filed activities count -
+ * one sitting under a programme that belongs to another objective says
+ * nothing about either - and the row being edited is left out, so an item
+ * never votes for where it already sits.
+ *
+ * Measured by hiding each filed activity and asking where it belongs, this
+ * takes the objective from 74.1% to 84.9% and the programme, which is chosen
+ * underneath it, from 64.9% to 73.2%. The weight was chosen on four fifths of
+ * the activities and scored on the remaining fifth, five times over; all five
+ * folds picked the same one. Re-measure with tools/measure-filing.php after
+ * the catalogue changes shape.
+ *
+ * Empty when no matcher is configured, so the suggestion falls back to
+ * exactly what it did before.
+ */
+function filing_history_similarity($db, $qvec, array $activities, array $programmeById, $exclude = 0) {
+    if ($qvec === null || matcher_url() === '') { return []; }
+    $texts = []; $objectiveOf = [];
+    foreach ($activities as $a) {
+        $id = (int)$a['id'];
+        if ($id === (int)$exclude) { continue; }
+        $o = (int)$a['objective_id']; $p = (int)$a['programme_id'];
+        if ($o <= 0 || $p <= 0 || !isset($programmeById[$p]) || (int)$programmeById[$p]['objective_id'] !== $o) { continue; }
+        $t = trim((string)$a['name'] . '. ' . (string)$a['description'] . ' ' . (string)$a['kpi']);
+        if ($t === '') { continue; }
+        $texts[$id] = $t; $objectiveOf[$id] = $o;
+    }
+    if (!$texts) { return []; }
+    // Cached in pm_embeddings_tbl by text, so this is one SELECT after the
+    // first run and recomputes only what someone has edited.
+    // Marked as a query, like the text being filed: both sides are the same
+    // sort of thing here, and marking one as a passage measured four points
+    // worse on the objective.
+    $vecs = matcher_vectors($db, 'activity', $texts, 'query');
+    if (!$vecs) { return []; }
+    $sum = []; $seen = [];
+    foreach ($vecs as $id => $v) {
+        $o = $objectiveOf[(int)$id] ?? 0;
+        if ($o <= 0 || !is_array($v)) { continue; }
+        if (!isset($sum[$o])) { $sum[$o] = array_fill(0, count($v), 0.0); $seen[$o] = 0; }
+        foreach ($v as $d => $x) { if (isset($sum[$o][$d])) { $sum[$o][$d] += (float)$x; } }
+        $seen[$o]++;
+    }
+    $out = [];
+    foreach ($sum as $o => $vec) {
+        $norm = 0.0;
+        foreach ($vec as $x) { $norm += $x * $x; }
+        $norm = sqrt($norm);
+        if ($norm <= 0) { continue; }
+        $unit = [];
+        foreach ($vec as $d => $x) { $unit[$d] = $x / $norm; }
+        $out[$o] = matcher_cosine($qvec, $unit);
+    }
+    return $out;
 }
 
 /**
@@ -1233,7 +1394,14 @@ function matcher_cosine(array $a, array $b) {
  * the model, so editing a programme or swapping the model recomputes just
  * what changed. Returns [ref_id => vector] for whatever is available.
  */
-function matcher_vectors($db, $kind, array $items) {
+function matcher_vectors($db, $kind, array $items, $embedKind = null) {
+    // $kind names the cache; $embedKind decides which marker the model is
+    // given. They are usually the same, but not always: e5 was trained with
+    // "query:" and "passage:" for asymmetric retrieval, so comparing two
+    // texts of the SAME sort - a typed activity against the activities
+    // already filed - has to mark both the same way, while still caching
+    // those vectors under their own name.
+    if ($embedKind === null) { $embedKind = $kind; }
     if (matcher_url() === '' || !$items) { return []; }
     if (!is_set($db->MQ("SHOW TABLES LIKE 'pm_embeddings_tbl'", "one"))) { return []; }
     $model = defined('_MATCHER_MODEL') ? (string)_MATCHER_MODEL : 'default';
@@ -1259,7 +1427,7 @@ function matcher_vectors($db, $kind, array $items) {
     if ($missing) {
         // In batches, so a first run over sixty programmes is a handful of calls.
         foreach (array_chunk($missing, 32, true) as $chunk) {
-            $vectors = matcher_embed(array_column($chunk, 'text'), $kind, 30000);
+            $vectors = matcher_embed(array_column($chunk, 'text'), $embedKind, 30000);
             if ($vectors === null) { break; }
             $ids = array_keys($chunk);
             foreach ($vectors as $i => $vec) {
