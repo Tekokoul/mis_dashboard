@@ -38,7 +38,40 @@ $col_width = 12/$columns;
             </section>
         </div>
         <div class="col col-lg-<?=$col_width;?> col-md-12">
-            <div id="project_details"></div>
+            <?php
+            // Tasks can be typed before the activity exists: they are created
+            // with it (projectsController::add_update). With none, a single
+            // task "Delivered" is created, as before.
+            $newTasks = array_values(array_filter((array)($data['data']['new_tasks'] ?? []), function ($t) { return is_array($t) && trim((string)($t['name'] ?? '')) !== ''; }));
+            ?>
+            <div class="card card-modern" id="afcdc-new-tasks">
+                <div class="card-body">
+                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Leave empty and a single task, <strong>Delivered</strong>, is created with it.</p>
+                    <div class="table-responsive">
+                        <table class="table table-ecommerce-simple table-borderless table-striped mb-0">
+                            <thead>
+                            <tr>
+                                <th width="4%">#</th>
+                                <th width="38%">Name</th>
+                                <th>Description</th>
+                                <th width="5%"><a href="#" data-add-task aria-label="Add a task" title="Add a task"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
+                            </tr>
+                            </thead>
+                            <tbody>
+                            <?php foreach ($newTasks as $i => $t): ?>
+                            <tr class="afcdc-new-task">
+                                <td class="afcdc-new-task__num"><?= $i + 1; ?></td>
+                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][name]" value="<?= display($t['name']); ?>" placeholder="Task name" maxlength="250"></td>
+                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"></td>
+                                <td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td>
+                            </tr>
+                            <?php endforeach; ?>
+                            <tr class="afcdc-new-tasks__empty"<?= $newTasks ? ' hidden' : ''; ?>><td colspan="4" class="text-muted py-3">No task yet. Use the + above to add one; you can also add them after saving.</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
         </div>
 
     </div>

@@ -111,12 +111,19 @@ class projectsController extends coreController{
         unset($this->query['additional_tables']);
 
         $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
+        $newTasks = [];
         if ($validated['tablename'] === 'pm_projects') {
             $this->normaliseParents($this->query);
             $blocking = $this->activityBlockers($this->query);
             if ($blocking) { $this->renderActivityForm('add', $this->query, $blocking, $back); }
             if (trim((string)($this->query['abbr'] ?? '')) === '') { $this->query['abbr'] = auto_wbs_code($this->DB, 'pm_projects', $this->query); }
+            // Tasks typed on the add form; created right after the activity.
+            foreach ((array)($this->query['new_tasks'] ?? []) as $t) {
+                if (!is_array($t) || trim((string)($t['name'] ?? '')) === '') { continue; }
+                $newTasks[] = ['name' => mb_substr(trim((string)$t['name']), 0, 250), 'description' => trim((string)($t['description'] ?? ''))];
+            }
         }
+        unset($this->query['new_tasks']);
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             $new_id = $executed['common'];
@@ -126,7 +133,13 @@ class projectsController extends coreController{
                 $executed = $this->model->add_data($add_tbl, $values);
             }
             if ($validated['tablename'] === 'pm_projects') {
-                $this->ensureDefaultTask((int)$new_id);
+                foreach ($newTasks as $t) {
+                    $this->model->add_data('pm_projects_tasks', [
+                        'project_id' => (int)$new_id, 'name' => $t['name'], 'description' => $t['description'],
+                        'applies_to' => default_applies_to($this->DB, null),
+                    ]);
+                }
+                $this->ensureDefaultTask((int)$new_id);   // only adds "Delivered" when there is still no task
                 // What the form had suggested when this was saved; keeping it
                 // is a confirmation, changing it is a correction to learn from.
                 record_filing_feedback($this->DB, 'pm_projects', $this->query, [

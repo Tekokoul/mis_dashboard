@@ -929,3 +929,8 @@ html .afcdc-typeahead__item { flex-wrap: wrap; row-gap: 0.1rem; }
 html .afcdc-typeahead__why { flex: 1 1 100%; font-size: 0.75rem; color: var(--afcdc-ink-soft); white-space: normal; line-height: 1.4; }
 html .afcdc-typeahead__why b { font-weight: 700; color: var(--au-green-deep); font-size: 0.6875rem; letter-spacing: 0.04em; text-transform: uppercase; }
 @media print { html .afcdc-match mark { background: transparent; text-decoration: underline; font-weight: 700; } }
+
+/* Tasks typed on the add form, before the activity exists. */
+html .afcdc-new-tasks__lead { margin: 0 0 0.75rem; font-size: 0.8125rem; color: var(--afcdc-ink-soft); }
+html #afcdc-new-tasks td { vertical-align: middle; }
+html #afcdc-new-tasks .afcdc-new-task__num { color: var(--afcdc-ink-soft); }

@@ -331,7 +331,7 @@ their status, so an undone proposal re-filed by hand travels too.
 "Choose…" and are required, so nothing is saved under the first option by
 nobody's choice. Boxes filled from the wording wear gold ("Suggested from the
 wording") until a person touches them. Leaving a text box asks the guesser at
-once, and Save waits (two seconds at most) for the answer to the final
+once, and Save waits (five seconds at most) for the answer to the final
 wording, so what is recorded as suggested is what was shown. Under the
 programme box the programme's description and up to six activities already
 filed there are listed (`projects/programme_context`).
@@ -357,6 +357,13 @@ a search is on).
 
 **Go to a page.** The "…" between page numbers, on the lists and on the Per
 Project table, opens a small box to type a page number.
+
+**Tasks on the add form.** The Tasks card on a new activity takes names and
+descriptions before the activity exists (+ adds a row, Enter in a row adds
+the next); they are created with the activity, applying to every active
+reporting entity. With none typed, the single task "Delivered" is created
+as before. Editing tasks afterwards is unchanged (the modal on the edit
+form).
 
 Where the 7 September 2026 round stands: the local copy was refreshed from
 the live content tables first (goals, objectives, programmes, activities,

@@ -1,5 +1,37 @@
 $(document).ready(function() {
-    $.ajax({
+    // Tasks typed before the activity exists (the add form's Tasks card).
+    // Rows are plain inputs named new_tasks[i][name|description]; the server
+    // creates them with the activity.
+    var $newTasks = $('#afcdc-new-tasks');
+    if ($newTasks.length) {
+        function renumber() {
+            var rows = $newTasks.find('tr.afcdc-new-task');
+            rows.each(function (i) {
+                $(this).find('.afcdc-new-task__num').text(i + 1);
+                $(this).find('input').each(function () { this.name = this.name.replace(/new_tasks\[\d+\]/, 'new_tasks[' + i + ']'); });
+            });
+            $newTasks.find('.afcdc-new-tasks__empty').prop('hidden', rows.length > 0);
+        }
+        $newTasks.on('click', '[data-add-task]', function (e) {
+            e.preventDefault();
+            var i = $newTasks.find('tr.afcdc-new-task').length;
+            var $row = $('<tr class="afcdc-new-task"><td class="afcdc-new-task__num"></td>'
+                + '<td><input type="text" class="form-control form-control-sm" placeholder="Task name" maxlength="250"></td>'
+                + '<td><input type="text" class="form-control form-control-sm" placeholder="What done looks like (optional)"></td>'
+                + '<td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td></tr>');
+            $row.find('input').eq(0).attr('name', 'new_tasks[' + i + '][name]');
+            $row.find('input').eq(1).attr('name', 'new_tasks[' + i + '][description]');
+            $newTasks.find('.afcdc-new-tasks__empty').before($row);
+            renumber();
+            $row.find('input').first().trigger('focus');
+        });
+        $newTasks.on('click', '[data-remove-task]', function (e) { e.preventDefault(); $(this).closest('tr').remove(); renumber(); });
+        // Enter in a task row adds the next row instead of submitting the form.
+        $newTasks.on('keydown', 'input', function (e) { if (e.key === 'Enter') { e.preventDefault(); $newTasks.find('[data-add-task]').trigger('click'); } });
+    }
+    // Nothing saved yet means no details panel to load; the cascade and the
+    // task modal handlers below are still wired up.
+    if (project_id > 0) $.ajax({
         url: lang_prefix + "/projects/get_details/" + project_type + "/" + project_id,
         type: "GET",
         dataType: "html",

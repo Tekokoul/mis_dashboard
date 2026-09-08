@@ -213,6 +213,8 @@ $(function () {
                 auto = true;
                 // Not while a dropdown is open under the person's hand: the
                 // cascade would empty the list they are choosing from.
+                var $auto = $form.find('select[data-afcdc-auto-open]');
+                if ($auto.length) { $auto.select2('close'); }
                 if ($('.select2-container--open').length) { deferred = best; } else { deferred = null; settling = apply(best); }
             }
             render();
@@ -234,7 +236,7 @@ $(function () {
         clearTimeout(timer);
         ask();
         var gen = seq;
-        window.setTimeout(function () { if (gen === seq) { inflight = false; } settling = false; flush(); }, 2000);
+        window.setTimeout(function () { if (gen === seq) { inflight = false; } settling = false; flush(); }, 5000);
     });
     // The cascade ends at the programme box, and the code box says when its
     // number has arrived: a held save goes on from either.
@@ -400,7 +402,9 @@ $(function () {
             window.setTimeout(function () {
                 var first = pending; pending = null;
                 $(first).closest('.form-group')[0].scrollIntoView({ block: 'center', behavior: 'smooth' });
-                if ($(first).data('select2')) { $(first).select2('open'); } else { first.focus(); }
+                // A dropdown opened here is the form's doing, not the person's: a
+                // suggestion that lands meanwhile may still fill the boxes.
+                if ($(first).data('select2')) { $(first).attr('data-afcdc-auto-open', '1').one('select2:close', function () { $(this).removeAttr('data-afcdc-auto-open'); }).select2('open'); } else { first.focus(); }
             }, 0);
         }
     }, true);
