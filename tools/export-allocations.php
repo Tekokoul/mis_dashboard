@@ -15,10 +15,10 @@
  * empty. Run it on the server as root:
  *   mariadb ... < allocations.sql
  *
- *   php tools/export-allocations.php shipped
- * AFTER the live run succeeded: marks the exported rows as shipped on the
- * local copy (old_* becomes what live now has), so the next export starts
- * from the new live state.
+ *   php tools/export-allocations.php shipped [accepted|all]
+ * AFTER the live run succeeded: marks the rows that run carried as shipped on
+ * the local copy (old_* becomes what live now has), so the next export starts
+ * from the new live state. Pass the same mode the file was produced with.
  */
 declare(strict_types=1);
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit("CLI only\n"); }
@@ -27,11 +27,16 @@ include __DIR__ . '/../app/configuration/settings.local.php';
 require __DIR__ . '/../app/includes/library.php';
 require __DIR__ . '/../app/db.class.php';
 $mode  = $argv[1] ?? 'accepted';
-// "shipped" runs after a live run and must re-baseline everything that run
-// could have carried, whichever mode produced it - a row left "proposed" and
-// exported with "all" would otherwise keep a stale old_abbr, and the guard on
-// the next export would silently skip it.
-$which = ($mode === 'all' || $mode === 'shipped') ? ['accepted', 'proposed', 'reverted'] : ['accepted', 'reverted'];
+// "shipped" runs after a live run and re-baselines exactly what that run
+// carried, so it takes the mode that produced the file:
+//   php tools/export-allocations.php all > allocations.sql   ... then
+//   php tools/export-allocations.php shipped all
+// Re-baselining more than was applied would leave a stale old_abbr on live
+// while the local ledger says otherwise, and the guard on the next export
+// would silently skip the row.
+$exported = $argv[2] ?? 'accepted';
+$wide  = ($mode === 'all') || ($mode === 'shipped' && $exported === 'all');
+$which = $wide ? ['accepted', 'proposed', 'reverted'] : ['accepted', 'reverted'];
 $s = $settings['db_master']; $s['db_provider'] = 'mysql'; $db = new DB($s);
 $marks = implode(',', array_fill(0, count($which), '?'));
 $rows = (array)$db->MQ("SELECT r.*, p.name, p.pillar_id AS cur_pillar_id, p.objective_id AS cur_objective_id, p.programme_id AS cur_programme_id, p.abbr AS cur_abbr

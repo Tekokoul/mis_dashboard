@@ -141,7 +141,11 @@ class coreController extends protectedController{
         $preset = [];
         foreach ($this->query as $field => $value) {
             if (!is_string($field) || !array_key_exists($field, $common)) { continue; }
+            // A parent link, not any dropdown: "active" is a dropdown too, and
+            // presetting it would mark the form as filed from a parent when
+            // no parent came with it.
             if (($common[$field]['type'] ?? '') !== 'dropdown') { continue; }
+            if (($common[$field]['values_from'] ?? '') !== 'db') { continue; }
             if ((int)$value > 0) { $preset[$field] = (int)$value; }
         }
         return $preset;

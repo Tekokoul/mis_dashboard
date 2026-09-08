@@ -273,7 +273,9 @@ fix is a move, recorded for a person to check, never a silent rewrite.
 3. `tools/export-allocations.php [accepted|all] > allocations.sql` turns the
    vetted moves into one `UPDATE ... WHERE id= AND abbr=<old code>` per row
    inside a transaction, with two checks that must come back empty and a
-   commented rollback block. On the server, as root, after a backup:
+   commented rollback block. Afterwards `export-allocations.php shipped
+   [accepted|all]`, with the mode the file was produced with, records on the
+   local copy that live now holds those rows. On the server, as root, after a backup:
    `docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE"' < /tmp/programme-codes.sql`
    then the same with `allocations.sql`, then the code deploy. Applying the
    SQL before the deploy is fine: the running code lists the rows under their
@@ -376,12 +378,14 @@ how the suggestions get better at the categories you actually use. The
 preset never moves under a suggestion: on these forms the wording only
 suggests, with Apply.
 
-**Esc goes back.** On a form it returns to the list the form was opened from,
-asking first when something typed or a goal / objective / programme moved by
-hand would be lost. Anywhere else it steps back one page, or up the
-breadcrumb (Overview › Objective › Programme) when there is no page to step
-back to. Anything that uses Esc for itself, a dropdown, a dialog, the search
-suggestions or the go-to-page box, keeps it.
+**Esc goes back.** On any form it returns to the list the form was opened
+from, asking first when something typed, or a goal / objective / programme
+moved by hand or through Apply, would be lost. Anywhere else it steps back
+one page, or up the breadcrumb (Overview › Objective › Programme) when there
+is no page to step back to. Anything that uses Esc for itself, a dropdown, a
+dialog, the search suggestions or the go-to-page box, keeps it. In full
+screen the key does only what the browser does with it, which is leave full
+screen; press it again to step back.
 
 **Tasks on the add form.** The Tasks card on a new activity takes names and
 descriptions before the activity exists (+ adds a row, Enter in a row adds

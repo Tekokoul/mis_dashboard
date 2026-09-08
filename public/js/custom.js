@@ -134,6 +134,7 @@ $(function () {
             $s.trigger('afcdc:set', [String(v)]);
         }
         $s.val(String(v)).trigger('change');
+        if (manual) { $s.trigger('afcdc:picked'); }   // an Apply or a runner-up link: a choice, and Esc should ask about it
         return true;
     }
     // Returns true when a cascade was started (options are being reloaded
@@ -430,6 +431,16 @@ $(function () {
     });
 });
 
+/* Full screen, however it was entered. A page put there through the
+ * Fullscreen API says so; one the person put there with F11 does not, and
+ * is recognised by the window filling the screen. Escape leaves full screen
+ * either way, and that is all one press should do. */
+function afcdcFullScreen() {
+    if (document.fullscreenElement || document.webkitFullscreenElement) { return true; }
+    return window.screen && Math.abs(window.innerHeight - window.screen.height) <= 2
+        && Math.abs(window.innerWidth - window.screen.width) <= 2;
+}
+
 /* Esc leaves the activity form the way the Back button does - to the list
  * it was opened from. Not while a dropdown or a dialog is open (they take
  * Esc themselves), and not without asking when something typed is unsaved. */
@@ -438,12 +449,25 @@ $(function () {
     // cascade or a suggestion: only a real event carries originalEvent, and
     // select2 raises select2:select for a pick alone.
     var placement = 'form.ecommerce-form select[name="pillar_id"], form.ecommerce-form select[name="objective_id"], form.ecommerce-form select[name="programme_id"]';
-    $(document).on('select2:select', placement, function () { $(this).attr('data-afcdc-touched', '1'); });
-    $(document).on('change', placement, function (e) { if (e.originalEvent) { $(this).attr('data-afcdc-touched', '1'); } });
+    // What each box held when the page arrived, so putting one back where it
+    // started stops counting as a change.
+    $(placement).each(function () { $(this).attr('data-afcdc-was', this.value); });
+    function afcdcMark(el) {
+        var was = $(el).attr('data-afcdc-was');
+        $(el).attr('data-afcdc-touched', (was !== undefined && String(el.value) === String(was)) ? '0' : '1');
+    }
+    $(document).on('select2:select', placement, function () { afcdcMark(this); });
+    $(document).on('change', placement, function (e) { if (e.originalEvent) { afcdcMark(this); } });
+    // "Apply" and the runner-up links move the boxes in script, so they carry
+    // no browser event; they are a person's choice all the same.
+    $(document).on('afcdc:picked', placement, function () { afcdcMark(this); });
     $(document).on('keydown', function (e) {
         if (e.key !== 'Escape' || e.isDefaultPrevented()) { return; }
+        // The marked Back link, or any editing form's own Back button: an
+        // edit must never be dropped without asking, whichever form it is.
         var $back = $('a[data-afcdc-back]').first();
-        if (!$back.length) { return; }
+        if (!$back.length) { $back = $('form.ecommerce-form a.cancel-button').first(); }
+        if (!$back.length || !$back.attr('href')) { return; }
         if ($('.select2-container--open').length) { return; }
         if (window.jQuery && $.magnificPopup && $.magnificPopup.instance && $.magnificPopup.instance.isOpen) { return; }
         var dirty = false;
@@ -456,8 +480,13 @@ $(function () {
         // changed". A box the person moved themselves is marked instead.
         if ($('form.ecommerce-form').find('select[data-afcdc-touched="1"]').length) { dirty = true; }
         if (dirty && !window.confirm('Leave without saving your changes?')) { return; }
+        // Escape is the browser's "stop loading" as well, so the move waits
+        // until the key has been dealt with: navigating inside the handler
+        // could have its own load aborted a moment later.
+        if (afcdcFullScreen()) { return; }   // this press is leaving full screen; one thing per key
         e.preventDefault();
-        window.location.href = $back.attr('href');
+        var to = $back.attr('href');
+        window.setTimeout(function () { window.location.href = to; }, 0);
     });
 });
 
@@ -481,14 +510,17 @@ $(function () {
     }
     $(document).on('keydown', function (e) {
         if (e.key !== 'Escape' || e.isDefaultPrevented()) { return; }
-        if ($('a[data-afcdc-back]').length) { return; }            // a form: handled above
+        if ($('a[data-afcdc-back]').length || $('form.ecommerce-form a.cancel-button').length) { return; }   // a form: handled above, with its unsaved check
         if ($('.select2-container--open, .afcdc-jump__box').length) { return; }
         if (window.jQuery && $.magnificPopup && $.magnificPopup.instance && $.magnificPopup.instance.isOpen) { return; }
         var tag = (document.activeElement && document.activeElement.tagName) || '';
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { return; }
-        if (sameSite(document.referrer)) { e.preventDefault(); window.history.back(); return; }
+        // In full screen this press is what leaves it: that is the whole
+        // action, and stepping back as well would lose the page too.
+        if (afcdcFullScreen()) { return; }
+        if (sameSite(document.referrer)) { e.preventDefault(); window.setTimeout(function () { window.history.back(); }, 0); return; }
         var up = upLink();
-        if (up) { e.preventDefault(); window.location.href = up; }
+        if (up) { e.preventDefault(); window.setTimeout(function () { window.location.href = up; }, 0); }
     });
 });
 

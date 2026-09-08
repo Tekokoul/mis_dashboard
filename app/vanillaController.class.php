@@ -187,7 +187,9 @@ class vanillaController {
         // GoBack() escapes for HTML and the views escape again, so it is undone here.
         foreach ([(string)$given, (string)($this->query['back'] ?? ''), html_entity_decode($this->GoBack(), ENT_QUOTES, 'UTF-8')] as $c) {
             $c = trim($c);
-            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || strpbrk($c, "\\\r\n") !== false) { continue; }
+            // Browsers strip tabs and newlines before parsing a URL, so "/<TAB>/host"
+            // becomes "//host" and leaves the site: no control character may pass.
+            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || preg_match('/[\x00-\x20\x7f\\\\]/', $c)) { continue; }
             if (preg_match('#/(?:projects/(?:add|edit|add_update|edit_update)|core/db_(?:add|edit|add_update|edit_update))(?:/|$|\?)#', $c)) { continue; }
             if (rtrim($c, '/') === rtrim((string)$this->L(""), '/')) { continue; }   // no referer at all: GoBack() answers with the site root
             return $c;
