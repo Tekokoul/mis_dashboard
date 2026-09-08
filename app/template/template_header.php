@@ -113,6 +113,8 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                             }
                             $isHere = fn(string $link): bool => $here === $link || str_starts_with($here, $link.'/');
                             foreach ($this->main_menu as $menu_item=>$properties){
+                                // An entry may belong to a feature that is switched off (requires: "import" - IMPORT_ENABLED in .env).
+                                if (!empty($properties['requires']) && !feature_enabled((string)$properties['requires'])) { continue; }
                                 if(in_array( $_SESSION['user']['group']['id'], explode(",",$properties['active_for']))) {
                                     $html = "";
                                     switch ($properties['type']){

@@ -109,6 +109,9 @@ define('_MATCHER_URL',     $(php_str "${MATCHER_URL:-}"));
 define('_MATCHER_WEIGHT',  $(php_str "${MATCHER_WEIGHT:-0.35}"));
 define('_MATCHER_MODEL',   $(php_str "${MATCHER_MODEL:-intfloat/multilingual-e5-small}"));
 define('_MATCHER_HISTORY_WEIGHT', $(php_str "${MATCHER_HISTORY_WEIGHT:-0.95}"));
+// Workbook import (Content > Import a work plan). Off unless IMPORT_ENABLED=true:
+// the code ships with every release, the page does not exist until this is on.
+define('_IMPORT_ENABLED',  $( [ "$(printf '%s' "${IMPORT_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')" = "true" ] && echo true || echo false ));
 PHPEOF
 chown www-data:www-data /var/www/html/app/configuration/settings.local.php
 chmod 640 /var/www/html/app/configuration/settings.local.php
@@ -350,6 +353,69 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
                 KEY idx_allocation_review_status (status)
               ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
             || die "could not create pm_allocation_review_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    fi
+
+    # 7. Workbook import staging: what a work-plan upload would add or change,
+    #    held for a person to accept row by row (app/includes/import.php).
+    #    Created whether or not IMPORT_ENABLED is on, so switching it on later
+    #    needs no further migration; empty and unread while it is off.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_import_batches_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_import_batches_tbl (workbook imports)"
+        qddl "CREATE TABLE pm_import_batches_tbl (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                filename VARCHAR(255) NOT NULL DEFAULT '',
+                sheet VARCHAR(64) NOT NULL DEFAULT '',
+                rows_total INT(11) NOT NULL DEFAULT 0,
+                uploaded_by INT(11) NOT NULL DEFAULT 0,
+                uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                note TEXT DEFAULT NULL,
+                PRIMARY KEY (id)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
+            || die "could not create pm_import_batches_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    fi
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_import_rows_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_import_rows_tbl (workbook import rows)"
+        qddl "CREATE TABLE pm_import_rows_tbl (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                batch_id INT(11) NOT NULL,
+                row_no INT(11) NOT NULL DEFAULT 0,
+                kind VARCHAR(16) NOT NULL DEFAULT 'new',
+                code VARCHAR(64) NOT NULL DEFAULT '',
+                name VARCHAR(255) NOT NULL DEFAULT '',
+                description TEXT DEFAULT NULL,
+                kpi VARCHAR(255) NOT NULL DEFAULT '',
+                budget DOUBLE DEFAULT NULL,
+                extra TEXT DEFAULT NULL,
+                match_project_id INT(11) NOT NULL DEFAULT 0,
+                match_how VARCHAR(16) NOT NULL DEFAULT '',
+                match_score DOUBLE NOT NULL DEFAULT 0,
+                changes TEXT DEFAULT NULL,
+                hint_objective_id INT(11) NOT NULL DEFAULT 0,
+                sug_pillar_id INT(11) NOT NULL DEFAULT 0,
+                sug_objective_id INT(11) NOT NULL DEFAULT 0,
+                sug_programme_id INT(11) NOT NULL DEFAULT 0,
+                alt_objective_id INT(11) NOT NULL DEFAULT 0,
+                alt_programme_id INT(11) NOT NULL DEFAULT 0,
+                confidence VARCHAR(16) NOT NULL DEFAULT 'none',
+                reason TEXT DEFAULT NULL,
+                candidates TEXT DEFAULT NULL,
+                nearest_project_id INT(11) NOT NULL DEFAULT 0,
+                nearest_score DOUBLE NOT NULL DEFAULT 0,
+                status VARCHAR(16) NOT NULL DEFAULT 'pending',
+                result_project_id INT(11) NOT NULL DEFAULT 0,
+                decided_by INT(11) NOT NULL DEFAULT 0,
+                decided_at DATETIME DEFAULT NULL,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                KEY idx_import_rows_batch (batch_id, status)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
+            || die "could not create pm_import_rows_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)

@@ -36,6 +36,7 @@ class protectedController extends vanillaController {
         // Content editing
         'projects/*'                    => [1, 2],
         'core/*'                        => [1, 2],
+        'imports/*'                     => [1, 2],   // workbook import; the controller also answers 404 unless IMPORT_ENABLED
     ];
 
     public function __construct(Registry $registry) {

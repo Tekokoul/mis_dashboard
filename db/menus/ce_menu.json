@@ -66,6 +66,14 @@
     "active_for": "1,2,3"
   },
   {
+    "title": "Import a work plan",
+    "type": "link",
+    "link": "imports/list",
+    "icon": "bx-import",
+    "active_for": "1,2",
+    "requires": "import"
+  },
+  {
     "title": "Administrative",
     "type": "label",
     "active_for": "1"

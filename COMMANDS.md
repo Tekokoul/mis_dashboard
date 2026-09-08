@@ -476,10 +476,12 @@ those. Without the sidecar nothing changes: the fallback still scores 72.2%.
 ```
 docker compose exec -T app php /var/www/html/tools/measure-filing.php --show-misses
 docker compose exec -T app php /var/www/html/tools/measure-filing.php --no-matcher
+docker compose exec -T app php /var/www/html/tools/measure-filing.php --with-heading
 ```
 
 Re-run these after the catalogue changes shape rather than trusting the
-numbers above forever.
+numbers above forever. `--with-heading` scores what a work plan brings: given
+the objective, the right programme is found 86.3% of the time.
 
 **What was tried and left alone.** A classifier trained on the filed
 activities (a logistic head on the same vectors) scores 78.5%, and fine-tuning
@@ -527,6 +529,91 @@ model, so change both together. To force a full recompute:
 ```
 docker compose exec -T db sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -e "TRUNCATE pm_embeddings_tbl;"'
 ```
+
+## Importing a work plan from a workbook
+
+**Off unless switched on.** `IMPORT_ENABLED=true` in `.env`, then recreate the
+app container (`docker compose up -d app` locally; the deploy on the server).
+Without it the menu entry does not exist and every `imports/*` route answers
+404, so the code can ship in a release while the feature is still being tried
+out on a local copy. The staging tables are created by the migration either
+way, empty and unread while it is off.
+
+**What it does.** Content > Import a work plan takes an `.xlsx` work plan
+(the sheet called Schedule, or the first sheet with a header row naming the
+activities) and, without writing anything, lists every activity with what the
+catalogue knows about it:
+
+- **Already in the system** - found by the code an earlier import or the
+  re-filing recorded for it, or by its exact name; nothing differs.
+- **Changed** - found the same way, but the workbook's name, notes
+  (description), indicator or budget differ. The differences are shown; Apply
+  updates that activity in place. Its placement is never changed here: when
+  the workbook lists it under another objective the note says so and it stays
+  where it sits, because that placement was a person's decision (the edit form
+  moves it, vetted and exported like any other move).
+- **New** - nothing matches. Where it belongs is proposed from its wording
+  (`suggest_parent`, the same guesser as the add form) and from the workbook's
+  own heading above it ("1.1 Connect the RCCs as one organisation" is matched
+  to an objective by name). The proposal is always the heading's objective
+  when there is one; the wording picks the programme under it. AGREED when
+  the two point the same way, FROM THE WORKBOOK HEADING when the wording also
+  fits, TWO ANSWERS (red) when they disagree - both are shown and "Use the
+  wording's pick" swaps the boxes. Near-duplicate wording already filed under
+  the proposed objective decides the programme ("the programme follows
+  1.8.2"), and "Most like ..." names the closest existing activity either way.
+- **Looks familiar** (red) - the name only resembles an existing activity
+  (60% or more of the words). "It is that one" turns it into Changed or
+  Already in the system; "It is new" keeps the proposal.
+
+Accept creates the activity where the boxes say (next free code under the
+programme, goal from the objective, the "Delivered" task, a note recording the
+workbook, row and code it came from) and records the placement as an example
+the guesser learns from - kept as proposed it confirms, moved it corrects.
+Skip leaves the catalogue alone. Accept all agreed takes every agreed new row
+and every plain update at once, after you have looked. Discard throws an
+import away while nothing from it has been accepted.
+
+**From the command line, without the page:**
+
+```
+docker compose cp plan.xlsx app:/tmp/plan.xlsx
+docker compose exec -T app php /var/www/html/tools/import-workbook.php /tmp/plan.xlsx            # dry run: what it would do
+docker compose exec -T app php /var/www/html/tools/import-workbook.php /tmp/plan.xlsx --stage    # stage it for the review page
+```
+
+A dry run on the workbook the catalogue was seeded from comes back all
+"already in the system" or "changed" (the budgets the seed never had); a NEW
+row there means the matching missed something.
+
+**Getting accepted rows to live while the feature is off there:**
+
+```
+docker compose exec -T app php /var/www/html/tools/export-import.php <batch-id|all> > import-live.sql
+```
+
+One guarded statement per accepted row inside a transaction (new activities
+with their local ids and their task, `INSERT ... WHERE NOT EXISTS`; updates
+`WHERE id = ... AND name = <the name before>`), then checks that must return
+nothing before COMMIT. Copied to the server and run as root after a backup,
+like the allocations file. Filing corrections stay local. Once the feature is
+on on the server the upload happens there and nothing needs exporting.
+
+**Measuring the guesser.** `tools/measure-filing.php` hides each filed
+activity and asks where its wording belongs (its own words and its own past
+corrections left out), the honest hold-out the numbers in "How an activity
+gets filed" came from. `--no-matcher` scores words and corrections alone;
+`--with-heading` also scores the import's proposal with the activity's own
+objective given as the workbook heading, which is what a work plan row brings:
+
+```
+docker compose exec -T app php /var/www/html/tools/measure-filing.php --with-heading --show-misses
+```
+
+On 8 September 2026 (205 activities): objective@1 82%, programme@1 71%,
+objective@3 98%, confident half the time and right 96% of those; with the
+heading given, programme@1 86%. The heading is worth fifteen points on the
+programme, which is why the import trusts it for the objective.
 
 ## Before you commit or deploy
 

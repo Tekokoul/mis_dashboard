@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/import.php';
 /**
  * Created by PhpStorm.
  * User: zen
@@ -1245,6 +1246,16 @@ function ensure_default_task($db, $projectId) {
     if (!$ids) { return; }
     $db->MQ("INSERT INTO pm_projects_tasks_tbl (project_id, name, description, applies_to) VALUES (?, 'Delivered', ?, ?)", false,
         [$projectId, trim((string)$project['abbr'] . ' ' . (string)$project['name']), json_encode($ids)]);
+}
+
+/**
+ * Is a switchable feature on? Named in the menu ("requires") and checked by
+ * the controller that serves it, so a feature can ship in a release and
+ * stay invisible until its switch in .env is thrown.
+ */
+function feature_enabled($name) {
+    if ($name === 'import') { return import_enabled(); }
+    return false;
 }
 
 /**

@@ -84,6 +84,8 @@ services:
       MATCHER_WEIGHT: ${MATCHER_WEIGHT:-0.35}
       MATCHER_MODEL: ${MATCHER_MODEL:-intfloat/multilingual-e5-small}
       MATCHER_HISTORY_WEIGHT: ${MATCHER_HISTORY_WEIGHT:-0.95}
+      # Workbook import page. Off unless "true"; see .env.example.
+      IMPORT_ENABLED: ${IMPORT_ENABLED:-false}
       SSO_AUTHORITY: ${SSO_AUTHORITY:-}
       SSO_REDIRECT_URI: ${SSO_REDIRECT_URI:-}
     ports:
