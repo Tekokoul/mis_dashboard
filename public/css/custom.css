@@ -978,6 +978,29 @@ html .afcdc-import__box { display: block; margin: 0 0 0.4rem; font-size: 0.6875r
 html .afcdc-import__box span { display: block; margin-bottom: 0.15rem; }
 html .afcdc-import__box select { text-transform: none; letter-spacing: 0; font-weight: 400; font-size: 0.8125rem; }
 html .afcdc-import__accept { margin-bottom: 0.25rem; }
+/* Actions that are named, not drawn.
+   Every list puts bare icons in this column, so the shared rule pins
+   `td.afcdc-col-actions a` to a fixed 2.75rem square - a 44px target that
+   does not widen the column. The review page is the one place that labels
+   its actions, because Accept, Accept as new and Skip are decisions to read
+   rather than icons to recognise, and a word does not fit in a 44px box: the
+   label overflowed its own button and collided with the one beside it. Here
+   the square becomes a MINIMUM, so a button grows to its text while a lone
+   icon still gets its target. */
+html .afcdc-import__table td.afcdc-col-actions a {
+    width: auto;
+    min-width: 2.75rem;
+    height: auto;
+    min-height: 2.75rem;   /* the same 44px target the icon buttons keep elsewhere */
+    gap: 0.35rem;
+    padding: 0.3rem 0.7rem;
+    margin: 0;
+}
+/* Free to wrap in that narrow column rather than forcing it wider. */
+html .afcdc-import__table td.afcdc-col-actions { white-space: normal; }
+/* The cell wraps so the buttons stack; the label inside one does not, or
+   "Accept as new" breaks across two lines in a column this narrow. */
+html .afcdc-import__table td.afcdc-col-actions a { margin: 0 0.35rem 0.35rem 0; white-space: nowrap; }
 /* The actions inside a row note are links, not buttons: without this the
    "disabled" class the script adds while a POST is in flight looks the same
    as before and a second click answers "that row was already decided". */

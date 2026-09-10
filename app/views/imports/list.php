@@ -54,8 +54,9 @@
                                 <td><?= (int)$c['kind']['new']; ?> new · <?= (int)$c['kind']['changed']; ?> changed · <?= (int)$c['kind']['unclear']; ?> to settle · <?= (int)$c['kind']['same']; ?> already in</td>
                                 <td><?= (int)$c['status']['accepted']; ?> accepted · <?= (int)$c['status']['skipped']; ?> skipped<?= (int)$c['status']['pending'] > 0 ? ' · <strong>' . (int)$c['status']['pending'] . ' pending</strong>' : ''; ?></td>
                                 <td class="afcdc-col-actions">
-                                    <a href="<?= $this->L('imports/review/' . (int)$b['id']); ?>" class="btn btn-sm btn-light border" title="Review"><i class="bx bx-list-check" aria-hidden="true"></i> Review</a>
-                                    <?php if ($c['status']['accepted'] === 0) { ?><a href="#" class="btn btn-sm btn-light border" data-import-action="discard" data-id="<?= (int)$b['id']; ?>" title="Discard this import"><i class="bx bx-trash" aria-hidden="true"></i> Discard</a><?php } ?>
+                                    <?php // Bare icons, as every other list in the dashboard does its row actions. ?>
+                                    <a href="<?= $this->L('imports/review/' . (int)$b['id']); ?>" title="Review this import" aria-label="Review this import"><i class="bx bx-list-check bx-sm" aria-hidden="true"></i></a>
+                                    <?php if ($c['status']['accepted'] === 0) { ?><a href="#" data-import-action="discard" data-id="<?= (int)$b['id']; ?>" title="Discard this import" aria-label="Discard this import"><i class="bx bx-trash bx-sm" aria-hidden="true"></i></a><?php } ?>
                                 </td>
                             </tr>
                         <?php } ?>
