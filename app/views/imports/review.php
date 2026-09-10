@@ -113,7 +113,7 @@ $rowClass = function (array $r) {
                                                         <span class="afcdc-import__needs afcdc-import__needs--empty">the workbook gave none and there was nothing to compose one from &mdash; this row needs one written</span>
                                                     <?php } ?>
                                                 </label>
-                                                <textarea id="afcdc-desc-<?= $rid; ?>" class="form-control form-control-sm afcdc-import__desc-input" rows="2" data-id="<?= $rid; ?>" placeholder="What this activity is"><?= display($desc['have']); ?></textarea>
+                                                <textarea id="afcdc-desc-<?= $rid; ?>" class="form-control form-control-sm afcdc-import__desc-input" rows="2" maxlength="4000" data-id="<?= $rid; ?>" placeholder="What this activity is"><?= display($desc['have']); ?></textarea>
                                             </div>
                                         <?php } elseif (trim((string)$r['description']) !== '') { ?>
                                             <div class="afcdc-import__desc"><?= display(mb_substr((string)$r['description'], 0, 220)); ?><?= mb_strlen((string)$r['description']) > 220 ? '…' : ''; ?></div>

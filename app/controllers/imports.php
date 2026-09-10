@@ -183,7 +183,13 @@ class importsController extends protectedController {
         $this->checkMethod("POST");
         $this->mapRoute("id");
         $id = (int)($this->parts['id'] ?? 0);
-        $this->answer(import_accept_all($this->DB, $id, $this->userId()), $id);
+        // The descriptions as they stand on the review page, keyed by row id.
+        $descriptions = [];
+        foreach ((array)($this->query['descriptions'] ?? []) as $rowId => $text) {
+            if (is_array($text)) { continue; }
+            $descriptions[(int)$rowId] = (string)$text;
+        }
+        $this->answer(import_accept_all($this->DB, $id, $this->userId(), $descriptions), $id);
     }
 
     /** POST imports/discard/<batch>: throw the staging away (only while nothing from it was accepted). */

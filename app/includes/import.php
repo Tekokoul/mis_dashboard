@@ -206,11 +206,19 @@ function import_parse_rows(array $rows) {
         ];
     }
     if (!$activities) { return null; }
+    // A sheet with dozens of spacer rows can produce more per-row warnings than
+    // the note column holds, and they used to push the column reporting - the
+    // part that says what was thrown away - off the end.
+    if (count($warnings) > 8) {
+        $warnings = array_merge(array_slice($warnings, 0, 8), ['... and ' . (count($warnings) - 8) . ' more rows like those.']);
+    }
     // What each column was taken to mean, in the batch note: a header read
     // wrongly is otherwise invisible until the numbers look odd.
     $read = [];
     foreach ($roles as $role => $col) { $read[] = $role . '=' . import_column_letter((int)$col); }
-    $warnings[] = 'Columns read as: ' . implode(', ', $read) . ' (header on row ' . $header . ').';
+    // Collected here and put in FRONT of the row warnings below, because what
+    // a workbook lost matters more than which rows were skipped.
+    $columnReport = ['Columns read as: ' . implode(', ', $read) . ' (header on row ' . $header . ').'];
     // A column the reader did not recognise is a column whose contents are
     // thrown away, and until now that happened in silence. Said out loud, so
     // a work plan that carries something this dashboard has no field for is
@@ -220,20 +228,25 @@ function import_parse_rows(array $rows) {
     $ignored = []; $ignoredCount = 0;
     foreach ((array)($rows[$header] ?? []) as $col => $text) {
         if (isset($used[(int)$col])) { continue; }
-        $t = trim((string)$text);
-        if ($t === '' || preg_match('/^[\d.,\/-]+$/', $t)) { continue; }
+        // Non-breaking spaces are routine in a sheet pasted in from elsewhere,
+        // and a spacer column of them was being reported as a dropped column
+        // with no name. A header with no letter or digit in it is not a field.
+        $t = trim((string)preg_replace('/[\p{Z}\x{FEFF}]+/u', ' ', (string)$text));
+        if ($t === '' || !preg_match('/[\p{L}\p{N}]/u', $t) || preg_match('/^[\d.,\/-]+$/', $t)) { continue; }
+        $t = mb_substr($t, 0, 60);
         $ignoredCount++;
         if (count($ignored) < 6) { $ignored[] = $t . ' (' . import_column_letter((int)$col) . ')'; }
     }
     if ($ignored) {
-        $warnings[] = 'Nothing was kept from ' . ($ignoredCount === 1 ? 'this column' : 'these ' . $ignoredCount . ' columns') . ', because the dashboard has no field for '
+        $columnReport[] = 'Nothing was kept from ' . ($ignoredCount === 1 ? 'this column' : 'these ' . $ignoredCount . ' columns') . ', because the dashboard has no field for '
             . ($ignoredCount === 1 ? 'it' : 'them') . ': ' . implode(', ', $ignored) . ($ignoredCount > count($ignored) ? ', and ' . ($ignoredCount - count($ignored)) . ' more' : '') . '.';
     }
     // What IS read but has no column of its own on an activity: kept on the
     // activity's notes when the row is accepted, and named here so nobody
     // goes looking for it in a field.
     $sidecar = array_values(array_intersect(['quarter', 'start', 'finish', 'owner', 'days', 'pct'], array_keys($roles)));
-    if ($sidecar) { $warnings[] = 'Kept on each activity\'s notes rather than in a field of its own: ' . implode(', ', $sidecar) . '.'; }
+    if ($sidecar) { $columnReport[] = 'Kept on each activity\'s notes rather than in a field of its own: ' . implode(', ', $sidecar) . '.'; }
+    $warnings = array_merge($columnReport, $warnings);
     return ['header_row' => $header, 'columns' => $roles, 'activities' => $activities, 'objectives' => $objectives, 'warnings' => $warnings];
 }
 
@@ -729,14 +742,17 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
     // own words when it had any and the composed one when it did not. An
     // activity without a description is refused by the form, and is refused
     // here too rather than being created broken.
-    $text = ($description === null) ? (string)$row['description'] : trim((string)$description);
+    // Capped once, here, so the words stored on the activity and the words the
+    // guesser learns from are the same words. Truncating only at the INSERT
+    // left the learner training on a sentence nobody can read back.
+    $text = mb_substr(($description === null) ? (string)$row['description'] : trim((string)$description), 0, 4000);
     if (trim($text) === '') {
         return ['ok' => false, 'message' => 'This row needs a description before it can be created. The workbook gave none; write one, or take the suggested one.'];
     }
     $notes = import_notes_text($row, $extra, $batchFile);
     $db->MQ("INSERT INTO pm_projects_tbl (pillar_id, objective_id, programme_id, name, abbr, description, kpi, estimated_budget, notes, type, active)
              VALUES (?,?,?,?,?,?,?,?,?,'pm_projects_tasks',1)", false, [
-        $pillar, $objectiveId, $programmeId, (string)$row['name'], $code, mb_substr($text, 0, 4000), (string)$row['kpi'],
+        $pillar, $objectiveId, $programmeId, (string)$row['name'], $code, $text, (string)$row['kpi'],
         ($row['budget'] === null || $row['budget'] === '') ? null : (float)$row['budget'], $notes,
     ]);
     $n = $db->MQ("SELECT LAST_INSERT_ID() AS id", "one");
@@ -763,6 +779,9 @@ function import_notes_text(array $row, array $extra, $batchFile) {
     if (($extra['start'] ?? '') !== '' || ($extra['finish'] ?? '') !== '') { $when = trim($when . ' ' . (string)($extra['start'] ?? '?') . ' to ' . (string)($extra['finish'] ?? '?')); }
     if ($when !== '') { $bits[] = $when; }
     if (($extra['owner'] ?? '') !== '') { $bits[] = 'Owner: ' . (string)$extra['owner']; }
+    // Named in the batch note as kept here, so they had better be kept here.
+    if (($extra['days'] ?? '') !== '') { $bits[] = 'Duration: ' . (string)$extra['days'] . ' days'; }
+    if (($extra['pct'] ?? '') !== '') { $bits[] = 'Reported ' . (string)$extra['pct'] . ' done in the work plan'; }
     if (($extra['wb_objective'] ?? '') !== '') { $bits[] = 'Workbook heading: ' . (string)($extra['wb_wbs'] ?? '') . ' ' . (string)$extra['wb_objective']; }
     return mb_substr(implode('. ', array_map('trim', $bits)) . '.', 0, 4000);
 }
@@ -791,17 +810,24 @@ function import_settle($db, array $row, $isSame) {
 }
 
 /** The pending rows a person can accept in one go: agreed new rows and plain updates. */
-function import_accept_all($db, $batchId, $userId) {
+function import_accept_all($db, $batchId, $userId, array $descriptions = []) {
     $batch = import_batch($db, $batchId);
     if (!is_set($batch)) { return ['ok' => false, 'message' => 'No such import.']; }
     $rows = (array)$db->MQ("SELECT * FROM pm_import_rows_tbl WHERE batch_id = ? AND status = 'pending' AND ((kind = 'new' AND confidence = 'agreed') OR kind = 'changed') ORDER BY row_no, id", "all", [(int)$batchId]);
     $done = 0; $failed = [];
     foreach ($rows as $r) {
-        // The row's own description, or the one composed from the workbook when
-        // it had none: "Accept all" is still a person pressing a button that
-        // says what it will do, and a row it cannot complete is reported.
-        $fields = import_row_fields($r);
-        $res = import_accept($db, $r, (int)$r['sug_objective_id'], (int)$r['sug_programme_id'], $userId, (string)$batch['filename'], $fields['description']['have']);
+        // What is on the reviewer's screen wins: they may have rewritten a
+        // composed description, and re-deriving it here would write the
+        // sentence they had just replaced. Only when the page sent nothing for
+        // this row does the row's own text - or the composed one - stand in.
+        $id = (int)$r['id'];
+        if (array_key_exists($id, $descriptions)) {
+            $text = (string)$descriptions[$id];
+        } else {
+            $fields = import_row_fields($r);
+            $text = (string)$fields['description']['have'];
+        }
+        $res = import_accept($db, $r, (int)$r['sug_objective_id'], (int)$r['sug_programme_id'], $userId, (string)$batch['filename'], $text);
         if (!empty($res['ok'])) { $done++; } else { $failed[] = 'Row ' . (int)$r['row_no'] . ': ' . (string)$res['message']; }
     }
     // The rows that would not go through are the whole point of reading this
