@@ -35,6 +35,9 @@ $(function () {
                 var was = $(this).attr('data-afcdc-was') || '';
                 if (String($(this).val() || '') !== String(was) && ids.indexOf(id) === -1) { ids.push(id); }
             });
+            $r.find('.afcdc-import__desc-input').each(function () {
+                if (this.value !== this.defaultValue && ids.indexOf(id) === -1) { ids.push(id); }
+            });
         });
         return ids;
     }
@@ -61,6 +64,15 @@ $(function () {
         if (action === 'accept') {
             var $row = rowOf(this);
             var $obj = $row.find('.afcdc-import__obj'), $prg = $row.find('.afcdc-import__prg');
+            var $desc = $row.find('.afcdc-import__desc-input');
+            if ($desc.length) {
+                data.description = $desc.val() || '';
+                if (!$.trim(data.description)) {
+                    window.alert('This row needs a description before it can be created. The workbook gave none, so write one here.');
+                    $desc.trigger('focus');
+                    return;
+                }
+            }
             if ($obj.length) {
                 data.objective_id = $obj.val() || '';
                 data.programme_id = $prg.val() || '';
@@ -117,6 +129,7 @@ $(function () {
                 $prg.html(html).prop('disabled', false);
                 if (wantProgramme && $prg.find('option[value="' + parseInt(wantProgramme, 10) + '"]').length) { $prg.val(String(parseInt(wantProgramme, 10))); }
                 else if (list.length === 1) { $prg.val(String(parseInt(list[0].id, 10))); }
+                $prg.trigger('change');
             })
             // The same guard as the success path: a request that fails after a
             // later one has already filled the box must not empty it again.
@@ -126,6 +139,29 @@ $(function () {
             });
     }
     $(document).on('change', '.afcdc-import__obj', function () { refill($(this), 0); });
+
+    // The number an activity gets comes from the programme it goes under, so
+    // it is re-read whenever that box changes. The code shown on load counts
+    // the other pending rows headed for the same programme; this one asks for
+    // the next free code alone, and the real number is assigned on accept.
+    function refreshCode($prg) {
+        var $code = rowOf($prg).find('.afcdc-import__code-value');
+        if (!$code.length) { return; }
+        var programme = parseInt($prg.val(), 10);
+        if (!programme) { $code.text('—'); return; }
+        var seq = (parseInt($code.attr('data-seq') || '0', 10) + 1);
+        $code.attr('data-seq', seq).text('…');
+        $.ajax({ url: prefix + '/core/next_code/pm_projects/' + programme, method: 'GET', dataType: 'json' })
+            .done(function (res) {
+                if (parseInt($code.attr('data-seq'), 10) !== seq) { return; }
+                $code.text((res && res.data && res.data.code) ? res.data.code : '—');
+            })
+            .fail(function () {
+                if (parseInt($code.attr('data-seq'), 10) !== seq) { return; }
+                $code.text('—');
+            });
+    }
+    $(document).on('change', '.afcdc-import__prg', function () { refreshCode($(this)); });
 
     // "Use the wording's pick": the boxes jump to the alternative.
     $(document).on('click', '[data-import-pick]', function (e) {

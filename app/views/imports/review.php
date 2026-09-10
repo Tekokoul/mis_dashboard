@@ -96,7 +96,28 @@ $rowClass = function (array $r) {
                                     <td><code><?= display($r['code']); ?></code></td>
                                     <td class="afcdc-cell-name">
                                         <strong><?= display($r['name']); ?></strong>
-                                        <?php if (trim((string)$r['description']) !== '') { ?><div class="afcdc-import__desc"><?= display(mb_substr((string)$r['description'], 0, 220)); ?><?= mb_strlen((string)$r['description']) > 220 ? '…' : ''; ?></div><?php } ?>
+                                        <?php
+                                        // An activity cannot be saved without a description. When the
+                                        // workbook gave none, one is put together from what it did give
+                                        // and offered for approval - never used unless this row is
+                                        // accepted, and never presented as the workbook's own words.
+                                        $fields = import_row_fields($r);
+                                        $desc = $fields['description'];
+                                        if ($needsPlace && $canAct) { ?>
+                                            <div class="afcdc-import__descedit<?= $desc['suggested'] ? ' afcdc-import__descedit--suggested' : ''; ?>">
+                                                <label for="afcdc-desc-<?= $rid; ?>">
+                                                    Description
+                                                    <?php if ($desc['suggested'] && $desc['have'] !== '') { ?>
+                                                        <span class="afcdc-import__needs">the workbook gave none &mdash; this was put together from its other columns, so read it before accepting</span>
+                                                    <?php } elseif ($desc['suggested']) { ?>
+                                                        <span class="afcdc-import__needs afcdc-import__needs--empty">the workbook gave none and there was nothing to compose one from &mdash; this row needs one written</span>
+                                                    <?php } ?>
+                                                </label>
+                                                <textarea id="afcdc-desc-<?= $rid; ?>" class="form-control form-control-sm afcdc-import__desc-input" rows="2" data-id="<?= $rid; ?>" placeholder="What this activity is"><?= display($desc['have']); ?></textarea>
+                                            </div>
+                                        <?php } elseif (trim((string)$r['description']) !== '') { ?>
+                                            <div class="afcdc-import__desc"><?= display(mb_substr((string)$r['description'], 0, 220)); ?><?= mb_strlen((string)$r['description']) > 220 ? '…' : ''; ?></div>
+                                        <?php } ?>
                                         <div class="afcdc-import__facts">
                                             <?php
                                             $facts = [];
@@ -128,6 +149,8 @@ $rowClass = function (array $r) {
                                                     <?php foreach ((array)($data['programmes'][$selO] ?? []) as $p) { ?><option value="<?= (int)$p['id']; ?>"<?= (int)$p['id'] === $selP ? ' selected' : ''; ?>><?= display(trim((string)$p['abbr'] . ' ' . (string)$p['name'])); ?></option><?php } ?>
                                                 </select>
                                             </label>
+                                            <?php // The number the activity will carry, which follows the programme it goes under. ?>
+                                            <div class="afcdc-import__code">Will be numbered <code class="afcdc-import__code-value" data-id="<?= $rid; ?>"><?= display((string)($data['codes'][$rid] ?? '—')); ?></code></div>
                                         <?php } elseif ($needsPlace) { ?>
                                             <?= display(import_place_label($cat, $r['sug_objective_id'], $r['sug_programme_id'])); ?>
                                         <?php } elseif ((int)$r['result_project_id'] > 0) { ?>

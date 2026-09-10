@@ -971,6 +971,14 @@ html .afcdc-import__note, html .afcdc-import__proposal { margin-top: 0.4rem; }
 html .afcdc-import__diff { margin: 0.25rem 0 0.25rem 1rem; padding: 0; font-size: 0.75rem; }
 html .afcdc-import__diff del { color: var(--au-red); text-decoration: line-through; }
 html .afcdc-import__diff ins { color: var(--au-green-deep); text-decoration: none; font-weight: 600; }
+html .afcdc-import__descedit { margin-top: 0.4rem; }
+html .afcdc-import__descedit label { display: block; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--afcdc-ink-soft); margin-bottom: 0.15rem; }
+html .afcdc-import__desc-input { font-size: 0.8125rem; }
+html .afcdc-import__needs { display: inline; margin-left: 0.35rem; font-weight: 400; letter-spacing: 0; text-transform: none; font-style: italic; color: var(--au-red); }
+html .afcdc-import__needs--empty { font-weight: 700; font-style: normal; }
+html .afcdc-import__descedit--suggested .afcdc-import__desc-input { border-color: var(--au-gold); background: #FBF8EE; }
+html .afcdc-import__code { margin-top: 0.15rem; font-size: 0.75rem; color: var(--afcdc-ink-soft); }
+html .afcdc-import__code code { font-size: 0.75rem; font-weight: 700; color: var(--afcdc-ink); background: transparent; padding: 0; }
 html .afcdc-import__nearest { margin-top: 0.2rem; font-size: 0.75rem; color: var(--afcdc-ink-soft); }
 html .afcdc-import__tag--split, html .afcdc-import__tag--low, html .afcdc-import__tag--none { background: var(--au-red) !important; color: #FFF !important; }
 html .afcdc-import__tag--agreed { background: var(--au-green-deep) !important; color: #FFF !important; }

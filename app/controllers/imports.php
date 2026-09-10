@@ -89,6 +89,10 @@ class importsController extends protectedController {
             'meta_name'  => 'Import a work plan',
             'batch'      => $batch,
             'rows'       => $rows,
+            // The code each pending row would be given, worked out from where
+            // it is proposed to go. Two rows headed for the same programme get
+            // consecutive numbers rather than the same one twice.
+            'codes'      => $this->previewCodes($rows),
             'counts'     => $counts,
             'show'       => $show,
             'cat'        => $cat,
@@ -97,6 +101,33 @@ class importsController extends protectedController {
             // Nothing may be acted on until the whole workbook is in.
             'can_act'    => can_vet() && empty($counts['incomplete']),
         ]);
+    }
+
+    /**
+     * What each pending row would be numbered, in the order they will be
+     * accepted. auto_wbs_code() answers "the next free code under this
+     * programme", which is the right answer once - so the second row headed
+     * for the same programme has its last segment stepped on here, or a
+     * workbook adding five activities to one programme would show 3.2.7 five
+     * times over. The number an activity actually gets is still assigned when
+     * the row is accepted; this only says what to expect.
+     */
+    private function previewCodes(array $rows) {
+        $next = []; $out = [];
+        foreach ($rows as $r) {
+            if ((string)$r['status'] !== 'pending' || !in_array((string)$r['kind'], ['new', 'unclear'], true)) { continue; }
+            $programme = (int)$r['sug_programme_id'];
+            if ($programme <= 0) { continue; }
+            if (!isset($next[$programme])) {
+                $code = auto_wbs_code($this->DB, 'pm_projects', ['programme_id' => $programme]);
+                if ($code === '') { continue; }
+                $next[$programme] = $code;
+            } else {
+                $next[$programme] = preg_replace_callback('/(\d+)$/', function ($m) { return (string)((int)$m[1] + 1); }, $next[$programme]);
+            }
+            $out[(int)$r['id']] = $next[$programme];
+        }
+        return $out;
     }
 
     private function rowOr404($id) {
@@ -116,7 +147,10 @@ class importsController extends protectedController {
         $this->mapRoute("id");
         $row = $this->rowOr404($this->parts['id'] ?? 0);
         $batch = import_batch($this->DB, (int)$row['batch_id']);
-        $res = import_accept($this->DB, $row, (int)($this->query['objective_id'] ?? 0), (int)($this->query['programme_id'] ?? 0), $this->userId(), (string)($batch['filename'] ?? ''));
+        // The description as it stands on the page: the workbook's own words, or
+        // the composed suggestion, or whatever the person typed over either.
+        $description = array_key_exists('description', $this->query) ? (string)$this->query['description'] : null;
+        $res = import_accept($this->DB, $row, (int)($this->query['objective_id'] ?? 0), (int)($this->query['programme_id'] ?? 0), $this->userId(), (string)($batch['filename'] ?? ''), $description);
         $this->answer($res, (int)$row['batch_id']);
     }
 

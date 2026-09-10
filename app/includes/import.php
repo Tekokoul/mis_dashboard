@@ -211,6 +211,29 @@ function import_parse_rows(array $rows) {
     $read = [];
     foreach ($roles as $role => $col) { $read[] = $role . '=' . import_column_letter((int)$col); }
     $warnings[] = 'Columns read as: ' . implode(', ', $read) . ' (header on row ' . $header . ').';
+    // A column the reader did not recognise is a column whose contents are
+    // thrown away, and until now that happened in silence. Said out loud, so
+    // a work plan that carries something this dashboard has no field for is
+    // a decision rather than an accident. A header that is just a number is
+    // a Gantt week, not a field, and is not worth naming.
+    $used = array_flip(array_map('intval', $roles));
+    $ignored = []; $ignoredCount = 0;
+    foreach ((array)($rows[$header] ?? []) as $col => $text) {
+        if (isset($used[(int)$col])) { continue; }
+        $t = trim((string)$text);
+        if ($t === '' || preg_match('/^[\d.,\/-]+$/', $t)) { continue; }
+        $ignoredCount++;
+        if (count($ignored) < 6) { $ignored[] = $t . ' (' . import_column_letter((int)$col) . ')'; }
+    }
+    if ($ignored) {
+        $warnings[] = 'Nothing was kept from ' . ($ignoredCount === 1 ? 'this column' : 'these ' . $ignoredCount . ' columns') . ', because the dashboard has no field for '
+            . ($ignoredCount === 1 ? 'it' : 'them') . ': ' . implode(', ', $ignored) . ($ignoredCount > count($ignored) ? ', and ' . ($ignoredCount - count($ignored)) . ' more' : '') . '.';
+    }
+    // What IS read but has no column of its own on an activity: kept on the
+    // activity's notes when the row is accepted, and named here so nobody
+    // goes looking for it in a field.
+    $sidecar = array_values(array_intersect(['quarter', 'start', 'finish', 'owner', 'days', 'pct'], array_keys($roles)));
+    if ($sidecar) { $warnings[] = 'Kept on each activity\'s notes rather than in a field of its own: ' . implode(', ', $sidecar) . '.'; }
     return ['header_row' => $header, 'columns' => $roles, 'activities' => $activities, 'objectives' => $objectives, 'warnings' => $warnings];
 }
 
@@ -473,6 +496,61 @@ function import_propose_holdout($db, array $a, array $cat, $hint, $excludeId) {
     return import_propose($db, $a, $cat, (int)$hint, $nearest, $nearestSim, (int)$excludeId);
 }
 
+/**
+ * A description put together from what the workbook DID give, for a row that
+ * arrived without one.
+ *
+ * An activity cannot be saved without a description - the form refuses it and
+ * so does the import - and a work plan that leaves the Notes column empty
+ * would otherwise stop dead at every row. So the facts the workbook did carry
+ * are written out as a sentence for a person to approve or rewrite. It is
+ * never used unless somebody accepts it, and the review page says plainly
+ * that these are not the workbook's own words.
+ *
+ * Returns '' when there is nothing to go on, which leaves the row honestly
+ * incomplete rather than inventing something.
+ */
+function import_suggested_description(array $row, array $extra) {
+    $bits = [];
+    $kpi = trim((string)($row['kpi'] ?? ''));
+    if ($kpi !== '') { $bits[] = 'Measured by ' . $kpi; }
+    $when = trim((string)($extra['quarter'] ?? ''));
+    $from = trim((string)($extra['start'] ?? '')); $to = trim((string)($extra['finish'] ?? ''));
+    if ($from !== '' || $to !== '') {
+        $span = ($from !== '' && $to !== '') ? $from . ' to ' . $to : ($from !== '' ? 'from ' . $from : 'by ' . $to);
+        $when = $when !== '' ? $when . ', ' . $span : $span;
+    }
+    if ($when !== '') { $bits[] = 'Planned for ' . $when; }
+    $owner = trim((string)($extra['owner'] ?? ''));
+    if ($owner !== '') { $bits[] = 'Owned by ' . $owner; }
+    $budget = $row['budget'] ?? null;
+    if ($budget !== null && $budget !== '' && (float)$budget > 0) { $bits[] = 'Budget ' . number_format((float)$budget, 0, '.', ',') . ' USD'; }
+    // The heading is context, not a description: on its own it says only where
+    // the row sat in the workbook, which tells nobody what the activity is. It
+    // is added when there is something real to add it to, and a row that has
+    // nothing else comes back empty so a person is asked to write one.
+    if (!$bits) { return ''; }
+    $heading = trim((string)($extra['wb_objective'] ?? ''));
+    if ($heading !== '') { $bits[] = 'Listed in the work plan under ' . trim((string)($extra['wb_wbs'] ?? '') . ' ' . $heading); }
+    return mb_substr(implode('. ', $bits) . '.', 0, 2000);
+}
+
+/**
+ * What a staged row still needs before it can become an activity, and what
+ * the import proposes to put there.
+ *
+ * Only the description can be missing on a row that reached this point: a row
+ * with no name never becomes an activity at all, and the goal, objective and
+ * programme come from the boxes on the review page. Returns
+ * ['description' => ['have' => ..., 'suggested' => bool]].
+ */
+function import_row_fields(array $r) {
+    $extra = is_array($r['extra_data'] ?? null) ? $r['extra_data'] : (json_decode((string)($r['extra'] ?? ''), true) ?: []);
+    $have = trim((string)($r['description'] ?? ''));
+    if ($have !== '') { return ['description' => ['have' => $have, 'suggested' => false]]; }
+    return ['description' => ['have' => import_suggested_description($r, $extra), 'suggested' => true]];
+}
+
 /* ----------------------------------------------------------------- stage */
 
 /** Write a parsed workbook to the staging tables. Returns the batch id. */
@@ -575,7 +653,7 @@ function import_place_label(array $cat, $objectiveId, $programmeId) {
  * an existing activity is the edit form's job, so the move is vetted and
  * exported like any other). Returns ['ok' => bool, 'message' => ..., 'project_id' => ..., 'code' => ...].
  */
-function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $batchFile = '') {
+function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $batchFile = '', $description = null) {
     if ((string)$row['status'] !== 'pending') { return ['ok' => false, 'message' => 'That row was already decided.']; }
     $counts = import_batch_counts($db, (int)$row['batch_id']);
     if (!empty($counts['incomplete'])) {
@@ -647,10 +725,18 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
     $code = auto_wbs_code($db, 'pm_projects', ['programme_id' => $programmeId]);
     if ($code === '') { return ['ok' => false, 'message' => 'The programme has no numeric code, so no activity code can be made under it.']; }
     $extra = json_decode((string)$row['extra'], true) ?: [];
+    // The description as approved on the review page, which is the workbook's
+    // own words when it had any and the composed one when it did not. An
+    // activity without a description is refused by the form, and is refused
+    // here too rather than being created broken.
+    $text = ($description === null) ? (string)$row['description'] : trim((string)$description);
+    if (trim($text) === '') {
+        return ['ok' => false, 'message' => 'This row needs a description before it can be created. The workbook gave none; write one, or take the suggested one.'];
+    }
     $notes = import_notes_text($row, $extra, $batchFile);
     $db->MQ("INSERT INTO pm_projects_tbl (pillar_id, objective_id, programme_id, name, abbr, description, kpi, estimated_budget, notes, type, active)
              VALUES (?,?,?,?,?,?,?,?,?,'pm_projects_tasks',1)", false, [
-        $pillar, $objectiveId, $programmeId, (string)$row['name'], $code, (string)$row['description'], (string)$row['kpi'],
+        $pillar, $objectiveId, $programmeId, (string)$row['name'], $code, mb_substr($text, 0, 4000), (string)$row['kpi'],
         ($row['budget'] === null || $row['budget'] === '') ? null : (float)$row['budget'], $notes,
     ]);
     $n = $db->MQ("SELECT LAST_INSERT_ID() AS id", "one");
@@ -662,7 +748,7 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
     // proposal at all it is still a clean example.
     record_filing_feedback($db, 'pm_projects', [
         'pillar_id' => $pillar, 'objective_id' => $objectiveId, 'programme_id' => $programmeId,
-        'name' => (string)$row['name'], 'description' => (string)$row['description'], 'kpi' => (string)$row['kpi'],
+        'name' => (string)$row['name'], 'description' => $text, 'kpi' => (string)$row['kpi'],
     ], ['pillar_id' => (int)$row['sug_pillar_id'], 'objective_id' => (int)$row['sug_objective_id'], 'programme_id' => (int)$row['sug_programme_id']], $newId, true);
     $db->MQ("UPDATE pm_import_rows_tbl SET status = 'accepted', result_project_id = ?, decided_by = ?, decided_at = NOW() WHERE id = ?", false, [$newId, $userId, (int)$row['id']]);
     return ['ok' => true, 'message' => 'Created ' . $code . '.', 'project_id' => $newId, 'code' => $code];
@@ -711,7 +797,11 @@ function import_accept_all($db, $batchId, $userId) {
     $rows = (array)$db->MQ("SELECT * FROM pm_import_rows_tbl WHERE batch_id = ? AND status = 'pending' AND ((kind = 'new' AND confidence = 'agreed') OR kind = 'changed') ORDER BY row_no, id", "all", [(int)$batchId]);
     $done = 0; $failed = [];
     foreach ($rows as $r) {
-        $res = import_accept($db, $r, (int)$r['sug_objective_id'], (int)$r['sug_programme_id'], $userId, (string)$batch['filename']);
+        // The row's own description, or the one composed from the workbook when
+        // it had none: "Accept all" is still a person pressing a button that
+        // says what it will do, and a row it cannot complete is reported.
+        $fields = import_row_fields($r);
+        $res = import_accept($db, $r, (int)$r['sug_objective_id'], (int)$r['sug_programme_id'], $userId, (string)$batch['filename'], $fields['description']['have']);
         if (!empty($res['ok'])) { $done++; } else { $failed[] = 'Row ' . (int)$r['row_no'] . ': ' . (string)$res['message']; }
     }
     // The rows that would not go through are the whole point of reading this
