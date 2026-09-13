@@ -441,29 +441,17 @@ $(function () {
 });
 
 /* Escape leaves full screen, and that is the whole job of that press: the
- * page must not step back as well. A page put into full screen through the
- * Fullscreen API says so, but one the person put there with F11 or the green
- * button does not - and its window can still show the browser's toolbar, so
- * measuring the screen misses it. What always happens is the window
- * resizing, so the move is scheduled a moment ahead and dropped if the
- * window changes size first. The wait is short enough not to be felt. */
+ * page must not step back as well. That is true of full screen a page asked
+ * for through the Fullscreen API, and the document says so. It is not true
+ * of the browser's own full screen (F11, the green button on a Mac): those
+ * leave with the same key they were entered with, and Esc is an ordinary
+ * key there. Reading the display mode or measuring the window to guess at
+ * that muted Esc for good in a Chrome window on a Mac that reported
+ * "display-mode: fullscreen" while sitting at 1512 by 861 on a taller
+ * screen. Should Esc ever leave some full screen after all, the window
+ * resizes, and afcdcEscapeGo() drops a move scheduled just before that. */
 function afcdcFullScreen() {
-    // A page put into full screen through the Fullscreen API says so.
-    if (document.fullscreenElement || document.webkitFullscreenElement) { return true; }
-    // A window the person put there with F11, or the green button on a Mac,
-    // does not - but the browser reports its display mode, which is the one
-    // signal that holds however full screen was entered. Measuring the window
-    // against the screen does not: in full screen on a Mac the toolbar is
-    // still shown, so the window is never quite the height of the screen.
-    if (window.matchMedia) {
-        var q = window.matchMedia('(display-mode: fullscreen)');
-        if (q && q.media !== 'not all' && q.matches) { return true; }
-    }
-    // Last resort where the display mode is unknown: the window covering the
-    // whole screen, chrome included (outerHeight is 0 in some embedded views).
-    var sc = window.screen;
-    return !!(sc && sc.height && window.outerHeight
-        && window.outerHeight >= sc.height - 2 && window.outerWidth >= sc.width - 2);
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
 }
 
 /* Escape, or Backspace pressed with focus on the page itself. Backspace
@@ -481,8 +469,17 @@ function afcdcIsBackKey(e) {
     var el = document.activeElement;
     if (!el || el === document.body || el === document.documentElement) { return true; }
     if (el.isContentEditable) { return false; }
-    var interactive = 'input, textarea, select, button, a, [tabindex], [contenteditable], [role="combobox"], [role="textbox"], .select2-container';
-    if (el.closest && el.closest(interactive)) { return false; }
+    // A control is a box, a button, a link, a select2 box, or anything put
+    // in the Tab order (tabindex 0 or more: a sortable column header, a
+    // scroll pane). A wrapper with tabindex="-1" is none of those: the theme
+    // gives the content area one, so after a click anywhere on the page it
+    // is what holds the focus - and that is the page itself, not a control.
+    var control = 'input, textarea, select, button, a[href], [role="combobox"], [role="textbox"], .select2-container';
+    for (var n = el; n && n !== document.body; n = n.parentElement) {
+        if (n.matches && n.matches(control)) { return false; }
+        var ti = n.getAttribute ? n.getAttribute('tabindex') : null;
+        if (ti !== null && parseInt(ti, 10) >= 0) { return false; }
+    }
     return true;
 }
 
