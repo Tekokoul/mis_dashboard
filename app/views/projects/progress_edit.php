@@ -4,7 +4,8 @@ $columns = 2;
 $col_width = 12/$columns;
 ?>
 <header class="page-header page-header-left-inline-breadcrumb">
-    <h2 class="font-weight-bold text-6"><a href="<?=$this->L("projects/progress_list")?>" >Progress</a> &rsaquo; Record delivery</h2>
+    <?php // The title is a breadcrumb and names the Progress list; the Back button below is what remembers where you were. ?>
+    <h2 class="font-weight-bold text-6"><a href="<?= $this->L("projects/progress_list"); ?>">Progress</a> &rsaquo; Record delivery</h2>
     <div class="right-wrapper">
         <ol class="breadcrumbs">
             <li><span>Edit mode</span></li>
@@ -14,6 +15,7 @@ $col_width = 12/$columns;
 </header>
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("projects/progress_edit_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
+    <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
     <div class="row mb-4">
             <div class="col col-lg-<?=$col_width;?> col-md-12">
                 <section class="card card-modern mb-5">
@@ -82,7 +84,7 @@ $col_width = 12/$columns;
         <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0 ms-auto">
         </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
-            <a href="<?=$this->L("projects/progress_list");?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
+            <a href="<?= display($data['back'] ?? $this->L("projects/progress_list")); ?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1" data-afcdc-back title="Back to where you were (Esc)">Back</a>
         </div>
     </div>
 </form>
@@ -92,8 +94,13 @@ $col_width = 12/$columns;
     var project_type = <?=json_encode((string)($data['data']['type'] ?? ''), JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP);?>;
     // The "Delivery recorded" strip: focus is what gets it announced on a
     // fresh load; dropping ?saved=1 from the URL stops F5 re-announcing it.
+    // Only that key goes: ?back= stays, so a reload still knows the way back.
     (function () {
         var s = document.getElementById('afcdc-saved');
-        if (s) { s.focus(); if (history.replaceState) { history.replaceState(null, '', location.pathname); } }
+        if (!s) { return; }
+        s.focus();
+        if (!history.replaceState) { return; }
+        var q = location.search.replace(/[?&]saved=1(?=&|$)/, '').replace(/^&/, '?');
+        history.replaceState(null, '', location.pathname + q);
     })();
 </script>

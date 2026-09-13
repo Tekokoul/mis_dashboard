@@ -308,13 +308,26 @@ form shown again and "Not saved. Please fill in: ..." at the top
 (`projectsController::activityBlockers`). The code is filled automatically
 and never blocks.
 
-**Back and Esc.** The form's Back button and the Esc key both return to the
-list the form was opened from (filters kept). After a save the form is
+**Back, Esc and Backspace.** A form's Back button, the Esc key and the
+Backspace key all return to the page the form was opened from, with its
+search, its filters and its page number kept: a list, a searched list on
+page three, or an activity's own page when a delivery was recorded from
+there. The activity, delivery and user forms all do this, and the delivery
+popup's Save carries it through as well. Backspace counts only with focus
+on the page itself: in a box it deletes a character, on a button, a link
+or a dropdown it is left to that control, and with a modifier held it is
+the browser's. A held key is one step, not thirty. After a save the form is
 reached by a redirect, so the browser's referer would be the form itself;
-the list URL travels in a hidden `back` field and `?back=` instead
-(`projectsController::backTo`, same-host paths only, never the form or the
-site root). Esc asks first when a text box holds an unsaved change; it does
-nothing while a dropdown or a dialog is open, as they use Esc themselves.
+the return URL travels in a hidden `back` field and `?back=` instead
+(`vanillaController::backTo`, same-host paths only, never a form, a
+fragment or the site root). Opening a result straight from the search
+dropdown skips the list page that would have carried the search, so the
+dropdown sends the list-as-searched along as `?back=` itself (the page's
+own address when the box still holds what the page was loaded with, so the
+page number survives too). Esc and Backspace ask first when a box holds an
+unsaved change, typed or chosen; they do nothing while a dropdown or a
+dialog is open, as those use Esc themselves; and on a page reached by a
+form's Back they go up the breadcrumb rather than back into the form.
 
 **"Check placement" after a save.** Saving an activity never blocks on where
 it was filed, but when the wording points clearly elsewhere (the best place

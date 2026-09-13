@@ -6,6 +6,9 @@
         <h2 class="card-title">Record delivery</h2>
     </header>
     <form id="taskform" action="<?=$this->L("projects/task_progress_update");?>" method="post">
+    <?php // Filled by pm_progress_tasks.js from the page's own hidden back field: this
+          // popup arrives by ajax, whose referer is the delivery form itself. ?>
+    <input type="hidden" name="back" value="">
     <div class="card-body">
         <div class="row">
             <div>

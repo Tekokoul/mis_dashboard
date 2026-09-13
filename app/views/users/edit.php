@@ -21,6 +21,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
 </header>
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("users/edit_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
+    <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
     <div class="row mb-4">
         <?php
         if(isset($data['model']['common'])){
@@ -126,7 +127,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
             </button>
         </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
-            <a href="<?=$this->GoBack();?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1">Back</a>
+            <a href="<?= display($data['back'] ?? $this->L('users/list')); ?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1" data-afcdc-back title="Back to the list (Esc)">Back</a>
         </div>
     </div>
 </form>

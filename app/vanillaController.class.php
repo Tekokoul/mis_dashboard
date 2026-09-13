@@ -181,7 +181,8 @@ class vanillaController {
      * a redirect, so the browser's referer would be the form - which is why
      * the list URL travels in a hidden "back" field and in ?back= as well.
      * Only a path on this host is accepted: "//host" and "/\host" both leave
-     * the site in a browser.
+     * the site in a browser. A fragment is refused as well: the browser drops
+     * it on the way, and "/projects/add#x" walked past the form check below.
      */
     public function backTo($default, $given = '') {
         // GoBack() escapes for HTML and the views escape again, so it is undone here.
@@ -189,8 +190,8 @@ class vanillaController {
             $c = trim($c);
             // Browsers strip tabs and newlines before parsing a URL, so "/<TAB>/host"
             // becomes "//host" and leaves the site: no control character may pass.
-            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || preg_match('/[\x00-\x20\x7f\\\\]/', $c)) { continue; }
-            if (preg_match('#/(?:projects/(?:add|edit|add_update|edit_update)|core/db_(?:add|edit|add_update|edit_update))(?:/|$|\?)#', $c)) { continue; }
+            if ($c === '' || $c[0] !== '/' || str_starts_with($c, '//') || str_contains($c, '#') || preg_match('/[\x00-\x20\x7f\\\\]/', $c)) { continue; }
+            if (preg_match('#/(?:projects/(?:add|edit|add_update|edit_update|progress_edit|progress_edit_update)|core/db_(?:add|edit|add_update|edit_update)|users/(?:add|edit|add_update|edit_update))(?:/|$|\?)#', $c)) { continue; }
             if (rtrim($c, '/') === rtrim((string)$this->L(""), '/')) { continue; }   // no referer at all: GoBack() answers with the site root
             return $c;
         }

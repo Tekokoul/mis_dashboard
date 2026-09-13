@@ -466,7 +466,35 @@ function afcdcFullScreen() {
         && window.outerHeight >= sc.height - 2 && window.outerWidth >= sc.width - 2);
 }
 
+/* Escape, or Backspace pressed with focus on the page itself. Backspace
+ * inside a box deletes a character and must never leave the page; with a
+ * modifier held it is a browser shortcut; and on anything else that takes
+ * focus - a button or link after a click or a Tab, a select2 box (its own
+ * span, not the <select>), a sortable column header - it is left alone too,
+ * because the person is working that control, not asking to leave. A key
+ * held down repeats thirty times a second: one press is one step. */
+function afcdcIsBackKey(e) {
+    if (e.isDefaultPrevented()) { return false; }
+    if (e.originalEvent && e.originalEvent.repeat) { return false; }
+    if (e.key === 'Escape') { return true; }
+    if (e.key !== 'Backspace' || e.metaKey || e.ctrlKey || e.altKey || e.shiftKey) { return false; }
+    var el = document.activeElement;
+    if (!el || el === document.body || el === document.documentElement) { return true; }
+    if (el.isContentEditable) { return false; }
+    var interactive = 'input, textarea, select, button, a, [tabindex], [contenteditable], [role="combobox"], [role="textbox"], .select2-container';
+    if (el.closest && el.closest(interactive)) { return false; }
+    return true;
+}
+
+/* One step at a time: a second press while the first is still on its way
+ * (the wait below, then the page loading) would step back twice, past the
+ * page the person wanted. The flag clears itself after a second, so a step
+ * that went nowhere (a tab with no history behind it) does not leave the
+ * key dead. */
+var afcdcEscapePending = false;
 function afcdcEscapeGo(go) {
+    if (afcdcEscapePending) { return; }
+    afcdcEscapePending = true;
     var cancelled = false;
     function cancel() { cancelled = true; }
     window.addEventListener('resize', cancel);
@@ -476,7 +504,8 @@ function afcdcEscapeGo(go) {
         window.removeEventListener('resize', cancel);
         document.removeEventListener('fullscreenchange', cancel);
         document.removeEventListener('webkitfullscreenchange', cancel);
-        if (!cancelled) { go(); }
+        window.setTimeout(function () { afcdcEscapePending = false; }, 1000);
+        if (!cancelled) { go(); } else { afcdcEscapePending = false; }
     }, 260);
 }
 
@@ -484,24 +513,27 @@ function afcdcEscapeGo(go) {
  * it was opened from. Not while a dropdown or a dialog is open (they take
  * Esc themselves), and not without asking when something typed is unsaved. */
 $(function () {
-    // A goal / objective / programme moved by a person, as opposed to by the
-    // cascade or a suggestion: only a real event carries originalEvent, and
-    // select2 raises select2:select for a pick alone.
+    // A box moved by a person, as opposed to by the cascade or a suggestion:
+    // only a real event carries originalEvent, and select2 raises
+    // select2:select for a pick alone. Every dropdown of the form counts, not
+    // only the three placement boxes: a milestone chosen on the delivery form
+    // is as much an unsaved change as a programme.
+    var boxes = 'form.ecommerce-form select';
     var placement = 'form.ecommerce-form select[name="pillar_id"], form.ecommerce-form select[name="objective_id"], form.ecommerce-form select[name="programme_id"]';
     // What each box held when the page arrived, so putting one back where it
     // started stops counting as a change.
-    $(placement).each(function () { $(this).attr('data-afcdc-was', this.value); });
+    $(boxes).each(function () { $(this).attr('data-afcdc-was', this.value); });
     function afcdcMark(el) {
         var was = $(el).attr('data-afcdc-was');
         $(el).attr('data-afcdc-touched', (was !== undefined && String(el.value) === String(was)) ? '0' : '1');
     }
-    $(document).on('select2:select', placement, function () { afcdcMark(this); });
-    $(document).on('change', placement, function (e) { if (e.originalEvent) { afcdcMark(this); } });
+    $(document).on('select2:select', boxes, function () { afcdcMark(this); });
+    $(document).on('change', boxes, function (e) { if (e.originalEvent) { afcdcMark(this); } });
     // "Apply" and the runner-up links move the boxes in script, so they carry
     // no browser event; they are a person's choice all the same.
     $(document).on('afcdc:picked', placement, function () { afcdcMark(this); });
     $(document).on('keydown', function (e) {
-        if (e.key !== 'Escape' || e.isDefaultPrevented()) { return; }
+        if (!afcdcIsBackKey(e)) { return; }
         // The marked Back link, or any editing form's own Back button: an
         // edit must never be dropped without asking, whichever form it is.
         var $back = $('a[data-afcdc-back]').first();
@@ -531,7 +563,7 @@ $(function () {
         // Escape is the browser's "stop loading" as well, so the move waits
         // until the key has been dealt with: navigating inside the handler
         // could have its own load aborted a moment later.
-        if (afcdcFullScreen()) { return; }   // this press is leaving full screen; one thing per key
+        if (e.key === 'Escape' && afcdcFullScreen()) { return; }   // this press is leaving full screen; one thing per key
         e.preventDefault();
         var to = $back.attr('href');
         afcdcEscapeGo(function () { window.location.href = to; });
@@ -556,8 +588,18 @@ $(function () {
         var $links = $('header.page-header').find('h2 a, .breadcrumbs a');
         return $links.length ? $links.last().attr('href') : '';
     }
+    // A page reached by a form's Back button has that form as the page the
+    // browser remembers; one step back would reopen it, and Esc on the form
+    // would come here again. Up the breadcrumb instead. The routes are the
+    // ones backTo() refuses on the server.
+    var formRoute = /\/(?:projects\/(?:add|edit|add_update|edit_update|progress_edit|progress_edit_update)|core\/db_(?:add|edit|add_update|edit_update)|users\/(?:add|edit|add_update|edit_update))(?:\/|$|\?|#)/;
+    function fromForm(url) {
+        var a = document.createElement('a');
+        a.href = url;
+        return formRoute.test(a.pathname + a.search);
+    }
     $(document).on('keydown', function (e) {
-        if (e.key !== 'Escape' || e.isDefaultPrevented()) { return; }
+        if (!afcdcIsBackKey(e)) { return; }
         if ($('a[data-afcdc-back]').length || $('form.ecommerce-form a.cancel-button').length) { return; }   // a form: handled above, with its unsaved check
         if ($('.select2-container--open, .afcdc-jump__box').length) { return; }
         if (window.jQuery && $.magnificPopup && $.magnificPopup.instance && $.magnificPopup.instance.isOpen) { return; }
@@ -565,8 +607,8 @@ $(function () {
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { return; }
         // In full screen this press is what leaves it: that is the whole
         // action, and stepping back as well would lose the page too.
-        if (afcdcFullScreen()) { return; }
-        if (sameSite(document.referrer)) { e.preventDefault(); afcdcEscapeGo(function () { window.history.back(); }); return; }
+        if (e.key === 'Escape' && afcdcFullScreen()) { return; }
+        if (sameSite(document.referrer) && !fromForm(document.referrer)) { e.preventDefault(); afcdcEscapeGo(function () { window.history.back(); }); return; }
         var up = upLink();
         if (up) { e.preventDefault(); afcdcEscapeGo(function () { window.location.href = up; }); }
     });
@@ -676,6 +718,23 @@ $(function () {
     $(document).on('click', function (e) { if (!$(e.target).closest('.afcdc-jump').length) { close(); } });
 });
 
+/* Two query strings ask for the same page when they hold the same filled-in
+ * values, whichever way each is spelt ("+" or "%20" for a space, empty
+ * filters present or not, keys in any order). */
+function afcdcSameQuery(a, b) {
+    function pairs(q) {
+        var out = [];
+        $.each(String(q || '').replace(/^\?/, '').split('&'), function (i, part) {
+            if (!part) { return; }
+            var at = part.indexOf('='), k = at < 0 ? part : part.slice(0, at), v = at < 0 ? '' : part.slice(at + 1);
+            try { k = decodeURIComponent(k.replace(/\+/g, ' ')); v = decodeURIComponent(v.replace(/\+/g, ' ')); } catch (err) { return; }
+            if (v !== '') { out.push(k + '=' + v); }
+        });
+        return out.sort().join('&');
+    }
+    return pairs(a) === pairs(b);
+}
+
 /* The list search shows what it would find as you type: rows of the list
  * (a pick opens one) and the parents it can be filtered by (a pick sets
  * that filter), then "Search for …" which submits as before. Arrow keys
@@ -695,7 +754,22 @@ $(function () {
             if ($sel.length && $sel.find('option[value="' + item.value + '"]').length) { $in.val(''); $sel.val(String(item.value)); $form.submit(); return; }
             $in.val(item.label); $form.submit(); return;
         }
-        if (item.id !== undefined && open) { window.location.href = prefix + '/' + open + '/' + item.id; return; }
+        if (item.id !== undefined && open) {
+            // Opening a result straight from the dropdown skips the list page
+            // that would have carried the search, so the page the person came
+            // from - as far as the browser knows - is the list WITHOUT what
+            // they typed, and Back lost it. The list as it would look with
+            // this search applied (its filters included) travels along, and
+            // the form's Back button and Esc use it. When the box holds what
+            // the page was loaded with, the page itself is that list - page
+            // number and all - so its own address goes, not page one.
+            var query = $form.serialize(), action = $form.attr('action') || '', here = window.location.pathname;
+            var onThisList = here === action || here.indexOf(action + '/') === 0;
+            var unchanged = afcdcSameQuery(window.location.search, query);
+            var back = (onThisList && unchanged ? here : action) + '?' + query;
+            window.location.href = prefix + '/' + open + '/' + item.id + '?back=' + encodeURIComponent(back);
+            return;
+        }
         $form.submit();
     }
     function render(groups, q) {

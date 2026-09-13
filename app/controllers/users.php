@@ -292,12 +292,16 @@ class usersController extends protectedController {
         $data['model_name'] = $validated['model'];
         $data["model"] = $this->model->get_table_fields($validated['model']);
         $data['meta_name'] = $this->model->get_meta_name($validated['model']);
+        $data['back'] = $this->backTo('users/list');
         $this->prepare_edit_mode();
         $this->render($data);
     }
 
     public function add_update(){
         $this->checkMethod("POST");
+        // Where Back goes travels with the form (the redirect below makes the
+        // form its own referer); it is not a column.
+        $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
         $rules = [
             "tablename" => FILTER_UNSAFE_RAW,
             "id" => FILTER_SANITIZE_NUMBER_INT
@@ -306,7 +310,7 @@ class usersController extends protectedController {
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             $id_part = ($this->update_redirect=="db_edit") ? "/".$executed['common'] : "";
-            redirect($this->L("users/edit".$id_part));
+            redirect($this->L("users/edit".$id_part) . '?back=' . rawurlencode($this->backTo('users/list', $back)));
         } else {
             $this->setAnswer(500, "Problem adding the entry.");
         }
@@ -327,12 +331,16 @@ class usersController extends protectedController {
         $data['meta_name'] = $this->model->get_meta_name($validated['model']);
         $data['meta_actions'] = $this->model->get_meta_actions($validated['model']);
         $data['data'] = $this->model->get_data($validated['model'], $validated['id']);
+        // The list page, search or page number this was opened from, kept
+        // through the save - as the activity form does.
+        $data['back'] = $this->backTo('users/list');
         $this->prepare_edit_mode();
         $this->render($data);
     }
 
     public function edit_update(){
         $this->checkMethod("POST");
+        $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
         $rules = [
             "tablename" => FILTER_UNSAFE_RAW,
             "id" => FILTER_SANITIZE_NUMBER_INT
@@ -343,7 +351,7 @@ class usersController extends protectedController {
             $this->setAnswer(500, "Problem updating the entry.");
         } else {
             $id_part = ($this->update_redirect=="db_edit") ? "/".$validated['id'] : "";
-            redirect($this->L("users/edit".$id_part));
+            redirect($this->L("users/edit".$id_part) . '?back=' . rawurlencode($this->backTo('users/list', $back)));
         }
     }
 

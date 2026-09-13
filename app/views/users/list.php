@@ -3,16 +3,20 @@
 $page_link_prefix = "users/list";
 $suffix_terms = [];
 if (isset($data['search']) && ($data['search'] != "")) {
-    $suffix_terms[] = "search-term=" . $data['search'];
+    $suffix_terms['search-term'] = (string)$data['search'];
 }
 if (!empty($data['filter_data'])) {
     foreach ($data['filter_data'] as $filter_data => $value) {
         if ($value != "") {
-            $suffix_terms[] = $filter_data . "=" . $value;
+            $suffix_terms[(string)$filter_data] = (string)$value;
         }
     }
 }
-$page_link_suffix = (count($suffix_terms) > 0) ? "?" . implode("&", $suffix_terms) : "";
+// Encoded, as the other lists do: a search for "R&D" used to reach page two
+// as a search for "R".
+$page_link_suffix = (count($suffix_terms) > 0)
+    ? htmlspecialchars("?" . http_build_query($suffix_terms), ENT_QUOTES, 'UTF-8')
+    : "";
 ?>
 <header class="page-header page-header-left-inline-breadcrumb">
     <h2 class="font-weight-bold text-6"><?= display($data['meta_name']); ?></h2>

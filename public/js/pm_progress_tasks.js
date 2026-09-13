@@ -64,6 +64,9 @@ $(document).ready(function() {
             method: 'GET',
             success: function(response) {
                 $('#taskModal').html(response);
+                // Saving reloads the page: where Back goes must go with the
+                // save, or it comes back pinned to the Progress list.
+                $('#taskform input[name="back"]').val($('form.ecommerce-form input[name="back"]').val() || '');
                 openPopup();
 
                 // Save once. The button greys to "Saving…" and a second click

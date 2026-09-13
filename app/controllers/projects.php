@@ -947,6 +947,11 @@ class projectsController extends coreController{
         }
 
         $data['data']['member_id'] = $member;
+        // Where Back goes: the list page, drill-down or search this was opened
+        // from, kept through the save. Until now it was pinned to the Progress
+        // list, so a delivery recorded from an activity's page or from page
+        // three of a search landed somewhere else on the way back.
+        $data['back'] = $this->backTo('projects/progress_list');
         $data['model_name'] = $pm_matrix[$data['data']['type']]['progress_file'];
         $query = "select * from ".$this->model->get_table_name($data['model_name'])." where project_id='".$validated['id']."' and member_id=".$member;
         $progress_data = $this->DB->MQ($query, "one") ?? [];
@@ -975,6 +980,7 @@ class projectsController extends coreController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
         $data = $this->query;
         // Only the sanitised, integer-cast ids reach the SQL below. The raw
         // POST id used to be interpolated straight into the WHERE clause.
@@ -996,7 +1002,7 @@ class projectsController extends coreController{
             $new_id = (int)$validated['id'];
             $id_part = "progress_edit/".$new_id;
 
-            redirect($this->L("projects/".$id_part));
+            redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo('projects/progress_list', $back)));
         }
     }
 
@@ -1157,6 +1163,7 @@ class projectsController extends coreController{
     public function task_progress_update(){
         $this->requireMember();
         $this->checkMethod("POST");
+        $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
         $rules = [
             "project_id" => FILTER_SANITIZE_NUMBER_INT,
             "member_id" => FILTER_SANITIZE_NUMBER_INT,
@@ -1208,7 +1215,8 @@ class projectsController extends coreController{
         } else {
             // ?saved=1 lets progress_edit show a confirmation once; the router
             // routes on the path only, so the query string is harmless to it.
-            redirect($this->L("projects/progress_edit/".(int)$validated['project_id']."?saved=1"));
+            // Back rides along: the redirect makes the form its own referer.
+            redirect($this->L("projects/progress_edit/".(int)$validated['project_id']."?saved=1&back=" . rawurlencode($this->backTo('projects/progress_list', $back))));
         }
     }
 
