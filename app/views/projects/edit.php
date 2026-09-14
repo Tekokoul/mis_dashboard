@@ -145,9 +145,13 @@ $col_width = 12/$columns;
             }
             ?>
 
-            <!--            <a href="#" class="delete-button btn btn-danger btn-px-4 py-3 d-flex align-items-center font-weight-semibold line-height-1">-->
-            <!--                <i class="bx bx-trash text-4 me-2"></i> Delete Product-->
-            <!--            </a>-->
+            <?php // A sibling: the same goal, objective and programme, filled in already (projectsController::add).
+                  // Only for an activity that really has a programme: an unfiled one has nothing to fill in from. ?>
+            <?php if ((int)($data['data']['programme_id'] ?? 0) > 0 && !in_array('programme', array_map('strval', (array)($data['gaps'] ?? [])), true)): ?>
+            <a href="<?= $this->L('projects/add'); ?>?<?= display(http_build_query(['programme_id' => (int)$data['data']['programme_id'], 'from' => 'parent', 'back' => (string)($data['back'] ?? '')])); ?>" class="btn btn-default btn-px-4 py-3 line-height-1 me-2" title="A new activity under the same programme, with its goal, objective and programme already filled in">
+                <i class="bx bx-plus-medical text-4 me-2"></i> Add another under this programme
+            </a>
+            <?php endif; ?>
         </div>
 
         <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0 ms-auto">

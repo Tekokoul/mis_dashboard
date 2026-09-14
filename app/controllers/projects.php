@@ -103,6 +103,15 @@ class projectsController extends coreController{
             if (is_set($row)) {
                 $data['data'] = ['programme_id' => (int)$row['id'], 'objective_id' => (int)$row['objective_id'], 'pillar_id' => (int)$row['pillar_id']];
                 $data['filed_from_parent'] = true;
+                // "Save and add another" and "Add another under this programme":
+                // the one just saved is named at the top so the person knows
+                // where they are in the run - only when it really sits under
+                // this programme, so a guessed id names nothing.
+                $saved = (int)($this->query['saved'] ?? 0);
+                if ($saved > 0) {
+                    $just = $this->DB->MQ("SELECT id, abbr, name FROM pm_projects_tbl WHERE id = ? AND programme_id = ?", "one", [$saved, (int)$row['id']]);
+                    if (is_set($just)) { $data['saved'] = $just; }
+                }
             }
         }
         $this->AddJS("/js/pm_projects.js");
@@ -123,6 +132,8 @@ class projectsController extends coreController{
 
         $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
         $deliberate = (string)($this->query['filed_from_parent'] ?? '') === '1';
+        // "Save and add another": a form marker, not a column.
+        $another = (string)($this->query['after_save'] ?? '') === 'another';
         unset($this->query['from'], $this->query['after_save']);
         $newTasks = [];
         if ($validated['tablename'] === 'pm_projects') {
@@ -169,6 +180,15 @@ class projectsController extends coreController{
                     'programme_id' => $this->query['suggest_programme_id'] ?? 0,
                 ], (int)$new_id, $deliberate);
                 $this->checkPlacement((int)$new_id, $this->query);
+                if ($another) {
+                    // The same form again, under the same programme, with this
+                    // one named at the top. Back still leads where the first
+                    // form was opened from.
+                    redirect($this->L('projects/add') . '?' . http_build_query([
+                        'programme_id' => (int)($this->query['programme_id'] ?? 0), 'from' => 'parent',
+                        'saved' => (int)$new_id, 'back' => $this->backTo('projects/list', $back),
+                    ]));
+                }
             }
             redirect($this->L("projects/".$id_part) . '?back=' . rawurlencode($this->backTo('projects/list', $back)));
         } else {

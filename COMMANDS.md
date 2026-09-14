@@ -399,6 +399,21 @@ how the suggestions get better at the categories you actually use. The
 preset never moves under a suggestion: on these forms the wording only
 suggests, with Apply.
 
+**Another under the same programme.** The new-activity form has "Save and
+add another" beside Update: it saves, then brings the same form straight
+back with the goal, objective and programme filled in from the one just
+saved, its next code assigned, that activity named at the top (with a link
+to open it) and the cursor in Name. Name, description, expected task, the
+two budgets, notes and tasks start empty, as those are what differ between
+activities. An existing activity's page offers "Add another under this
+programme" for the same thing, as long as it has a programme to fill in
+from. Enter in a box still means a plain Update: it presses the form's
+first button, and Update stays first (the same order is kept on the goal,
+objective and programme forms and their "Save and add a ..."). Back keeps
+pointing where the first form was opened from, and the wording only
+suggests here, as it does for anything filed from a parent
+(`projectsController::add`, `?from=parent&programme_id=&saved=`).
+
 **Esc goes back.** On any form it returns to the list the form was opened
 from, asking first when something typed, or a goal / objective / programme
 moved by hand or through Apply, would be lost. Anywhere else it steps back

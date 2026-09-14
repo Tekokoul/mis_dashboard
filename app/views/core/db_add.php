@@ -106,19 +106,20 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
         <!---->
         <!--                </div>-->
 
+        <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0 ms-auto">
+            <?php // Update stays the form's FIRST submit button: Enter in a box presses the first one, and Enter must still mean a plain save. ?>
+            <button type="submit" class="submit-button btn btn-primary btn-px-4 py-3 d-flex align-items-center font-weight-semibold line-height-1" data-loading-text="Loading...">
+                <i class="bx bx-save text-4 me-2"></i> Update
+            </button>
+        </div>
         <?php if (!empty($data['child'])): ?>
-        <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0">
+        <div class="col-12 col-md-auto mt-3 mt-md-0">
             <?php // Saves this one, then opens the child's form with it as the parent. ?>
             <button type="submit" name="after_save" value="child" class="submit-button btn btn-default btn-px-4 py-3 d-flex align-items-center line-height-1" data-loading-text="Loading...">
                 <i class="bx bx-plus-medical text-4 me-2"></i> Save and <?= display(strtolower(child_add_label($data['child']))); ?>
             </button>
         </div>
         <?php endif; ?>
-        <div class="col-12 col-md-auto <?= empty($data['child']) ? 'ms-md-auto ' : ''; ?>mt-3 mt-md-0 ms-auto">
-            <button type="submit" class="submit-button btn btn-primary btn-px-4 py-3 d-flex align-items-center font-weight-semibold line-height-1" data-loading-text="Loading...">
-                <i class="bx bx-save text-4 me-2"></i> Update
-            </button>
-        </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
             <a href="<?= display($data['back'] ?? $this->L('core/db_list/' . $data['model_name'])); ?>" class="cancel-button btn btn-default btn-px-4 py-3 line-height-1" data-afcdc-back title="Back to the list (Esc)">Back</a>
         </div>

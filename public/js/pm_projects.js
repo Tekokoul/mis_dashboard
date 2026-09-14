@@ -269,3 +269,18 @@ if (project_id === 0 && !$('select[name="pillar_id"]').val()) {
     });
 
 });
+
+/* After "Save and add another" the strip at the top says the goal, objective
+ * and programme are filled in from the activity just saved. Once a person
+ * moves one of those boxes that is no longer true, so the sentence goes;
+ * "Saved ... (open it)" stays. A pick raises select2:select, Apply raises
+ * afcdc:picked, and only a change with a browser event behind it is a
+ * person's - the cascade rebuilding options in script is not. */
+$(function () {
+    if (!$('#afcdc-saved [data-afcdc-prefill]').length) { return; }
+    var boxes = 'form.ecommerce-form select[name="pillar_id"], form.ecommerce-form select[name="objective_id"], form.ecommerce-form select[name="programme_id"]';
+    $(document).on('select2:select afcdc:picked change', boxes, function (e) {
+        if (e.type === 'change' && !e.originalEvent) { return; }
+        $('#afcdc-saved [data-afcdc-prefill]').remove();
+    });
+});

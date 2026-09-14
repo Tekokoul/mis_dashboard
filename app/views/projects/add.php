@@ -7,7 +7,7 @@ $col_width = 12/$columns;
     <div class="right-wrapper">
         <ol class="breadcrumbs">
             <li><span>Add mode</span></li>
-            <li><span>New entry</span></li>
+            <li><span><?= !empty($data['saved']) ? 'Another one, after ' . display($data['saved']['abbr']) : 'New entry'; ?></span></li>
         </ol>
     </div>
 </header>
@@ -15,6 +15,10 @@ $col_width = 12/$columns;
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
     <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
     <?php if (!empty($data['filed_from_parent'])): ?><input type="hidden" name="filed_from_parent" value="1"><?php endif; ?>
+    <?php if (!empty($data['saved'])): ?>
+    <?php // "Save and add another" landed here: what was saved, and what this form already knows. ?>
+    <div id="afcdc-saved" class="alert alert-success py-2 mb-3" role="status">Saved <strong><?= display($data['saved']['abbr']); ?></strong> <?= display($data['saved']['name']); ?> (<a href="<?= $this->L('projects/edit/' . (int)$data['saved']['id']); ?>?back=<?= rawurlencode((string)($data['back'] ?? '')); ?>">open it</a>). <span data-afcdc-prefill>Goal, objective, programme and the next code are filled in from it; change them if this one belongs elsewhere.</span></div>
+    <?php endif; ?>
     <div class="row mb-4">
         <div class="col col-lg-<?=$col_width;?> col-md-12">
             <section class="card card-modern mb-5">
@@ -108,8 +112,15 @@ $col_width = 12/$columns;
         </div>
 
         <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0 ms-auto">
+            <?php // Update stays the form's FIRST submit button: Enter in a box presses the first one, and Enter must still mean a plain save. ?>
             <button type="submit" class="submit-button btn btn-primary btn-px-4 py-3 d-flex align-items-center font-weight-semibold line-height-1" data-loading-text="Loading...">
                 <i class="bx bx-save text-4 me-2"></i> Update
+            </button>
+        </div>
+        <div class="col-12 col-md-auto mt-3 mt-md-0">
+            <?php // Saves this one, then the same form again under the same programme (projectsController::add_update). ?>
+            <button type="submit" name="after_save" value="another" class="submit-button btn btn-default btn-px-4 py-3 d-flex align-items-center line-height-1" data-loading-text="Loading..." title="Save this activity, then start another under the same programme">
+                <i class="bx bx-plus-medical text-4 me-2"></i> Save and add another
             </button>
         </div>
         <div class="col-12 col-md-auto px-md-0 mt-3 mt-md-0">
@@ -124,4 +135,19 @@ $col_width = 12/$columns;
     // After a refused save the goal / objective / programme that were chosen
     // come back; the cascade in pm_projects.js keeps them when it reloads.
     <?php if (!empty($data['form_errors'])) { print 'window.afcdcPreselect = ' . json_encode(['objective_id' => (string)(int)($data['data']['objective_id'] ?? 0), 'programme_id' => (string)(int)($data['data']['programme_id'] ?? 0)]) . ';'; } ?>
+    // After "Save and add another": the cursor goes to Name, with the strip
+    // read out alongside it (a status present at load is not announced on
+    // its own), and ?saved= leaves the address so a reload does not announce
+    // the same save twice. The rest of the address stays - it is what
+    // pre-fills the form. No jQuery here: this runs before the libraries
+    // load; what needs them (the strip following a moved box) is in
+    // pm_projects.js.
+    (function () {
+        if (!document.getElementById('afcdc-saved')) { return; }
+        var name = document.querySelector('form.ecommerce-form input[name="name"]');
+        if (name) { name.setAttribute('aria-describedby', 'afcdc-saved'); name.focus(); }
+        if (!history.replaceState) { return; }
+        var q = location.search.replace(/[?&]saved=\d+(?=&|$)/, '').replace(/^&/, '?');
+        history.replaceState(null, '', location.pathname + q);
+    })();
 </script>
