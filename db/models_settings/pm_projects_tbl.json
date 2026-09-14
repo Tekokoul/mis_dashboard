@@ -16,6 +16,19 @@
         "all_label": "All goals"
       },
       {
+        "title": "Unit",
+        "key": "unit_id",
+        "type": "dropdown",
+        "values_from": "db",
+        "link_to_table": "pm_units_tbl",
+        "link_to_field": "name",
+        "order_by": "`position` asc",
+        "where_clause": "",
+        "add_zero_value": true,
+        "all_label": "All units",
+        "sql": "AND `objective_id` IN (SELECT `id` FROM `pm_objectives_tbl` WHERE `unit_id` = ?)"
+      },
+      {
         "title": "Programme",
         "key": "programme_id",
         "type": "dropdown",

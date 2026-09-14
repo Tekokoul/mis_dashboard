@@ -862,6 +862,7 @@ html .afcdc-review__tag { display: inline-block; padding: 0 0.4rem; border-radiu
 html tr.afcdc-review--split .afcdc-review__tag, html tr.afcdc-review--low .afcdc-review__tag { background: var(--au-red); color: #FFF; }
 html tr.afcdc-review--accepted .afcdc-review__tag { background: var(--au-green-deep); color: #FFF; }
 html .afcdc-review__why { font-style: italic; }
+html .afcdc-review__also { display: inline; color: var(--afcdc-ink-soft); }
 html .afcdc-review__act { margin-left: 0.5rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; white-space: nowrap; }
 
 

@@ -38,6 +38,13 @@
     "active_for": "1,2"
   },
   {
+    "title": "Units",
+    "type": "link",
+    "link": "core/db_list/pm_units",
+    "icon": "bx-sitemap",
+    "active_for": "1,2"
+  },
+  {
     "title": "Objectives",
     "type": "link",
     "link": "core/db_list/pm_objectives",

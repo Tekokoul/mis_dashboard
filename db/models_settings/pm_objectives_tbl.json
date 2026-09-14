@@ -14,6 +14,18 @@
         "where_clause": "",
         "add_zero_value": true,
         "all_label": "All goals"
+      },
+      {
+        "title": "Unit",
+        "key": "unit_id",
+        "type": "dropdown",
+        "values_from": "db",
+        "link_to_table": "pm_units_tbl",
+        "link_to_field": "name",
+        "order_by": "`position` asc",
+        "where_clause": "",
+        "add_zero_value": true,
+        "all_label": "All units"
       }
     ],
     "child": {
@@ -37,13 +49,25 @@
       "order_by": "`position` asc",
       "where_clause": "",
       "appear_in_list": 1,
-      "list_width": 24,
+      "list_width": 22,
       "search_field": true
+    },
+    "unit_id": {
+      "title": "Unit",
+      "type": "dropdown",
+      "values_from": "db",
+      "link_to_table": "pm_units_tbl",
+      "link_to_field": "name",
+      "order_by": "`position` asc",
+      "where_clause": "",
+      "add_zero_value": true,
+      "appear_in_list": 3,
+      "list_width": 18
     },
     "name": {
       "type": "varchar",
       "appear_in_list": 2,
-      "list_width": 50,
+      "list_width": 40,
       "search_field": true
     },
     "abbr": {

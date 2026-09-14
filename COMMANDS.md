@@ -381,6 +381,24 @@ a search is on).
 **Go to a page.** The "…" between page numbers, on the lists and on the Per
 Project table, opens a small box to type a page number.
 
+**Units.** Every objective can belong to a unit: Software Development,
+Infrastructure and Networking, Procurement or Digital Health (Content ›
+Units, where they can be renamed or added to). Its programmes and
+activities are in the same unit. A Unit box narrows the Objectives,
+Programmes, Projects / Interventions and Progress lists, and the objective
+form has a Unit field. The units were first proposed by three independent
+AI readings of each objective's programmes and activities, a unit being
+proposed where at least two agree. Each proposal waits under the
+objective's name on the Objectives list, and on its form, with Accept or
+Not this unit; "Accept all proposed units" takes the rest, and a Unit
+vetting box lists only those still waiting. A proposal never writes over a
+unit a person has set. Proposals are loaded from a file kept off the
+repository, which the tool checks against the objective's current name:
+
+```bash
+docker compose exec -T app php /var/www/html/tools/propose-units.php - --dry-run < unit-proposals.json
+```
+
 **Delivered or not.** The Projects / Interventions list has a Delivery box
 beside Goal and Programme: Delivered keeps the activities delivered in
 full, Partly delivered those with some of it recorded, Not delivered those

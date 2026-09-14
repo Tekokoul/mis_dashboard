@@ -1552,6 +1552,108 @@ function allocation_review_panel($review) {
 }
 
 /**
+ * Units: the division an objective belongs to (pm_units_tbl, set on
+ * pm_objectives_tbl.unit_id), and the vetting of the units proposed for
+ * objectives (pm_unit_review_tbl, loaded by tools/propose-units.php).
+ * Programmes and activities have no unit of their own: they are in their
+ * objective's. A proposal only stands while its objective has no unit: once
+ * a person sets one, on the form or by accepting, the note goes and nothing
+ * here writes over it. Everything answers empty until the migration has run.
+ */
+function units_available($db) {
+    static $ok = null;
+    if ($ok === null) {
+        $ok = is_set($db->MQ("SHOW TABLES LIKE 'pm_units_tbl'", "one"))
+           && is_set($db->MQ("SHOW COLUMNS FROM pm_objectives_tbl LIKE 'unit_id'", "one"));
+    }
+    return $ok;
+}
+
+function unit_review_available($db) {
+    static $ok = null;
+    if ($ok === null) { $ok = units_available($db) && is_set($db->MQ("SHOW TABLES LIKE 'pm_unit_review_tbl'", "one")); }
+    return $ok;
+}
+
+/** [unit id => name], in the units' own order. */
+function unit_names($db) {
+    if (!units_available($db)) { return []; }
+    $out = [];
+    foreach ((array)$db->MQ("SELECT id, name FROM pm_units_tbl ORDER BY position, id", "all") as $u) { $out[(int)$u['id']] = (string)$u['name']; }
+    return $out;
+}
+
+/** [objective_id => review row (+ unit_name, other_names, current_unit_id)] for the ids given. */
+function unit_reviews($db, array $ids) {
+    $ids = array_values(array_filter(array_map('intval', $ids)));
+    if (!$ids || !unit_review_available($db)) { return []; }
+    $names = unit_names($db);
+    $marks = implode(',', array_fill(0, count($ids), '?'));
+    $out = [];
+    foreach ((array)$db->MQ("SELECT r.*, IFNULL(o.unit_id, 0) AS current_unit_id FROM pm_unit_review_tbl r JOIN pm_objectives_tbl o ON o.id = r.objective_id WHERE r.objective_id IN ($marks)", "all", $ids) as $r) {
+        $r['unit_name'] = $names[(int)$r['unit_id']] ?? '';
+        $r['other_names'] = [];
+        foreach (array_unique(array_filter(array_map('intval', explode(',', (string)$r['other_unit_ids'])))) as $u) {
+            if (isset($names[$u]) && $u !== (int)$r['unit_id']) { $r['other_names'][] = $names[$u]; }
+        }
+        $out[(int)$r['objective_id']] = $r;
+    }
+    return $out;
+}
+
+/** How many objectives still wait for a person to confirm a unit, or 0. */
+function unit_pending_count($db) {
+    if (!unit_review_available($db)) { return 0; }
+    $r = $db->MQ("SELECT COUNT(*) AS n FROM pm_unit_review_tbl r JOIN pm_objectives_tbl o ON o.id = r.objective_id WHERE r.status = 'proposed' AND IFNULL(o.unit_id, 0) = 0", "one");
+    return (int)($r['n'] ?? 0);
+}
+
+/** Whether a proposal names a unit enough readers agreed on. */
+function unit_review_agreed($review) {
+    return $review && in_array((string)$review['agreement'], ['agreed', 'majority'], true) && (int)$review['unit_id'] > 0 && (string)($review['unit_name'] ?? '') !== '';
+}
+
+/**
+ * The vetting note under an objective's name, or "" when nothing waits for a
+ * person. On a list ($short) the reason is cut to about a line and a half,
+ * with the whole of it on hover: sixteen full paragraphs made the list a wall.
+ * The objective's form shows it all.
+ */
+function unit_review_note($review, $short = false) {
+    if (!$review || (string)$review['status'] !== 'proposed' || (int)($review['current_unit_id'] ?? 0) > 0) { return ''; }
+    $agreed = unit_review_agreed($review);
+    $tag = !$agreed ? 'Unit: readers disagreed' : ((string)$review['agreement'] === 'agreed' ? 'Unit proposed by AI' : 'Unit proposed by AI, 2 of 3');
+    $html  = '<div class="afcdc-review__note afcdc-unit-note"><span class="afcdc-review__tag">' . display($tag) . '</span> ';
+    $html .= $agreed ? '<strong>' . display($review['unit_name']) . '</strong>' : 'choose one on the objective';
+    $reason = trim((string)$review['reason']);
+    if ($reason !== '') {
+        $shown = $reason;
+        if ($short && mb_strlen($reason) > 120) {
+            // About a line and a half, ending on a word - not the first
+            // sentence alone, which can say the opposite of the proposal
+            // ("The conference itself falls outside all four units.").
+            $cut = mb_substr($reason, 0, 110);
+            $sp = mb_strrpos($cut, ' ');
+            $shown = rtrim($sp !== false && $sp > 60 ? mb_substr($cut, 0, $sp) : $cut, " ,;:") . "\u{2026}";
+        }
+        $html .= ' <span class="afcdc-review__why"' . ($shown !== $reason ? ' title="' . display($reason) . '"' : '') . '>' . display($shown) . '</span>';
+    }
+    if ($review['other_names']) { $html .= ' <span class="afcdc-review__also">Some of its programmes lean to ' . display(implode(' and ', $review['other_names'])) . '.</span>'; }
+    if (can_vet()) {
+        if ($agreed) { $html .= ' <a href="#" class="afcdc-review__act" data-unit-review="accept" data-id="' . (int)$review['objective_id'] . '">Accept</a>'; }
+        $html .= ' <a href="#" class="afcdc-review__act" data-unit-review="dismiss" data-id="' . (int)$review['objective_id'] . '">' . ($agreed ? 'Not this unit' : 'Dismiss') . '</a>';
+    }
+    return $html . '</div>';
+}
+
+/** The same note as a panel on the objective's edit form. */
+function unit_review_panel($review) {
+    $note = unit_review_note($review);
+    if ($note === '') { return ''; }
+    return '<div class="afcdc-review-panel afcdc-review--proposed afcdc-review--' . (unit_review_agreed($review) ? 'agreed' : 'split') . '">' . $note . '</div>';
+}
+
+/**
  * Delivery, activity by activity: [assignments, delivered] keyed by activity
  * id, the same rule as the overview's "n of m activities delivered"
  * (projects_graphs::activityProgress, which does one activity at a time):

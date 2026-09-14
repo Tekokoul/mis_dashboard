@@ -72,6 +72,19 @@ class coreController extends protectedController{
         $data['meta_name'] = $this->model->get_meta_name($validated['model']);
         $data['meta_actions'] = $this->model->get_meta_actions($validated['model']);
         $data['meta_filters'] = $this->model->get_meta_filters($validated['model']);
+        // Objectives whose proposed unit still waits for a person can be listed
+        // on their own, as the activities waiting on a move can.
+        if ($validated['model'] === 'pm_objectives' && ($pending = unit_pending_count($this->DB)) > 0) {
+            $data['meta_filters'][] = [
+                'title'       => 'Unit vetting',
+                'key'         => 'unit_review',
+                'type'        => 'dropdown',
+                'values_from' => 'values_list',
+                'values_list' => ['proposed' => 'Pending (' . $pending . ')'],
+                'all_label'   => 'Everything',
+                'sql'         => "AND `id` IN (SELECT `objective_id` FROM `pm_unit_review_tbl` WHERE `status` = ?) AND IFNULL(`unit_id`, 0) = 0",
+            ];
+        }
 
         $data['model_name'] = $validated['model'];
         $data['fields'] = $this->model->get_list_fields($model);
@@ -98,9 +111,63 @@ class coreController extends protectedController{
         } else {
             $data['data'] = [];
         }
+        if ($validated['model'] === 'pm_objectives') {
+            $data['unit_reviews'] = unit_reviews($this->DB, array_column((array)($data['data'] ?? []), 'id'));
+            $data['unit_pending'] = can_vet() ? unit_pending_count($this->DB) : 0;
+        }
 
         $this->prepare_edit_mode();
         $this->render($data);
+    }
+
+    /**
+     * POST core/unit_accept/<objective id>: a person confirms the unit proposed
+     * for an objective. core/unit_dismiss/<id>: not this one - the objective
+     * stays without a unit until someone picks one on its form.
+     * core/unit_accept_all: every agreed proposal still waiting. None of them
+     * writes over a unit a person has already set.
+     */
+    public function unit_accept() { $this->unitDecide('accept'); }
+    public function unit_dismiss() { $this->unitDecide('dismiss'); }
+
+    public function unit_accept_all() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        if (!can_vet() || !unit_review_available($this->DB)) { $this->setAnswer(404, "Nothing to accept.", [], "json"); }
+        $user = (int)($_SESSION['user']['user_id'] ?? 0);
+        $rows = (array)$this->DB->MQ("SELECT r.objective_id, r.unit_id FROM pm_unit_review_tbl r
+                                        JOIN pm_objectives_tbl o ON o.id = r.objective_id
+                                        JOIN pm_units_tbl u ON u.id = r.unit_id
+                                       WHERE r.status = 'proposed' AND r.agreement IN ('agreed', 'majority') AND IFNULL(o.unit_id, 0) = 0", "all");
+        foreach ($rows as $r) {
+            $this->DB->MQ("UPDATE pm_objectives_tbl SET unit_id = ? WHERE id = ? AND IFNULL(unit_id, 0) = 0", false, [(int)$r['unit_id'], (int)$r['objective_id']]);
+            $this->DB->MQ("UPDATE pm_unit_review_tbl SET status = 'accepted', decided_by = ?, decided_at = NOW() WHERE objective_id = ? AND status = 'proposed'", false, [$user, (int)$r['objective_id']]);
+        }
+        $this->setAnswer(200, count($rows) . " accepted.", ['accepted' => count($rows), 'pending' => unit_pending_count($this->DB)], "json");
+    }
+
+    private function unitDecide($how) {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        $this->mapRoute("id");
+        $id = (int)($this->parts['id'] ?? 0);
+        if (!can_vet() || !unit_review_available($this->DB)) { $this->setAnswer(404, "Nothing to decide.", [], "json"); }
+        $r = $this->DB->MQ("SELECT r.unit_id, r.agreement, IFNULL(o.unit_id, 0) AS current_unit_id, u.id AS unit_exists
+                              FROM pm_unit_review_tbl r JOIN pm_objectives_tbl o ON o.id = r.objective_id LEFT JOIN pm_units_tbl u ON u.id = r.unit_id
+                             WHERE r.objective_id = ? AND r.status = 'proposed'", "one", [$id]);
+        if (!is_set($r)) { $this->setAnswer(404, "No unit is waiting to be confirmed for that objective.", [], "json"); }
+        if ((int)$r['current_unit_id'] > 0) { $this->setAnswer(409, "That objective already has a unit. Change it on its form.", [], "json"); }
+        $user = (int)($_SESSION['user']['user_id'] ?? 0);
+        if ($how === 'accept') {
+            // unit_exists is a number, not a row: is_set() answers for arrays only.
+            if ((int)$r['unit_id'] <= 0 || (int)($r['unit_exists'] ?? 0) <= 0 || !in_array((string)$r['agreement'], ['agreed', 'majority'], true)) {
+                $this->setAnswer(409, "No unit was agreed for that objective. Choose one on its form.", [], "json");
+            }
+            $this->DB->MQ("UPDATE pm_objectives_tbl SET unit_id = ? WHERE id = ? AND IFNULL(unit_id, 0) = 0", false, [(int)$r['unit_id'], $id]);
+        }
+        $this->DB->MQ("UPDATE pm_unit_review_tbl SET status = ?, decided_by = ?, decided_at = NOW() WHERE objective_id = ? AND status = 'proposed'", false,
+                      [$how === 'accept' ? 'accepted' : 'dismissed', $user, $id]);
+        $this->setAnswer(200, $how === 'accept' ? "Accepted." : "Dismissed.", ['pending' => unit_pending_count($this->DB)], "json");
     }
 
     public function db_view(){
@@ -211,6 +278,9 @@ class coreController extends protectedController{
         $data['child'] = $this->model->get_meta_child($validated['model']);
         $data['back'] = $this->backTo('core/db_list/' . $validated['model']);
         $data['data'] = $this->model->get_data($validated['model'], $validated['id']);
+        if ($validated['model'] === 'pm_objectives') {
+            $data['unit_review'] = unit_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
+        }
         $this->AutoInclude($this->model->get_includes($validated['model'], "edit"));
         $this->prepare_edit_mode();
         $this->render($data);

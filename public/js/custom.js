@@ -397,6 +397,27 @@ $(function () {
 });
 
 
+/* Vetting the units proposed for objectives: Accept / Not this unit under an
+ * objective's name or on its form, or Accept all. The same shape as the
+ * activity vetting above; the server refuses to write over a unit a person
+ * has already set, and says so. */
+$(function () {
+    $(document).on('click', '[data-unit-review]', function (e) {
+        e.preventDefault();
+        var action = $(this).attr('data-unit-review'), id = $(this).attr('data-id');
+        if (action === 'accept_all' && !window.confirm('Give every objective the unit proposed for it? Objectives that already have a unit keep theirs.')) { return; }
+        var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
+        $.ajax({ url: prefix + '/core/unit_' + action + (id ? '/' + id : ''), method: 'POST', data: { csrf: window.CSRF_TOKEN || '' }, dataType: 'json' })
+            .done(function () { window.location.reload(); })
+            .fail(function (xhr) {
+                var msg = 'That did not go through (' + xhr.status + ').';
+                try { var j = JSON.parse(xhr.responseText); if (j && j.message) { msg = j.message; } } catch (err) {}
+                if (xhr.status === 403) { msg = 'The page had been open too long. Reload and try again.'; }
+                window.alert(msg);
+            });
+    });
+});
+
 /* Required fields on the activity form. The browser's own check cannot show
  * itself on a select2 box: the real <select> is hidden, so "an invalid form
  * control is not focusable" is all that happens and the click does nothing.

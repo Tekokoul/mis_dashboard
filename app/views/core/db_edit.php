@@ -32,6 +32,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
                     <div class="card-body">
                         <div class="row">
                             <div>
+                                <?php if (!empty($data['unit_review'])) { print unit_review_panel($data['unit_review']); } ?>
                                 <?php
                                 $html = "";
                                 foreach ($data['model']['common'] as $field=>$value) {

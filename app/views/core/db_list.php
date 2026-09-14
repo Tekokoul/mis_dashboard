@@ -52,6 +52,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                             print '<div class="col-12 col-lg mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">'
                                 . $html . list_search_box($data['search'] ?? '', (string)$data['model_name'], 'core/db_edit/' . display($data['model_name']))
                                 . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
+                                . (!empty($data['unit_pending']) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-unit-review="accept_all">Accept all proposed units</a>' : '')
                                 . '</div></div>';
 
                             ?>
@@ -87,7 +88,14 @@ $page_link_suffix = (count($suffix_terms) > 0)
 								foreach ($data['data'] as $row) {
 									$link = "core/db_edit/".display($data['model_name'])."/".$row['id'];
 									?>
-                                    <tr<?= (isset($row['active']) && (string)$row['active'] === '0') ? ' class="afcdc-row--inactive"' : ''; ?>>
+                                    <?php
+                                    // An objective whose unit waits for a person wears the vetting band, and the note sits under its name.
+                                    $unitReview = $data['unit_reviews'][(int)$row['id']] ?? null;
+                                    $unitNote = unit_review_note($unitReview, true);
+                                    $rowClass = trim(((isset($row['active']) && (string)$row['active'] === '0') ? 'afcdc-row--inactive ' : '')
+                                        . ($unitNote !== '' ? (unit_review_agreed($unitReview) ? 'afcdc-review--proposed' : 'afcdc-review--split') : ''));
+                                    ?>
+                                    <tr<?= $rowClass !== '' ? ' class="' . $rowClass . '"' : ''; ?>>
                                         <td width="30" class="afcdc-col-check"><input type="checkbox" name="checkboxRow1" class="checkbox-style-1 p-relative top-2" value="" /></td>
                                         <td class="afcdc-col-num"><?=$aa;?></td>
 										<?php
@@ -102,6 +110,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 $inner = (strpos($attrs, 'afcdc-cell-name') !== false) ? '<span class="afcdc-clamp">' . $cell . '</span>' : $cell;
                                                 // Found through its description? Show the passage, so the row explains itself.
                                                 if ($field === 'name' && ($data['search'] ?? '') !== '') { $inner .= search_match_note($row, $data['search']); }
+                                                if ($field === 'name' && !$first && $unitNote !== '') { $inner .= $unitNote; }
                                                 print ($first)
                                                     ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
                                                     : '<td' . $attrs . '>' . $inner . '</td>';

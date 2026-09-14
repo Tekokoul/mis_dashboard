@@ -1,0 +1,48 @@
+{
+  "meta": {
+    "name": "Units",
+    "actions": [],
+    "filters": []
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "name": {
+      "type": "varchar",
+      "appear_in_list": 1,
+      "list_width": 50,
+      "search_field": true,
+      "required": true
+    },
+    "abbr": {
+      "title": "Abbreviation",
+      "type": "varchar",
+      "appear_in_list": 2,
+      "list_width": 15,
+      "search_field": true
+    },
+    "description": {
+      "no_editor": true,
+      "search_field": true
+    },
+    "position": {
+      "title": "Order",
+      "type": "int",
+      "appear_in_list": 3,
+      "list_width": 10,
+      "order_field": "ASC"
+    },
+    "active": {
+      "type": "dropdown",
+      "appear_in_list": 4,
+      "list_width": 10,
+      "values_from": "values_list",
+      "values_list": {
+        "1": "Yes",
+        "0": "No"
+      }
+    }
+  }
+}
