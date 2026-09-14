@@ -725,6 +725,23 @@ html .afcdc-filters--inline { padding-bottom: 0; margin-bottom: 0; border-bottom
    the sake of 13px. Long programme names are cut by the select anyway. */
 html .afcdc-filters--inline .afcdc-filter .form-select-sm { min-width: 13rem; max-width: 20rem; }
 html .afcdc-filters--inline .afcdc-search { min-width: 15rem; max-width: 22rem; }
+/* With a third box (Delivery) the row is short of room at 1440px. In a
+   wrapping flex row a cell never shrinks - it wraps - so each cell starts
+   from a small width (11rem) and GROWS into what is left: one line where
+   there is room, and where there is not the search wraps first, instead of
+   the goal and programme boxes claiming their full 20rem before anything
+   else is placed. The programme box grows twice as fast, its names being
+   the long ones; "Delivered or not" holds three short words and stays put.
+   Below 768px the rule further down stacks everything full width. */
+html .afcdc-filters--inline .afcdc-filter { flex: 1 1 11rem; min-width: 0; max-width: 20rem; }
+html .afcdc-filters--inline .afcdc-filter:has(> select[name="programme_id"]) { flex-grow: 2; }
+html .afcdc-filters--inline .afcdc-filter:has(> select[name="delivered"]) { flex: 0 1 9.5rem; max-width: 12rem; }
+html .afcdc-filters--inline .afcdc-filter .form-select-sm { width: 100%; min-width: 0; max-width: none; }
+/* The search sits in the same kind of cell (a label with the field below its
+   name), so its cell is sized here too - not the .afcdc-search box inside,
+   where a flex basis would be a HEIGHT, the cell being a column. */
+html .afcdc-filters--inline .afcdc-filter:has(> .afcdc-search) { flex: 1 1 15rem; max-width: 22rem; }
+html .afcdc-filters--inline .afcdc-filter > .afcdc-search { width: 100%; min-width: 0; max-width: none; }
 /* The row breathes a little more than the overview's: 1.25rem between cells
    on a line, 1rem between lines, so a wrapped search box sits clear of the
    programme box above it and stays flush with the goal box on the left. */
@@ -741,6 +758,9 @@ html .afcdc-filter.is-active > .afcdc-search .form-control { border-left: 3px so
 html .afcdc-filters--inline .afcdc-filters__clear { margin-bottom: 1px; }
 @media (max-width: 767.98px) {
     html .afcdc-filters--inline .afcdc-filter { flex: 1 1 100%; min-width: 0; }
+    /* The Delivery cell's own rule above is more specific; restated here so it stacks like the rest. */
+    html .afcdc-filters--inline .afcdc-filter:has(> select[name="delivered"]),
+    html .afcdc-filters--inline .afcdc-filter:has(> .afcdc-search) { flex: 1 1 100%; max-width: none; }
     html .afcdc-filter .form-select-sm { max-width: none; }
     html .afcdc-filters--inline .afcdc-search { max-width: none; }
 }

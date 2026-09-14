@@ -57,6 +57,7 @@ class projectsController extends coreController{
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['meta_filters'] = $this->model->get_meta_filters("pm_projects");
+        $this->addDeliveryFilter($data);
         $this->addVettingFilter($data);
         $data['model_name'] = "pm_projects";
         $data['fields'] = $this->model->get_list_fields($model);
@@ -1246,6 +1247,29 @@ class projectsController extends coreController{
      * the lists get a "Vetting" filter: pending / accepted / undone. It
      * disappears once nothing is pending, so it never becomes furniture.
      */
+    /**
+     * "Delivered or not" on the Projects list, by the overview's arithmetic
+     * (library: activity_delivery_groups): Delivered has every task recorded
+     * for every entity it applies to, Partly delivered some of them, Not
+     * delivered none. The ids are worked out here, as integers; the person's
+     * choice is the one bound value every filter carries.
+     */
+    private function addDeliveryFilter(array &$data) {
+        $g = activity_delivery_groups($this->DB);
+        $list = function (array $ids) { return $ids ? implode(',', $ids) : '0'; };   // no activity has id 0: IN (0) is nothing
+        $done = $list($g['delivered']); $some = $list($g['partly']);
+        $data['meta_filters'][] = [
+            'title'       => 'Delivery',
+            'key'         => 'delivered',
+            'type'        => 'dropdown',
+            'values_from' => 'values_list',
+            'values_list' => ['1' => 'Delivered', '2' => 'Partly delivered', '0' => 'Not delivered'],
+            'all_label'   => 'Delivered or not',
+            'sql'         => "AND (CASE ? WHEN '1' THEN `id` IN (" . $done . ") WHEN '2' THEN `id` IN (" . $some . ")"
+                           . " ELSE `id` NOT IN (" . $done . ") AND `id` NOT IN (" . $some . ") END)",
+        ];
+    }
+
     private function addVettingFilter(array &$data) {
         // Unfinished activities are marked on their rows (flag + tag); there
         // is no filter for them by choice.

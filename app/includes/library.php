@@ -1552,6 +1552,51 @@ function allocation_review_panel($review) {
 }
 
 /**
+ * Delivery, activity by activity: [assignments, delivered] keyed by activity
+ * id, the same rule as the overview's "n of m activities delivered"
+ * (projects_graphs::activityProgress, which does one activity at a time):
+ * every task counts once per reporting entity it applies to, and a delivery
+ * is a progress row with result 1 for that task, activity and entity. Worked
+ * out here rather than in SQL because applies_to is JSON text holding the
+ * entity ids as strings; it is two queries over a few hundred rows.
+ */
+function activity_delivery_totals($db) {
+    $out = [];
+    $tasks = [];   // task id => [activity id, entity ids]
+    foreach ((array)$db->MQ("SELECT id, project_id, applies_to FROM pm_projects_tasks_tbl", "all") as $t) {
+        $to = json_decode((string)$t['applies_to'], true);
+        if (!is_array($to) || count($to) === 0) { continue; }
+        $entities = array_values(array_unique(array_map('intval', $to)));
+        $pid = (int)$t['project_id'];
+        $tasks[(int)$t['id']] = [$pid, $entities];
+        if (!isset($out[$pid])) { $out[$pid] = [0, 0]; }
+        $out[$pid][0] += count($entities);
+    }
+    foreach ((array)$db->MQ("SELECT task_id, project_id, member_id FROM pm_progress_tasks_tbl WHERE result = 1", "all") as $r) {
+        $tid = (int)$r['task_id']; $pid = (int)$r['project_id'];
+        if (!isset($tasks[$tid]) || $tasks[$tid][0] !== $pid || !in_array((int)$r['member_id'], $tasks[$tid][1], true)) { continue; }
+        $out[$pid][1]++;
+    }
+    return $out;
+}
+
+/**
+ * Activity ids by how far they are delivered: 'delivered' has something to
+ * deliver and all of it recorded, 'partly' some of it; everything else has
+ * nothing recorded (or nothing to deliver yet). The overview's headline
+ * counts assignments, not activities, which is why it can say 29 where
+ * only 27 activities are delivered in full: the other two are partly.
+ */
+function activity_delivery_groups($db) {
+    $out = ['delivered' => [], 'partly' => []];
+    foreach (activity_delivery_totals($db) as $pid => $t) {
+        if ($t[0] > 0 && $t[1] >= $t[0]) { $out['delivered'][] = (int)$pid; }
+        elseif ($t[1] > 0) { $out['partly'][] = (int)$pid; }
+    }
+    return $out;
+}
+
+/**
  * "Add an objective", "Add a programme", "Add an activity": the button that
  * carries a parent into the child's form. A child opened this way is never
  * filed under a parent nobody picked, and the placement is recorded as an

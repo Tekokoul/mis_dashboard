@@ -381,6 +381,20 @@ a search is on).
 **Go to a page.** The "…" between page numbers, on the lists and on the Per
 Project table, opens a small box to type a page number.
 
+**Delivered or not.** The Projects / Interventions list has a Delivery box
+beside Goal and Programme: Delivered keeps the activities delivered in
+full, Partly delivered those with some of it recorded, Not delivered those
+with none. The arithmetic is the overview's (`activity_delivery_groups()`
+in library.php, the same as the graphs' `activityProgress`): every task of
+the activity, for every reporting entity it applies to, has a delivery
+recorded. The overview's headline counts those task assignments rather
+than activities, which is why it can say 29 delivered where the box finds
+27 in full and 2 partly. The box narrows the list like the others - with
+the search, the page links and Clear - and is added in code
+(`addDeliveryFilter`), not in the model settings, because it is worked out
+rather than read from a column. On a narrow window the boxes shrink
+before the row wraps; under 768px they stack.
+
 **Adding the level below.** A goal's form offers "Add an objective", an
 objective's "Add a programme", a programme's "Add an activity"; on a form
 for something that does not exist yet the same button reads "Save and add
