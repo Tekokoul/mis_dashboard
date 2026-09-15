@@ -455,7 +455,7 @@ it is in progress, and Not started otherwise (`delivery_status()` and
 completed work only. On the overview, the goal and objective pages, a
 programme's page, an activity's page and the task table, lists are ordered
 Completed first, then In progress, then Not started, in code order within
-each. The Projects / Interventions list has a Status box that narrows the
+each. The Projects / Interventions and Progress lists have a Status box that narrows the
 list to one of the three, beside Goal, Objective and Programme, with the search, the
 page links and Clear; it is added in code (`addDeliveryFilter`) because it
 is worked out rather than read from a column. On a narrow window the boxes

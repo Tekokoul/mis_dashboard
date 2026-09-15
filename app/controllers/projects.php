@@ -764,6 +764,8 @@ class projectsController extends coreController{
         $data['meta_name'] = "Progress";
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['meta_filters'] = $this->model->get_meta_filters("pm_projects");
+        // The same Status box as the Projects list, so the two narrow alike.
+        $this->addDeliveryFilter($data);
         $this->addVettingFilter($data);
 
         $data['model_name'] = "pm_projects";
