@@ -87,8 +87,14 @@ class importsController extends protectedController {
         // row, a goal as a row numbered "1", an objective as "1.0", and each
         // activity under it with its code. Heading cells in every column carry
         // the row's colour so a heading reads as one band.
-        $band = function ($style, $wbs, $name) { return [['v' => (string)$wbs, 's' => $style], ['v' => '', 's' => $style], ['v' => (string)$name, 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style]]; };
-        $rows = [array_map(function ($h) { return ['v' => $h, 's' => 1]; }, ['WBS', 'AWP Code', 'Activity', 'Description', 'Indicator', 'Budget (USD)', 'Programme'])];
+        $band = function ($style, $wbs, $name) { return [['v' => (string)$wbs, 's' => $style], ['v' => '', 's' => $style], ['v' => (string)$name, 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style]]; };
+        $rows = [array_map(function ($h) { return ['v' => $h, 's' => 1]; }, ['WBS', 'AWP Code', 'Activity', 'Description', 'Indicator', 'Budget (USD)', 'Programme', 'Status'])];
+        // Whether each activity has been delivered, counted as the Progress page
+        // counts it (delivery_rollup), in the dashboard's colours. For reading
+        // only: no import column role matches "Status", so changing it in the
+        // workbook records nothing.
+        $rollup = $byObjective ? delivery_rollup($this->DB)['activity'] : [];
+        $statusStyle = ['completed' => 7, 'in_progress' => 8, 'not_started' => 9];
         $pillar = null; $pos = 0; $n = 0; $count = 0;
         foreach ($objectives as $o) {
             if ($pillar !== (int)$o['pillar_id']) {
@@ -104,8 +110,10 @@ class importsController extends protectedController {
             foreach ($byObjective[(int)$o['id']] ?? [] as $a) {
                 $count++;
                 $budget = ($a['estimated_budget'] === null || $a['estimated_budget'] === '') ? null : (float)$a['estimated_budget'];
+                $status = delivery_rollup_status($rollup[(int)$a['id']] ?? null);
                 $rows[] = [null, ['v' => (string)$a['abbr'], 's' => 0], ['v' => (string)$a['name'], 's' => 4], ['v' => (string)$a['description'], 's' => 4], ['v' => (string)$a['kpi'], 's' => 4],
-                           $budget === null ? null : ['v' => $budget, 's' => 5], ['v' => trim((string)$a['programme_abbr'] . ' ' . (string)$a['programme_name']), 's' => 4]];
+                           $budget === null ? null : ['v' => $budget, 's' => 5], ['v' => trim((string)$a['programme_abbr'] . ' ' . (string)$a['programme_name']), 's' => 4],
+                           ['v' => delivery_status_label($status), 's' => $statusStyle[$status] ?? 4]];
             }
         }
         $how = [
@@ -119,11 +127,12 @@ class importsController extends protectedController {
             [['v' => '5. Save as .xlsx and upload it on Content > Import a work plan. Nothing changes until someone accepts each row there. Rows you did not touch are listed as already in.', 's' => 4]],
             [],
             [['v' => 'Budget is in US dollars, as a number.', 's' => 4]],
+            [['v' => 'Status says whether each activity has been delivered - Completed, In progress or Not started - as the Progress page showed it that day. It is there to read: changing it here records nothing. Record a delivery on the Progress page.', 's' => 4]],
         ];
         $tmp = tempnam(sys_get_temp_dir(), 'afcdc-template-');
         try {
             xlsx_write($tmp, [
-                ['name' => 'Work plan', 'rows' => $rows, 'widths' => [8, 12, 48, 60, 36, 14, 40], 'freeze' => 1],
+                ['name' => 'Work plan', 'rows' => $rows, 'widths' => [8, 12, 48, 60, 36, 14, 40, 16], 'freeze' => 1],
                 ['name' => 'How to use', 'rows' => $how, 'widths' => [120]],
             ]);
         } catch (RuntimeException $e) {

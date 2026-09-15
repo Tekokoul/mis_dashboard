@@ -657,7 +657,10 @@ a template": the work plan as it stands - all of it, one unit's objectives
 (with units switched on) or one objective - or an empty one (the goal and objective headings with
 no activities under them), as an .xlsx this page reads straight back. Goals and
 objectives are heading rows (a number in WBS and no code); each activity
-has its AWP Code, name, description, indicator, budget and programme, and a
+has its AWP Code, name, description, indicator, budget and programme, then
+its Status (Completed, In progress or Not started, in their colours, counted as
+the Progress page counts them - there to read: no import role matches it, so
+changing it records nothing), and a
 second sheet says how to use it. Change what needs changing, add rows under
 the right objective (no code, and the Programme cell copied from a
 neighbour says where it goes), save and upload it: rows nobody touched come

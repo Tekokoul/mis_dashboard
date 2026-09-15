@@ -238,7 +238,8 @@ function xlsx_col_index($letters) {
  * 'widths' => [characters, ...], 'freeze' => header rows]]. A cell is null, a
  * string, a number, or ['v' => value, 's' => style], the styles being those of
  * xlsx_styles_xml(): 0 plain, 1 header, 2 goal row, 3 objective row, 4 wrapped
- * text, 5 a number with thousands separators, 6 a title. Text goes in as
+ * text, 5 a number with thousands separators, 6 a title, 7-9 a delivery status
+ * (Completed, In progress, Not started) in green, orange and red. Text goes in as
  * inline strings, so nothing typed in the dashboard can become a formula.
  * Throws RuntimeException when the file cannot be written.
  */
@@ -310,16 +311,18 @@ function xlsx_sheet_xml(array $sh, callable $x) {
     return $out . '</sheetData></worksheet>';
 }
 
-/** The seven cell styles xlsx_write() knows, in the dashboard's greens. */
+/** The ten cell styles xlsx_write() knows, in the dashboard's colours. */
 function xlsx_styles_xml() {
     return '<styleSheet xmlns="' . XLSX_NS_MAIN . '">'
-        . '<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><color rgb="FF1A5632"/><name val="Calibri"/></font></fonts>'
+        . '<fonts count="6"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><color rgb="FF1A5632"/><name val="Calibri"/></font>'
+        // 3-5: the delivery status colours (Completed, In progress, Not started), as on the dashboard.
+        . '<font><b/><sz val="11"/><color rgb="FF2E7D3C"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFB45309"/><name val="Calibri"/></font><font><b/><sz val="11"/><color rgb="FFB42318"/><name val="Calibri"/></font></fonts>'
         . '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
         . '<fill><patternFill patternType="solid"><fgColor rgb="FFD6E6DA"/><bgColor indexed="64"/></patternFill></fill>'
         . '<fill><patternFill patternType="solid"><fgColor rgb="FFEEF4F0"/><bgColor indexed="64"/></patternFill></fill></fills>'
         . '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FF1A5632"/></bottom><diagonal/></border></borders>'
         . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
-        . '<cellXfs count="7">'
+        . '<cellXfs count="10">'
         . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top"/></xf>'
         . '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
         . '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top"/></xf>'
@@ -327,6 +330,9 @@ function xlsx_styles_xml() {
         . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
         . '<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf>'
         . '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        . '<xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top"/></xf>'
+        . '<xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top"/></xf>'
+        . '<xf numFmtId="0" fontId="5" fillId="0" borderId="0" xfId="0" applyFont="1" applyAlignment="1"><alignment vertical="top"/></xf>'
         . '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
 }
 
