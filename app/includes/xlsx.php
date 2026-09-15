@@ -230,3 +230,103 @@ function xlsx_col_index($letters) {
     foreach (str_split($letters) as $ch) { $n = $n * 26 + (ord($ch) - 64); }
     return $n - 1;
 }
+
+/* ----------------------------------------------------------------- write */
+
+/**
+ * Write a small .xlsx. $sheets = [['name' => ..., 'rows' => [[cell, ...], ...],
+ * 'widths' => [characters, ...], 'freeze' => header rows]]. A cell is null, a
+ * string, a number, or ['v' => value, 's' => style], the styles being those of
+ * xlsx_styles_xml(): 0 plain, 1 header, 2 goal row, 3 objective row, 4 wrapped
+ * text, 5 a number with thousands separators, 6 a title. Text goes in as
+ * inline strings, so nothing typed in the dashboard can become a formula.
+ * Throws RuntimeException when the file cannot be written.
+ */
+function xlsx_write($path, array $sheets) {
+    if (!class_exists('ZipArchive')) { throw new RuntimeException('This server cannot write .xlsx files (no zip support).'); }
+    $z = new ZipArchive();
+    if ($z->open($path, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) { throw new RuntimeException('The workbook could not be written.'); }
+    $x = function ($s) { return htmlspecialchars((string)preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', (string)$s), ENT_XML1 | ENT_QUOTES, 'UTF-8'); };
+    $head = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n";
+    $list = ''; $rels = ''; $overrides = ''; $n = 0;
+    foreach (array_values($sheets) as $sh) {
+        $n++;
+        $name = mb_substr(trim((string)preg_replace('/[\[\]*?\/\\\\:]/', ' ', (string)($sh['name'] ?? ('Sheet' . $n)))), 0, 31);
+        $list .= '<sheet name="' . $x($name !== '' ? $name : 'Sheet' . $n) . '" sheetId="' . $n . '" r:id="rId' . $n . '"/>';
+        $rels .= '<Relationship Id="rId' . $n . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet' . $n . '.xml"/>';
+        $overrides .= '<Override PartName="/xl/worksheets/sheet' . $n . '.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>';
+        $z->addFromString('xl/worksheets/sheet' . $n . '.xml', xlsx_sheet_xml($sh, $x));
+    }
+    $rels .= '<Relationship Id="rId' . ($n + 1) . '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>';
+    $z->addFromString('[Content_Types].xml', $head . '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+        . '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+        . '<Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>'
+        . '<Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>' . $overrides . '</Types>');
+    $z->addFromString('_rels/.rels', $head . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>');
+    $z->addFromString('xl/workbook.xml', $head . '<workbook xmlns="' . XLSX_NS_MAIN . '" xmlns:r="' . XLSX_NS_REL . '"><sheets>' . $list . '</sheets></workbook>');
+    $z->addFromString('xl/_rels/workbook.xml.rels', $head . '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' . $rels . '</Relationships>');
+    $z->addFromString('xl/styles.xml', $head . xlsx_styles_xml());
+    if (!$z->close()) { throw new RuntimeException('The workbook could not be written.'); }
+}
+
+/** 0 -> A, 25 -> Z, 26 -> AA. */
+function xlsx_col_letter($index) {
+    $index = (int)$index; $out = '';
+    do { $out = chr(65 + ($index % 26)) . $out; $index = intdiv($index, 26) - 1; } while ($index >= 0);
+    return $out;
+}
+
+function xlsx_sheet_xml(array $sh, callable $x) {
+    $out = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>' . "\n" . '<worksheet xmlns="' . XLSX_NS_MAIN . '" xmlns:r="' . XLSX_NS_REL . '">';
+    $freeze = (int)($sh['freeze'] ?? 0);
+    $out .= '<sheetViews><sheetView workbookViewId="0">';
+    if ($freeze > 0) { $out .= '<pane ySplit="' . $freeze . '" topLeftCell="A' . ($freeze + 1) . '" activePane="bottomLeft" state="frozen"/><selection pane="bottomLeft" activeCell="A' . ($freeze + 1) . '" sqref="A' . ($freeze + 1) . '"/>'; }
+    $out .= '</sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/>';
+    if (!empty($sh['widths'])) {
+        $out .= '<cols>';
+        foreach (array_values($sh['widths']) as $c => $w) { $out .= '<col min="' . ($c + 1) . '" max="' . ($c + 1) . '" width="' . max(1, min(255, (int)$w)) . '" customWidth="1"/>'; }
+        $out .= '</cols>';
+    }
+    $out .= '<sheetData>';
+    foreach (array_values((array)($sh['rows'] ?? [])) as $r => $cells) {
+        $row = $r + 1;
+        $out .= '<row r="' . $row . '">';
+        foreach (array_values((array)$cells) as $c => $cell) {
+            if ($cell === null) { continue; }
+            $style = 0; $v = $cell;
+            if (is_array($cell)) { $style = (int)($cell['s'] ?? 0); $v = $cell['v'] ?? null; }
+            $ref = xlsx_col_letter($c) . $row;
+            $s = $style > 0 ? ' s="' . $style . '"' : '';
+            if ($v === null || $v === '') { if ($style > 0) { $out .= '<c r="' . $ref . '"' . $s . '/>'; } continue; }
+            if (is_int($v) || is_float($v)) {
+                $num = rtrim(rtrim(sprintf('%.10F', (float)$v), '0'), '.');
+                $out .= '<c r="' . $ref . '"' . $s . '><v>' . ($num === '' || $num === '-' ? '0' : $num) . '</v></c>';
+                continue;
+            }
+            $out .= '<c r="' . $ref . '"' . $s . ' t="inlineStr"><is><t xml:space="preserve">' . $x(mb_substr((string)$v, 0, 32767)) . '</t></is></c>';
+        }
+        $out .= '</row>';
+    }
+    return $out . '</sheetData></worksheet>';
+}
+
+/** The seven cell styles xlsx_write() knows, in the dashboard's greens. */
+function xlsx_styles_xml() {
+    return '<styleSheet xmlns="' . XLSX_NS_MAIN . '">'
+        . '<fonts count="3"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="14"/><color rgb="FF1A5632"/><name val="Calibri"/></font></fonts>'
+        . '<fills count="4"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill>'
+        . '<fill><patternFill patternType="solid"><fgColor rgb="FFD6E6DA"/><bgColor indexed="64"/></patternFill></fill>'
+        . '<fill><patternFill patternType="solid"><fgColor rgb="FFEEF4F0"/><bgColor indexed="64"/></patternFill></fill></fills>'
+        . '<borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left/><right/><top/><bottom style="thin"><color rgb="FF1A5632"/></bottom><diagonal/></border></borders>'
+        . '<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>'
+        . '<cellXfs count="7">'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top"/></xf>'
+        . '<xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+        . '<xf numFmtId="0" fontId="1" fillId="2" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top"/></xf>'
+        . '<xf numFmtId="0" fontId="1" fillId="3" borderId="0" xfId="0" applyFont="1" applyFill="1" applyAlignment="1"><alignment vertical="top"/></xf>'
+        . '<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf>'
+        . '<xf numFmtId="4" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment vertical="top"/></xf>'
+        . '<xf numFmtId="0" fontId="2" fillId="0" borderId="0" xfId="0" applyFont="1"/>'
+        . '</cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>';
+}
+

@@ -28,10 +28,113 @@ class importsController extends protectedController {
         $batches = (array)$this->DB->MQ("SELECT b.*, u.username AS uploaded_by_name FROM pm_import_batches_tbl b LEFT JOIN core_users_tbl u ON u.id = b.uploaded_by ORDER BY b.id DESC LIMIT 100", "all");
         foreach ($batches as &$b) { $b['counts'] = import_batch_counts($this->DB, (int)$b['id']); }
         unset($b);
-        $data = ['meta_name' => 'Import a work plan', 'batches' => $batches, 'error' => '', 'notice' => ''];
+        $data = ['meta_name' => 'Import a work plan', 'batches' => $batches, 'error' => '', 'notice' => ''] + $this->templateChoices();
         if (!empty($this->query['discarded'])) { $data['notice'] = 'The import was discarded; nothing had been written.'; }
         $this->AddJS("/js/imports.js");
         $this->render($data);
+    }
+
+    /** What the template can hold: the whole work plan, one unit's objectives, or one objective. */
+    private function templateChoices() {
+        $units = units_available($this->DB) ? (array)$this->DB->MQ("SELECT id, name FROM pm_units_tbl WHERE active = 1 ORDER BY position, id", "all") : [];
+        $objectives = (array)$this->DB->MQ("SELECT o.id, o.abbr, o.name FROM pm_objectives_tbl o LEFT JOIN pm_pillars_tbl g ON g.id = o.pillar_id ORDER BY g.position, g.id, o.position, o.id", "all");
+        return ['template_units' => $units, 'template_objectives' => $objectives];
+    }
+
+    /**
+     * GET imports/template[?scope=unit:3|objective:12]: the work plan as it
+     * stands, as a workbook this page reads straight back - goals and
+     * objectives as heading rows, every activity with its code, name,
+     * description, indicator, budget and programme - and a second sheet on
+     * how to use it. Rows nobody touches come back as "already in"; only
+     * what was changed or added waits for review.
+     */
+    public function template() {
+        $this->checkMethod("GET");
+        require_once __DIR__ . '/../includes/xlsx.php';
+        $scope = is_string($this->query['scope'] ?? null) ? $this->query['scope'] : '';
+        $where = ''; $params = []; $what = 'the whole work plan'; $slug = '';
+        if (preg_match('/^objective:(\d{1,10})$/', $scope, $m)) {
+            $o = $this->DB->MQ("SELECT id, abbr, name FROM pm_objectives_tbl WHERE id = ?", "one", [(int)$m[1]]);
+            if (!is_set($o)) { $this->setAnswer(404, "There is no such objective."); }
+            $where = ' WHERE o.id = ?'; $params[] = (int)$o['id'];
+            $what = 'objective ' . trim($o['abbr'] . ' ' . $o['name']); $slug = 'objective-' . $o['abbr'];
+        } elseif (preg_match('/^unit:(\d{1,10})$/', $scope, $m) && units_available($this->DB)) {
+            $u = $this->DB->MQ("SELECT id, name FROM pm_units_tbl WHERE id = ?", "one", [(int)$m[1]]);
+            if (!is_set($u)) { $this->setAnswer(404, "There is no such unit."); }
+            $where = ' WHERE o.unit_id = ?'; $params[] = (int)$u['id'];
+            $what = 'the objectives of the ' . $u['name'] . ' unit'; $slug = $u['name'];
+        }
+        $objectives = (array)$this->DB->MQ("SELECT o.id, o.abbr, o.name, o.pillar_id, g.name AS pillar_name, g.position AS pillar_position
+                                              FROM pm_objectives_tbl o LEFT JOIN pm_pillars_tbl g ON g.id = o.pillar_id" . $where . "
+                                             ORDER BY g.position, g.id, o.position, o.id", "all", $params);
+        $byObjective = [];
+        if ($objectives) {
+            $ids = array_map('intval', array_column($objectives, 'id'));
+            $acts = (array)$this->DB->MQ("SELECT p.id, p.objective_id, p.abbr, p.name, p.description, p.kpi, p.estimated_budget, g.abbr AS programme_abbr, g.name AS programme_name
+                                            FROM pm_projects_tbl p LEFT JOIN pm_programmes_tbl g ON g.id = p.programme_id
+                                           WHERE p.objective_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")", "all", $ids);
+            // Code order as a person reads it (1.2.9 before 1.2.10); this controller has no model to sort in SQL.
+            usort($acts, function ($a, $b) { return strnatcmp((string)$a['abbr'], (string)$b['abbr']) ?: ((int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0)); });
+            foreach ($acts as $a) { $byObjective[(int)$a['objective_id']][] = $a; }
+        }
+
+        // The Work plan sheet, in the shape import_parse_rows() reads: a header
+        // row, a goal as a row numbered "1", an objective as "1.0", and each
+        // activity under it with its code. Heading cells in every column carry
+        // the row's colour so a heading reads as one band.
+        $band = function ($style, $wbs, $name) { return [['v' => (string)$wbs, 's' => $style], ['v' => '', 's' => $style], ['v' => (string)$name, 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style]]; };
+        $rows = [array_map(function ($h) { return ['v' => $h, 's' => 1]; }, ['WBS', 'AWP Code', 'Activity', 'Description', 'Indicator', 'Budget (USD)', 'Programme'])];
+        $pillar = null; $pos = 0; $n = 0; $count = 0;
+        foreach ($objectives as $o) {
+            if ($pillar !== (int)$o['pillar_id']) {
+                $pillar = (int)$o['pillar_id']; $n = 0;
+                $pos = (int)$o['pillar_position'] > 0 ? (int)$o['pillar_position'] : max(1, $pillar);
+                if (count($rows) > 1) { $rows[] = []; }
+                $rows[] = $band(2, $pos, $o['pillar_name'] ?? 'Goal');
+            }
+            $n++;
+            // Only a number with one dot is read as an objective heading.
+            $wbs = preg_match('/^\d+\.\d+$/', trim((string)$o['abbr'])) ? trim((string)$o['abbr']) : $pos . '.' . $n;
+            $rows[] = $band(3, $wbs, $o['name']);
+            foreach ($byObjective[(int)$o['id']] ?? [] as $a) {
+                $count++;
+                $budget = ($a['estimated_budget'] === null || $a['estimated_budget'] === '') ? null : (float)$a['estimated_budget'];
+                $rows[] = [null, ['v' => (string)$a['abbr'], 's' => 0], ['v' => (string)$a['name'], 's' => 4], ['v' => (string)$a['description'], 's' => 4], ['v' => (string)$a['kpi'], 's' => 4],
+                           $budget === null ? null : ['v' => $budget, 's' => 5], ['v' => trim((string)$a['programme_abbr'] . ' ' . (string)$a['programme_name']), 's' => 4]];
+            }
+        }
+        $how = [
+            [['v' => 'How to use this template', 's' => 6]],
+            [['v' => 'Holds ' . $what . ': ' . $count . ' activit' . ($count === 1 ? 'y' : 'ies') . ', as the dashboard had them on ' . date('j F Y') . '.', 's' => 4]],
+            [],
+            [['v' => '1. Change what needs changing on the Work plan sheet: an activity\'s name, description, indicator or budget. Leave the AWP Code of an existing activity as it is - it is how each row finds the activity it updates.', 's' => 4]],
+            [['v' => '2. To add an activity, add a row under the objective it belongs to. Leave AWP Code empty (the code is given when the row is accepted), fill in Activity and Description, and copy the Programme cell from another activity of the same programme, for example "1.2 PRG Network Connectivity Programme".', 's' => 4]],
+            [['v' => '3. Keep the header row, and the goal and objective rows (a number in WBS and no code): they tell the dashboard where rows belong.', 's' => 4]],
+            [['v' => '4. A blank description, indicator or budget never erases what the dashboard has. Deleting a row does not delete the activity: a workbook only adds and updates.', 's' => 4]],
+            [['v' => '5. Save as .xlsx and upload it on Content > Import a work plan. Nothing changes until someone accepts each row there. Rows you did not touch are listed as already in.', 's' => 4]],
+            [],
+            [['v' => 'Budget is in US dollars, as a number.', 's' => 4]],
+        ];
+        $tmp = tempnam(sys_get_temp_dir(), 'afcdc-template-');
+        try {
+            xlsx_write($tmp, [
+                ['name' => 'Work plan', 'rows' => $rows, 'widths' => [8, 12, 48, 60, 36, 14, 40], 'freeze' => 1],
+                ['name' => 'How to use', 'rows' => $how, 'widths' => [120]],
+            ]);
+        } catch (RuntimeException $e) {
+            @unlink($tmp);
+            $this->setAnswer(500, $e->getMessage());
+        }
+        $part = trim((string)preg_replace('/[^a-z0-9]+/', '-', strtolower($slug)), '-');
+        $file = 'work-plan-template' . ($part !== '' ? '-' . $part : '') . '-' . date('Y-m-d') . '.xlsx';
+        header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        header('Content-Disposition: attachment; filename="' . $file . '"');
+        header('Content-Length: ' . (int)filesize($tmp));
+        header('Cache-Control: no-store');
+        readfile($tmp);
+        @unlink($tmp);
+        exit;
     }
 
     /** POST imports/upload: read the workbook, stage it, open the review. Nothing is written to the catalogue here. */
@@ -61,7 +164,7 @@ class importsController extends protectedController {
             $this->AddJS("/js/imports.js");
             http_response_code(422);
             $this->R->url = array_merge($this->R->url, ['action' => 'list']);
-            $this->render(['meta_name' => 'Import a work plan', 'batches' => $batches, 'error' => $error, 'notice' => '']);
+            $this->render(['meta_name' => 'Import a work plan', 'batches' => $batches, 'error' => $error, 'notice' => ''] + $this->templateChoices());
         }
         redirect($this->L("imports/review/" . $batch));
     }

@@ -635,6 +635,20 @@ way, empty and unread while it is off.
 activities) and, without writing anything, lists every activity with what the
 catalogue knows about it:
 
+**A template to update the work plan.** Import a work plan has "Download
+a template": the work plan as it stands - all of it, one unit's objectives
+or one objective - as an .xlsx this page reads straight back. Goals and
+objectives are heading rows (a number in WBS and no code); each activity
+has its AWP Code, name, description, indicator, budget and programme, and a
+second sheet says how to use it. Change what needs changing, add rows under
+the right objective (no code, and the Programme cell copied from a
+neighbour says where it goes), save and upload it: rows nobody touched come
+back as already in, and only the changes wait for review. Deleting a row
+does not delete an activity. A Programme column in any workbook is read the
+same way, as the place a new row belongs (`import_hint_programme()`); the
+workbook is written by `xlsx_write()` in xlsx.php, as inline text, so
+nothing in it can run as a formula.
+
 - **Already in the system** - found by the code an earlier import or the
   re-filing recorded for it, or by its exact name; nothing differs.
 - **Changed** - found the same way, but the workbook's name, notes

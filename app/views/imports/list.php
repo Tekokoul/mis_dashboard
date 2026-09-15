@@ -25,8 +25,31 @@
                     </div>
                     <button type="submit" class="btn btn-primary"><i class="bx bx-import" aria-hidden="true"></i> Read the workbook</button>
                 </form>
+                <div class="afcdc-import__template">
+                    <h4 class="afcdc-import__title">Download a template</h4>
+                    <p class="afcdc-import__lead">The work plan as it stands, laid out the way this page reads it. Change what needs changing, add rows under the right objective, save it and upload it above: only what you changed comes back to review.</p>
+                    <form action="<?= $this->L('imports/template'); ?>" method="get">
+                        <div class="form-group mb-3">
+                            <label for="template-scope" class="control-label">What it holds</label>
+                            <select class="form-select" id="template-scope" name="scope">
+                                <option value="">The whole work plan</option>
+                                <?php if (!empty($data['template_units'])): ?>
+                                <optgroup label="One unit's objectives">
+                                    <?php foreach ($data['template_units'] as $u): ?><option value="unit:<?= (int)$u['id']; ?>"><?= display($u['name']); ?></option><?php endforeach; ?>
+                                </optgroup>
+                                <?php endif; ?>
+                                <?php if (!empty($data['template_objectives'])): ?>
+                                <optgroup label="One objective">
+                                    <?php foreach ($data['template_objectives'] as $o): ?><option value="objective:<?= (int)$o['id']; ?>"><?= display(trim($o['abbr'] . ' ' . $o['name'])); ?></option><?php endforeach; ?>
+                                </optgroup>
+                                <?php endif; ?>
+                            </select>
+                        </div>
+                        <button type="submit" class="btn btn-light border"><i class="bx bx-download" aria-hidden="true"></i> Download template (.xlsx)</button>
+                    </form>
+                </div>
                 <div class="afcdc-import__how">
-                    <p><strong>What the sheet needs.</strong> A header row with a column for the activity (Task, Activity or Name) and, ideally, its code (AWP Code), indicator, budget and notes. A row with a WBS number and no code is a heading: "1.1 Connect the RCCs as one organisation" files the activities under it, and that heading is matched to an objective here.</p>
+                    <p><strong>What the sheet needs.</strong> A header row with a column for the activity (Task, Activity or Name) and, ideally, its code (AWP Code), indicator, budget, notes and programme. A row with a WBS number and no code is a heading: "1.1 Connect the RCCs as one organisation" files the activities under it, and that heading is matched to an objective here.</p>
                     <p><strong>How a row is judged.</strong> By the code an earlier import or the re-filing recorded, then by name, then by wording. A name that only resembles an existing activity is a question for you, not a guess. Where a new activity goes is proposed from its wording and the workbook heading together; when they disagree both are shown.</p>
                 </div>
             </div>

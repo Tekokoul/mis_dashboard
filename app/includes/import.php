@@ -104,6 +104,8 @@ function import_header_roles(array $cells) {
     static $patterns = [
         ['wbs',         '/^wbs\b|\bwbs\b/'],
         ['code',        '/awp|\bcode\b|\bref\b/'],
+        // Before "name", so "Programme name" is a programme, not the activity.
+        ['programme',   '/programme|\bprogram\b|workstream/'],
         ['name',        '/task|activit|\bname\b|title|deliverable/'],
         ['kpi',         '/indicator|\bkpi\b/'],
         ['quarter',     '/qtr|quarter/'],
@@ -201,6 +203,7 @@ function import_parse_rows(array $rows) {
             'owner'        => $get($cells, 'owner'),
             'pct'          => $get($cells, 'pct'),
             'days'         => $get($cells, 'days'),
+            'programme'    => mb_substr($get($cells, 'programme'), 0, 255),
             'wb_wbs'       => $current['wbs'],
             'wb_objective' => $current['name'],
         ];
@@ -333,6 +336,30 @@ function import_hint_objective(array $cat, $heading) {
     return $bestSim >= 0.5 ? [$best, $bestSim] : [0, $bestSim];
 }
 
+/**
+ * The programme a workbook's Programme column names: by its code ("1.2 PRG",
+ * alone or followed by the name, as the template writes it) or by its whole
+ * name. 0 when it names none, or one that is switched off (or sits under an
+ * objective that is), since the review could not file anything there.
+ */
+function import_hint_programme(array $cat, $text) {
+    $norm = function ($s) { return mb_strtolower(trim((string)preg_replace('/\s+/u', ' ', (string)$s)), 'UTF-8'); };
+    $want = $norm($text);
+    if ($want === '') { return 0; }
+    $programmes = $cat['programmes'];
+    // Longest code first, so "12.1 PRG" is never taken for "1.2 PRG"'s neighbour.
+    uasort($programmes, function ($a, $b) { return mb_strlen((string)$b['abbr']) <=> mb_strlen((string)$a['abbr']); });
+    $byName = 0;
+    foreach ($programmes as $id => $p) {
+        $o = $cat['objectives'][(int)$p['objective_id']] ?? null;
+        if ((string)$p['active'] === '0' || !$o || (string)$o['active'] === '0') { continue; }
+        $code = $norm($p['abbr']);
+        if ($code !== '' && ($want === $code || mb_strpos($want, $code . ' ') === 0)) { return (int)$id; }
+        if ($byName === 0 && $norm($p['name']) === $want) { $byName = (int)$id; }
+    }
+    return $byName;
+}
+
 /** The fields of an existing activity that the workbook row would change: [field => [old, new]]. */
 function import_changes(array $existing, array $a) {
     $out = [];
@@ -353,6 +380,10 @@ function import_changes(array $existing, array $a) {
  */
 function import_analyse($db, array $a, array $cat) {
     [$hint, $hintSim] = import_hint_objective($cat, $a['wb_objective']);
+    // A Programme column (the template has one) names the place outright;
+    // that programme's objective then stands in for the heading's.
+    $prgHint = import_hint_programme($cat, (string)($a['programme'] ?? ''));
+    if ($prgHint > 0) { $hint = (int)$cat['programmes'][$prgHint]['objective_id']; $hintSim = 1.0; }
     $nameTokens = filing_words($a['name']);
     $textTokens = filing_words($a['name'] . ' ' . $a['description'] . ' ' . $a['kpi']);
 
@@ -395,7 +426,7 @@ function import_analyse($db, array $a, array $cat) {
 
     $out = [
         'kind' => 'new', 'code' => $a['code'], 'name' => $a['name'], 'description' => $a['description'], 'kpi' => $a['kpi'], 'budget' => $a['budget'],
-        'extra' => json_encode(['quarter' => $a['quarter'], 'start' => $a['start'], 'finish' => $a['finish'], 'owner' => $a['owner'], 'pct' => $a['pct'], 'days' => $a['days'], 'wb_wbs' => $a['wb_wbs'], 'wb_objective' => $a['wb_objective'], 'hint_similarity' => round($hintSim, 2)], JSON_UNESCAPED_UNICODE),
+        'extra' => json_encode(['quarter' => $a['quarter'], 'start' => $a['start'], 'finish' => $a['finish'], 'owner' => $a['owner'], 'pct' => $a['pct'], 'days' => $a['days'], 'wb_wbs' => $a['wb_wbs'], 'wb_objective' => $a['wb_objective'], 'wb_programme' => (string)($a['programme'] ?? ''), 'hint_similarity' => round($hintSim, 2)], JSON_UNESCAPED_UNICODE),
         'match_project_id' => $match, 'match_how' => $how, 'match_score' => round($score, 3), 'changes' => null,
         'hint_objective_id' => $hint,
         'sug_pillar_id' => 0, 'sug_objective_id' => 0, 'sug_programme_id' => 0, 'alt_objective_id' => 0, 'alt_programme_id' => 0,
@@ -410,14 +441,14 @@ function import_analyse($db, array $a, array $cat) {
     }
     if ($match > 0) { $out['kind'] = 'unclear'; }
     // A new (or possibly new) activity: where does it go?
-    return array_merge($out, import_propose($db, $a, $cat, $hint, $nearest, $nearestSim));
+    return array_merge($out, import_propose($db, $a, $cat, $hint, $nearest, $nearestSim, 0, $prgHint));
 }
 
 /**
  * The placement proposal for a new activity: the workbook's heading and
  * the wording, reconciled. See the file comment for the four outcomes.
  */
-function import_propose($db, array $a, array $cat, $hint, $nearestId = 0, $nearestSim = 0.0, $exclude = 0) {
+function import_propose($db, array $a, array $cat, $hint, $nearestId = 0, $nearestSim = 0.0, $exclude = 0, $programmeHint = 0) {
     $text = trim($a['name'] . '. ' . $a['description'] . ' ' . $a['kpi']);
     $s = mb_strlen($text) >= 4 ? suggest_parent($db, 'pm_projects', $text, 3, (int)$exclude) : ['candidates' => [], 'confident' => false, 'scores' => []];
     $top = $s['candidates'][0] ?? null;
@@ -451,6 +482,26 @@ function import_propose($db, array $a, array $cat, $hint, $nearestId = 0, $neare
         $out['reason'] .= ' The programme follows ' . (string)$nearest['abbr'] . ', whose wording is nearly the same.';
         return $out;
     };
+    // The workbook names the programme: that is the place. The wording only
+    // decides whether it is proposed outright or shown with its alternative.
+    if ((int)$programmeHint > 0 && isset($cat['programmes'][(int)$programmeHint])) {
+        $p = $cat['programmes'][(int)$programmeHint];
+        $oid = (int)$p['objective_id'];
+        $named = trim((string)$p['abbr'] . ' ' . (string)$p['name']);
+        $out['sug_pillar_id'] = (int)($cat['objectives'][$oid]['pillar_id'] ?? 0);
+        $out['sug_objective_id'] = $oid;
+        $out['sug_programme_id'] = (int)$programmeHint;
+        if (!$top || (int)$top['objective_id'] === $oid) {
+            $out['confidence'] = 'agreed';
+            $out['reason'] = 'The workbook names the programme: ' . $named . '.' . ($top ? ' The wording agrees.' : '');
+        } else {
+            $out['alt_objective_id'] = (int)$top['objective_id'];
+            $out['alt_programme_id'] = (int)$top['programme_id'];
+            $out['confidence'] = 'hint';
+            $out['reason'] = 'The workbook names the programme ' . $named . '; the wording points to ' . (string)$top['label'] . '.';
+        }
+        return $out;
+    }
     if ($hint > 0) {
         [$prg, $prgScore] = $bestUnder($hint);
         $out['sug_pillar_id'] = (int)($cat['objectives'][$hint]['pillar_id'] ?? 0);
