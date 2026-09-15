@@ -424,7 +424,10 @@ and **Not started**. Projects (activities) and their tasks carry them in
 colour - green, orange and red, on the tag and the progress bar - on a
 programme's page, an activity's page and the task table. The main
 dashboard (the overview, a goal's page, an objective's programmes) stays
-in its own greens, with a tag only for Completed and In progress. The Record
+in its own greens, with a tag only for Completed and In progress. On the
+Projects / Interventions list each row has a dot in the same colours, with
+no word beside it; the word is on hover and read out to screen readers (an
+activity with no task to measure has a hollow grey dot). The Record
 delivery form's Status box sets it for a task (stored as 1, 2 and 0; 0 and
 1 are what "Not delivered" and "Delivered" always stored, so nothing
 recorded before changes meaning). An activity, programme or objective is

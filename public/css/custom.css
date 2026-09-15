@@ -287,6 +287,13 @@ html .afcdc-status--completed i, html .afcdc-status--in-progress i, html .afcdc-
 html .progress-bar.afcdc-bar--completed   { background-color: var(--afcdc-completed) !important; }
 html .progress-bar.afcdc-bar--in-progress { background-color: var(--afcdc-in-progress) !important; }
 html .afcdc-drill .afcdc-status { margin-left: 0.25rem; vertical-align: 0.1em; }
+/* The Projects list: a dot per row, the word on hover. */
+html .afcdc-dot { display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; vertical-align: middle; background: var(--afcdc-ink-soft); box-shadow: 0 0 0 2px var(--afcdc-canvas, #FFF); }
+html .afcdc-dot--completed   { background: var(--afcdc-completed); }
+html .afcdc-dot--in-progress { background: var(--afcdc-in-progress); }
+html .afcdc-dot--not-started { background: var(--afcdc-not-started); }
+html .afcdc-dot--idle        { background: transparent; border: 2px solid var(--afcdc-ink-soft); }
+html #datatable-list th.afcdc-col-dot, html #datatable-list td.afcdc-col-dot { width: 1.5rem; padding-left: 0; padding-right: 0; text-align: center; }
 
 /* --- Progress ------------------------------------------------------------
    Progress is a magnitude, so it stays one hue. The track is tinted rather
