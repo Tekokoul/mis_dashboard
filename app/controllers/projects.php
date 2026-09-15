@@ -211,6 +211,12 @@ class projectsController extends coreController{
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['data'] = $this->model->get_data("pm_projects", $validated['id']);
+        // An activity merged into another: its old address opens the one it became part of.
+        if (!is_set($data['data']) && ($to = merge_forwarding($this->DB, (int)$validated['id'])) > 0) {
+            $q = ['merged_from' => (int)$validated['id']];
+            if (isset($this->query['back']) && is_string($this->query['back'])) { $q['back'] = $this->query['back']; }
+            redirect($this->L('projects/edit/' . $to) . '?' . http_build_query($q));
+        }
         // The AI's filing proposal (with Accept / Undo) and whatever is still
         // missing are shown on the form too, not only in the list.
         $data['review'] = allocation_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
@@ -1205,6 +1211,13 @@ class projectsController extends coreController{
         $validated['member_id'] = $this->member_id;
         // Not started (0), Completed (1) or In progress (2); anything else is Not started.
         $validated['result'] = in_array((int)($validated['result'] ?? 0), [0, 1, 2], true) ? (int)$validated['result'] : 0;
+        // The task must belong to the activity posted. A form left open while
+        // its activity was merged into another would otherwise record a status
+        // that nothing counts. A locking read, so it waits for a merge in flight.
+        $owner = $this->DB->MQ("SELECT project_id FROM pm_projects_tasks_tbl WHERE id = ? FOR UPDATE", "one", [(int)$validated['task_id']]);
+        if (!is_set($owner) || (int)$owner['project_id'] !== (int)$validated['project_id']) {
+            $this->setAnswer(409, "This task now belongs to another activity - it was merged. Open that activity's page and record it there.");
+        }
 
         // actual_budget is optional. It was previously interpolated bare, so
         // leaving the field blank produced "VALUES (..., )" - a syntax error on
@@ -1275,10 +1288,11 @@ class projectsController extends coreController{
         if (!can_vet() || !merge_available($this->DB)) { $this->setAnswer(404, "Merging activities is not available here."); }
         $ids  = $this->mergeIds($this->query['ids'] ?? []);
         $keep = (int)($this->query['keep'] ?? 0);
-        $back = is_array($this->query['back'] ?? null) ? '' : (string)($this->query['back'] ?? '');
+        $back = is_string($this->query['back'] ?? null) ? $this->query['back'] : '';
+        $fingerprint = is_string($this->query['fingerprint'] ?? null) ? $this->query['fingerprint'] : '';
         $posted = ['keep' => $keep];
         foreach (['name', 'description', 'kpi', 'estimated_budget', 'actual_budget', 'notes'] as $f) {
-            $posted[$f] = is_array($this->query[$f] ?? null) ? '' : (string)($this->query[$f] ?? '');
+            $posted[$f] = is_string($this->query[$f] ?? null) ? $this->query[$f] : '';
         }
         $page = $this->mergePage($ids, $keep, $posted);
         $errors = $page['problems'];
@@ -1286,30 +1300,45 @@ class projectsController extends coreController{
             if (!isset($page['by_id'][$keep])) { $errors[] = 'Choose the activity to keep.'; }
             if (trim($posted['name']) === '') { $errors[] = 'The merged activity needs a name.'; }
             if (trim($posted['description']) === '') { $errors[] = 'The merged activity needs a description.'; }
-            if (!hash_equals((string)$page['fingerprint'], is_array($this->query['fingerprint'] ?? null) ? '' : (string)($this->query['fingerprint'] ?? ''))) {
+            if (!hash_equals((string)$page['fingerprint'], $fingerprint)) {
                 $errors[] = 'One of these activities changed after this page was opened. Check what is shown now, then merge.';
             }
         }
-        if ($errors) {
-            if (!headers_sent()) { http_response_code(422); }
-            $page['form_errors'] = $errors;
-            $page['back'] = $this->backTo('projects/list', $back);
-            $url = $this->R->url; $url['action'] = 'merge'; $this->R->url = $url;
-            $this->prepare_edit_mode();
-            $this->render($page);
+        if (!$errors) {
+            // Checked again inside the merge, under a lock, where it cannot change underneath.
+            $result = $this->mergeApply($ids, $keep, $posted, $fingerprint);
+            if (is_int($result)) {
+                redirect($this->L('projects/edit/' . $keep) . '?' . http_build_query(['merged' => $result, 'back' => $this->backTo('projects/list', $back)]));
+            }
+            $errors[] = $result;
+            $page = $this->mergePage($ids, $keep, $posted);
         }
-        $logId = $this->mergeApply($page['by_id'], $keep, $posted);
-        redirect($this->L('projects/edit/' . $keep) . '?' . http_build_query(['merged' => $logId, 'back' => $this->backTo('projects/list', $back)]));
+        if (!headers_sent()) { http_response_code(422); }
+        $page['form_errors'] = $errors;
+        $page['back'] = $this->backTo('projects/list', $back);
+        $url = $this->R->url; $url['action'] = 'merge'; $this->R->url = $url;
+        $this->prepare_edit_mode();
+        $this->render($page);
     }
 
     public function merge_undo() {
         $this->checkMethod("POST");
         $this->mapRoute("id");
         if (!can_vet() || !merge_available($this->DB)) { $this->setAnswer(404, "Merging activities is not available here.", [], "json"); }
-        $log = $this->DB->MQ("SELECT * FROM pm_merge_log_tbl WHERE id = ? AND undone_at IS NULL", "one", [(int)($this->parts['id'] ?? 0)]);
+        $logId = (int)($this->parts['id'] ?? 0);
+        $peek = $this->DB->MQ("SELECT project_id FROM pm_merge_log_tbl WHERE id = ?", "one", [$logId]);
+        if (!is_set($peek)) { $this->setAnswer(404, "That merge has already been undone, or there is no such merge.", [], "json"); }
+        $keep = (int)$peek['project_id'];
+
+        // Everything below runs under locks: the merged activity first (a merge
+        // into it takes the same lock and waits), then the record itself (a
+        // second undo of it waits, and then finds it undone). Any refusal ends
+        // the request, and the transaction is rolled back with it.
+        $this->DB->txBegin();
+        $this->DB->MQ("SELECT id FROM pm_projects_tbl WHERE id = ? FOR UPDATE", "all", [$keep]);
+        $log = $this->DB->MQ("SELECT * FROM pm_merge_log_tbl WHERE id = ? AND undone_at IS NULL FOR UPDATE", "one", [$logId]);
         if (!is_set($log)) { $this->setAnswer(404, "That merge has already been undone, or there is no such merge.", [], "json"); }
-        $keep = (int)$log['project_id'];
-        if (is_set($this->DB->MQ("SELECT id FROM pm_merge_log_tbl WHERE project_id = ? AND undone_at IS NULL AND id > ? LIMIT 1", "one", [$keep, (int)$log['id']]))) {
+        if (is_set($this->DB->MQ("SELECT id FROM pm_merge_log_tbl WHERE project_id = ? AND undone_at IS NULL AND id > ? LIMIT 1", "one", [$keep, $logId]))) {
             $this->setAnswer(409, "A later merge into this activity has to be undone first.", [], "json");
         }
         $snap = json_decode((string)$log['snapshot'], true);
@@ -1320,8 +1349,8 @@ class projectsController extends coreController{
         if (!is_set($this->DB->MQ("SELECT id FROM pm_projects_tbl WHERE id = ?", "one", [$keep]))) {
             $this->setAnswer(409, "The merged activity no longer exists, so there is nothing to undo the merge from.", [], "json");
         }
-        // Everything that has to come back must be free to, and everything
-        // that has to move back must still be where the merge put it.
+        $in = function (array $a) { return implode(',', array_fill(0, count($a), '?')); };
+        // Everything that has to come back must be free to.
         $mergedIds = [];
         foreach ($snap['merged'] as $m) {
             $id = (int)($m['id'] ?? 0);
@@ -1336,32 +1365,39 @@ class projectsController extends coreController{
             }
             $mergedIds[] = $id;
         }
+        if ($mergedIds) {
+            $orphans = (int)($this->DB->MQ("SELECT (SELECT COUNT(*) FROM pm_progress_tasks_tbl WHERE project_id IN (" . $in($mergedIds) . "))
+                                                  + (SELECT COUNT(*) FROM pm_projects_tasks_tbl WHERE project_id IN (" . $in($mergedIds) . ")) AS n", "one", array_merge($mergedIds, $mergedIds))['n'] ?? 0);
+            if ($orphans > 0) { $this->setAnswer(409, "Something was recorded against a merged activity's old id after the merge, so it cannot be put back safely.", [], "json"); }
+        }
+        // The tasks that go back must still be on the merged activity. The kept
+        // activity's own tasks never moved: removing one since is no obstacle.
         foreach ($snap['tasks'] as $t) {
-            $cur = $this->DB->MQ("SELECT project_id FROM pm_projects_tasks_tbl WHERE id = ?", "one", [(int)($t['id'] ?? 0)]);
+            if ((int)($t['project_id'] ?? 0) === $keep) { continue; }
+            $cur = $this->DB->MQ("SELECT project_id FROM pm_projects_tasks_tbl WHERE id = ? FOR UPDATE", "one", [(int)($t['id'] ?? 0)]);
             if (!is_set($cur)) { $this->setAnswer(409, 'The task "' . (string)($t['name_after'] ?? '') . '" was removed after the merge, so the activities cannot be put back as they were.', [], "json"); }
             if ((int)$cur['project_id'] !== $keep) { $this->setAnswer(409, 'The task "' . (string)($t['name_after'] ?? '') . '" now belongs to another activity, so the merge cannot be undone.', [], "json"); }
         }
-        $in = function (array $a) { return implode(',', array_fill(0, count($a), '?')); };
         $safe = function (array $cols) { return array_values(array_filter($cols, function ($c) { return is_string($c) && preg_match('/^[A-Za-z0-9_]{1,64}$/', $c); })); };
         $projectCols = $safe(array_column((array)$this->DB->MQ("SHOW COLUMNS FROM pm_projects_tbl", "all"), 'Field'));
 
-        $this->DB->txBegin();
         foreach ($snap['merged'] as $m) {
             $use = array_values(array_intersect($projectCols, array_keys($m)));
             $this->DB->MQ("INSERT INTO pm_projects_tbl (`" . implode('`, `', $use) . "`) VALUES (" . $in($use) . ")", false,
                           array_map(function ($c) use ($m) { return $m[$c]; }, $use));
         }
         // A task goes back to its activity; its name and description go back
-        // only if nobody has changed them since.
+        // only if nobody has changed them since - compared byte for byte, so a
+        // change of case counts as a change.
         foreach ($snap['tasks'] as $t) {
             $this->DB->MQ("UPDATE pm_projects_tasks_tbl
-                              SET name = IF(name <=> ?, ?, name), description = IF(description <=> ?, ?, description), project_id = ?
+                              SET name = IF(BINARY name <=> BINARY ?, ?, name), description = IF(BINARY description <=> BINARY ?, ?, description), project_id = ?
                             WHERE id = ? AND project_id = ?", false,
                           [$t['name_after'], $t['name'], $t['description_after'], $t['description'], (int)$t['project_id'], (int)$t['id'], $keep]);
         }
         // Deliveries: the ones that moved, and any recorded since on a task that goes back.
         $moved = [];
-        foreach ((array)($snap['progress'] ?? []) as $p) { $moved[(int)$p['project_id']][] = (int)$p['id']; }
+        foreach ((array)($snap['progress'] ?? []) as $pr) { $moved[(int)$pr['project_id']][] = (int)$pr['id']; }
         foreach ($moved as $orig => $pids) {
             $this->DB->MQ("UPDATE pm_progress_tasks_tbl SET project_id = ? WHERE project_id = ? AND id IN (" . $in($pids) . ")", false, array_merge([$orig, $keep], $pids));
         }
@@ -1379,25 +1415,32 @@ class projectsController extends coreController{
                 }
             }
         }
+        if ($this->mergeTableExists('pm_filing_feedback_tbl')) {
+            foreach ((array)($snap['feedback'] ?? []) as $fb) {
+                $this->DB->MQ("UPDATE pm_filing_feedback_tbl SET row_id = ? WHERE id = ? AND row_id = ?", false, [(int)$fb['row_id'], (int)$fb['id'], $keep]);
+            }
+        }
         if (allocation_review_available($this->DB) && !empty($snap['reviews'])) {
             $reviewCols = $safe(array_column((array)$this->DB->MQ("SHOW COLUMNS FROM pm_allocation_review_tbl", "all"), 'Field'));
             foreach ((array)$snap['reviews'] as $rv) {
                 $use = array_values(array_intersect($reviewCols, array_keys((array)$rv)));
                 if (!$use) { continue; }
-                $this->DB->MQ("INSERT IGNORE INTO pm_allocation_review_tbl (`" . implode('`, `', $use) . "`) VALUES (" . $in($use) . ")", false,
+                $this->DB->MQ("INSERT INTO pm_allocation_review_tbl (`" . implode('`, `', $use) . "`) VALUES (" . $in($use) . ")", false,
                               array_map(function ($c) use ($rv) { return $rv[$c]; }, $use));
             }
         }
-        // The kept activity's own fields, each only if it still holds what the merge wrote.
+        // The kept activity's own fields, each only if it still holds what the
+        // merge wrote: text byte for byte, budgets as numbers.
         foreach (['name', 'description', 'kpi', 'estimated_budget', 'actual_budget', 'notes'] as $f) {
             if (!array_key_exists($f, $snap['kept_after']) || !array_key_exists($f, $snap['kept'])) { continue; }
-            $this->DB->MQ("UPDATE pm_projects_tbl SET `$f` = ? WHERE id = ? AND `$f` <=> ?", false, [$snap['kept'][$f], $keep, $snap['kept_after'][$f]]);
+            $same = in_array($f, ['estimated_budget', 'actual_budget'], true) ? "`$f` <=> ?" : "BINARY `$f` <=> BINARY ?";
+            $this->DB->MQ("UPDATE pm_projects_tbl SET `$f` = ? WHERE id = ? AND $same", false, [$snap['kept'][$f], $keep, $snap['kept_after'][$f]]);
         }
         if ($this->mergeTableExists('pm_embeddings_tbl')) {
             $all = array_merge([$keep], $mergedIds);
             $this->DB->MQ("DELETE FROM pm_embeddings_tbl WHERE kind = 'activity' AND ref_id IN (" . $in($all) . ")", false, $all);
         }
-        $this->DB->MQ("UPDATE pm_merge_log_tbl SET undone_by = ?, undone_at = NOW() WHERE id = ?", false, [(int)($_SESSION['user']['user_id'] ?? 0), (int)$log['id']]);
+        $this->DB->MQ("UPDATE pm_merge_log_tbl SET undone_by = ?, undone_at = NOW() WHERE id = ? AND undone_at IS NULL", false, [(int)($_SESSION['user']['user_id'] ?? 0), $logId]);
         $this->DB->txCommit();
         $this->setAnswer(200, "Undone.", ['project_id' => $keep, 'restored' => $mergedIds], "json");
     }
@@ -1459,14 +1502,25 @@ class projectsController extends coreController{
                 $problems[] = trim($a['abbr'] . ' ' . $a['name']) . ' is not reported through tasks, so it cannot be merged.';
             }
         }
+        // A workbook import still waiting for review compares its row with one
+        // of these activities; merged, that comparison would land on another.
+        if ($acts && $this->mergeTableExists('pm_import_rows_tbl')) {
+            $keys = array_keys($acts);
+            $pending = $this->DB->MQ("SELECT COUNT(*) AS n FROM pm_import_rows_tbl WHERE status = 'pending' AND match_project_id IN (" . implode(',', array_fill(0, count($keys), '?')) . ")", "one", $keys);
+            if ((int)($pending['n'] ?? 0) > 0) { $problems[] = 'A workbook import waiting for review still refers to one of these activities. Accept or skip those rows first, then merge.'; }
+        }
         uasort($acts, function ($x, $y) { return strnatcmp((string)$x['abbr'], (string)$y['abbr']) ?: ((int)$x['id'] <=> (int)$y['id']); });
         if (!isset($acts[(int)$keep])) { $keep = $acts ? (int)array_key_first($acts) : 0; }
         $ordered = $acts ? [(int)$keep => $acts[(int)$keep]] + $acts : [];
+        // Everything the proposal is built from and the merge writes over: any
+        // change to it after the page was opened makes the page stale.
         $parts = [];
         $sorted = $acts; ksort($sorted);
         foreach ($sorted as $id => $a) {
-            $parts[] = [(int)$id, (string)$a['abbr'], (string)$a['name'], (int)$a['programme_id'], (int)$a['reports'],
-                        array_map(function ($t) { return [(int)$t['id'], (string)$t['name']]; }, $a['tasks'])];
+            $parts[] = [(int)$id, (string)$a['abbr'], (string)$a['name'], (string)$a['description'], (string)$a['kpi'],
+                        (string)$a['estimated_budget'], (string)$a['actual_budget'], (string)$a['notes'], (string)$a['type'], (string)$a['active'],
+                        (int)$a['programme_id'], (int)$a['reports'],
+                        array_map(function ($t) { return [(int)$t['id'], (string)$t['name'], (string)$t['description']]; }, $a['tasks'])];
         }
         return [
             'model_name' => 'pm_projects', 'meta_name' => $this->model->get_meta_name('pm_projects'),
@@ -1478,12 +1532,28 @@ class projectsController extends coreController{
         ];
     }
 
-    /** Merge the activities into $keep, record what changed, and return the record's id. */
-    private function mergeApply(array $acts, $keep, array $posted) {
+    /**
+     * Merge the activities into $keep in one transaction. Returns the merge
+     * record's id, or a message saying why nothing was changed. The chosen
+     * activities (and their tasks) are locked first and the page checked
+     * again under that lock, so two people merging overlapping activities, the
+     * same merge sent twice, or an undo into the same activity cannot
+     * interleave with it.
+     */
+    private function mergeApply(array $ids, $keep, array $posted, $fingerprint) {
         $keep = (int)$keep;
+        $in = function (array $a) { return implode(',', array_fill(0, count($a), '?')); };
+        $this->DB->txBegin();
+        $this->DB->MQ("SELECT id FROM pm_projects_tbl WHERE id IN (" . $in($ids) . ") ORDER BY id FOR UPDATE", "all", $ids);
+        $this->DB->MQ("SELECT id FROM pm_projects_tasks_tbl WHERE project_id IN (" . $in($ids) . ") ORDER BY id FOR UPDATE", "all", $ids);
+        $page = $this->mergePage($ids, $keep, $posted);
+        if ($page['problems'] || !isset($page['by_id'][$keep]) || !hash_equals((string)$page['fingerprint'], (string)$fingerprint)) {
+            $this->DB->txRollBack();
+            return $page['problems'] ? implode(' ', $page['problems']) : 'One of these activities changed after this page was opened. Check what is shown now, then merge.';
+        }
+        $acts = $page['by_id'];
         $others = array_values(array_filter(array_map('intval', array_keys($acts)), function ($id) use ($keep) { return $id !== $keep; }));
         $all = array_merge([$keep], $others);
-        $in = function (array $a) { return implode(',', array_fill(0, count($a), '?')); };
         $user = (int)($_SESSION['user']['user_id'] ?? 0);
         $who = $this->DB->MQ("SELECT username, givenname, sn FROM core_users_tbl WHERE id = ?", "one", [$user]);
         $whoName = is_set($who) ? (trim((string)$who['givenname'] . ' ' . (string)$who['sn']) ?: (string)$who['username']) : '';
@@ -1509,27 +1579,32 @@ class projectsController extends coreController{
         }
         $progress = (array)$this->DB->MQ("SELECT id, project_id, task_id FROM pm_progress_tasks_tbl WHERE project_id IN (" . $in($others) . ")", "all", $others);
         $reviews = allocation_review_available($this->DB) ? (array)$this->DB->MQ("SELECT * FROM pm_allocation_review_tbl WHERE project_id IN (" . $in($others) . ")", "all", $others) : [];
+        // Only decided import rows follow the activity; a pending one was refused above.
         $imports = $this->mergeTableExists('pm_import_rows_tbl')
-            ? (array)$this->DB->MQ("SELECT id, match_project_id, nearest_project_id, result_project_id FROM pm_import_rows_tbl WHERE match_project_id IN (" . $in($others) . ") OR nearest_project_id IN (" . $in($others) . ") OR result_project_id IN (" . $in($others) . ")", "all", array_merge($others, $others, $others))
+            ? (array)$this->DB->MQ("SELECT id, match_project_id, nearest_project_id, result_project_id FROM pm_import_rows_tbl WHERE status <> 'pending' AND (match_project_id IN (" . $in($others) . ") OR nearest_project_id IN (" . $in($others) . ") OR result_project_id IN (" . $in($others) . "))", "all", array_merge($others, $others, $others))
+            : [];
+        // A merged activity's filing corrections now describe the merged one.
+        $feedback = $this->mergeTableExists('pm_filing_feedback_tbl')
+            ? (array)$this->DB->MQ("SELECT id, row_id FROM pm_filing_feedback_tbl WHERE model = 'pm_projects' AND row_id IN (" . $in($others) . ")", "all", $others)
             : [];
         $snapshot = json_encode([
             'version' => 1, 'merged_by_name' => $whoName,
             'kept' => $rows[$keep], 'kept_after' => $after,
             'merged' => array_map(function ($id) use ($rows) { return $rows[$id]; }, $others),
-            'tasks' => $tasks, 'progress' => $progress, 'reviews' => $reviews, 'imports' => $imports,
+            'tasks' => $tasks, 'progress' => $progress, 'reviews' => $reviews, 'imports' => $imports, 'feedback' => $feedback,
         ], JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_INVALID_UTF8_SUBSTITUTE);
-        if (!is_string($snapshot) || $snapshot === '') { $this->setAnswer(500, "The merge could not be recorded, so nothing was changed."); }
+        if (!is_string($snapshot) || $snapshot === '') { $this->DB->txRollBack(); return 'The merge could not be recorded, so nothing was changed.'; }
 
-        $this->DB->txBegin();
         foreach ($tasks as $t) {
             $this->DB->MQ("UPDATE pm_projects_tasks_tbl SET project_id = ?, name = ?, description = ? WHERE id = ?", false, [$keep, $t['name_after'], $t['description_after'], $t['id']]);
         }
         $this->DB->MQ("UPDATE pm_progress_tasks_tbl SET project_id = ? WHERE project_id IN (" . $in($others) . ")", false, array_merge([$keep], $others));
-        if ($imports) {
+        foreach ($imports as $r) {
             foreach (['match_project_id', 'nearest_project_id', 'result_project_id'] as $col) {
-                $this->DB->MQ("UPDATE pm_import_rows_tbl SET `$col` = ? WHERE `$col` IN (" . $in($others) . ")", false, array_merge([$keep], $others));
+                if (in_array((int)$r[$col], $others, true)) { $this->DB->MQ("UPDATE pm_import_rows_tbl SET `$col` = ? WHERE id = ?", false, [$keep, (int)$r['id']]); }
             }
         }
+        if ($feedback) { $this->DB->MQ("UPDATE pm_filing_feedback_tbl SET row_id = ? WHERE id IN (" . $in(array_column($feedback, 'id')) . ")", false, array_merge([$keep], array_map('intval', array_column($feedback, 'id')))); }
         if ($reviews) { $this->DB->MQ("DELETE FROM pm_allocation_review_tbl WHERE project_id IN (" . $in($others) . ")", false, $others); }
         if ($this->mergeTableExists('pm_embeddings_tbl')) { $this->DB->MQ("DELETE FROM pm_embeddings_tbl WHERE kind = 'activity' AND ref_id IN (" . $in($all) . ")", false, $all); }
         foreach ($others as $id) {

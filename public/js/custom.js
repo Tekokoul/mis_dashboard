@@ -454,11 +454,18 @@ $(function () {
         var $f = $(this);
         var keep = $.trim($f.find('input[name="keep"]:checked').closest('tr').find('.afcdc-merge__code').text());
         var n = $f.find('input[name="ids[]"]').length;
-        if (!window.confirm('Merge these ' + n + ' activities into ' + (keep || 'the one you keep') + '? The others are removed and their tasks and deliveries move to it. The merge can be undone on its page.')) { e.preventDefault(); }
+        if (!window.confirm('Merge these ' + n + ' activities into ' + (keep || 'the one you keep') + '? The others are removed and their tasks and deliveries move to it. The merge can be undone on its page.')) { e.preventDefault(); return; }
+        // Once confirmed, once: a second click would send the same merge again.
+        window.setTimeout(function () { $f.find('button[type="submit"]').prop('disabled', true).attr('aria-busy', 'true'); }, 0);
     });
     $(document).on('click', '[data-merge-undo]', function (e) {
         e.preventDefault();
-        if (!window.confirm('Undo this merge? The merged activities come back with their own codes, tasks and deliveries.')) { return; }
+        // Undo reloads this form: say so when something typed here is unsaved.
+        var dirty = false, $form = $('form.ecommerce-form');
+        $form.find('input[type="text"], input:not([type]), textarea').each(function () { if (this.name !== 'abbr' && this.value !== this.defaultValue) { dirty = true; } });
+        $form.find('input[name$="[remove]"]').each(function () { var was = this.getAttribute('data-afcdc-was'); if (this.value !== (was === null ? '0' : was)) { dirty = true; } });
+        if ($form.find('select[data-afcdc-touched="1"]').length) { dirty = true; }
+        if (!window.confirm('Undo this merge? The merged activities come back with their own codes, tasks and deliveries.' + (dirty ? ' Your unsaved changes on this page will be lost.' : ''))) { return; }
         var id = $(this).attr('data-merge-undo');
         $.ajax({ url: prefix + '/projects/merge_undo/' + encodeURIComponent(id), method: 'POST', data: { csrf: window.CSRF_TOKEN || '' }, dataType: 'json' })
             .done(function () {

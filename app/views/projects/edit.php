@@ -25,6 +25,7 @@ $col_width = 12/$columns;
                                 if (!empty($data['form_errors'])) { print '<div class="afcdc-form-errors" role="alert"><strong>Not saved.</strong> Please fill in: ' . display(implode(', ', $data['form_errors'])) . '.</div>'; }
                                 // The AI's filing proposal, with Accept / Undo, and the unfinished flag - the same as in the list.
                                 print allocation_review_panel($data['review'] ?? null);
+                                if ((int)($_GET['merged_from'] ?? 0) > 0) { print '<div class="afcdc-review-panel afcdc-merge-panel" role="status"><div class="afcdc-review__note"><span class="afcdc-review__tag">Moved here</span> The activity you opened was merged into this one.</div></div>'; }
                                 if (($_GET['unmerged'] ?? '') === '1') { print '<div class="afcdc-review-panel afcdc-merge-panel" role="status"><div class="afcdc-review__note"><span class="afcdc-review__tag">Merge undone</span> The merged activities are back, with their own codes, tasks and deliveries.</div></div>'; }
                                 // Activities merged into this one, and the way back from the newest merge.
                                 foreach ((array)($data['merges'] ?? []) as $mg) {

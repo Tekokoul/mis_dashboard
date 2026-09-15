@@ -1570,8 +1570,9 @@ function merge_available($db) {
  * spelt as in the first name. "Purchase 140 Starlink kits" + "Purchase 600
  * Starlink kits" -> "Purchase Starlink kits"; "Procurement of 700 devices" +
  * "Procurement of 1000 mobile devices" -> "Procurement of devices". A name
- * never starts or ends on a joining word, and "" means nothing useful is
- * shared (the caller keeps the name of the activity kept).
+ * never starts or ends on a joining word or stray punctuation, never keeps
+ * half of a pair of brackets, and "" means nothing useful is shared (the
+ * caller keeps the name of the activity kept).
  */
 function merge_common_name(array $names) {
     $names = array_values(array_filter(array_map(function ($n) { return trim((string)preg_replace('/\s+/u', ' ', (string)$n)); }, $names), 'strlen'));
@@ -1605,15 +1606,30 @@ function merge_common_name(array $names) {
     while ($common && in_array($key($common[0]), $joins, true)) { array_shift($common); }
     $meaningful = array_filter($common, function ($w) use ($key) { $k = $key($w); return $k !== '' && !ctype_digit($k); });
     if (!$meaningful) { return ''; }
-    $out = (string)preg_replace('/[\s,;:\-\x{2013}\x{2014}]+$/u', '', implode(' ', $common));
-    return mb_strtoupper(mb_substr($out, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($out, 1, null, 'UTF-8');
+    $out = implode(' ', $common);
+    // Half a pair of brackets is left over when only one side's word was shared.
+    foreach ([['(', ')'], ['[', ']']] as $pair) {
+        if (substr_count($out, $pair[0]) !== substr_count($out, $pair[1])) { $out = str_replace($pair, '', $out); }
+    }
+    $out = trim((string)preg_replace(['/\s+/u', '/^[\s,;:.\-\x{2013}\x{2014}]+/u', '/[\s,;:.\-\x{2013}\x{2014}(\[]+$/u'], [' ', '', ''], $out));
+    if ($out === '') { return ''; }
+    // Capitalised only if the first name began with a capital.
+    $first = mb_substr($names[0], 0, 1, 'UTF-8');
+    return $first !== mb_strtolower($first, 'UTF-8') ? mb_strtoupper(mb_substr($out, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($out, 1, null, 'UTF-8') : $out;
 }
 
-/** What a task is called once its activity is merged: "Delivered" takes the activity's old name, any other name stays. */
+/**
+ * What a task is called once its activity is merged: "Delivered" (or no name)
+ * takes the activity's old name - or its code, for an activity with no name -
+ * and any other name stays. Never "".
+ */
 function merge_task_name(array $task, array $activity) {
     $name = trim((string)($task['name'] ?? ''));
     if ($name === '' || mb_strtolower($name, 'UTF-8') === 'delivered') {
-        return mb_substr(trim((string)($activity['name'] ?? '')), 0, 250);
+        $label = trim((string)($activity['name'] ?? ''));
+        if ($label === '') { $label = trim((string)($activity['abbr'] ?? '')); }
+        if ($label !== '') { return mb_substr($label, 0, 250); }
+        return $name !== '' ? $name : 'Delivered';
     }
     return $name;
 }
@@ -1622,7 +1638,8 @@ function merge_task_name(array $task, array $activity) {
  * The merged activity's fields as first proposed: the common name, and the
  * descriptions, indicators, budgets and notes of all of them combined - the
  * kept one first. Descriptions that differ are kept apart under their names.
- * $activities is in display order, keep first.
+ * Indicators are joined whole, as many as fit in the column ($dropped says how
+ * many did not). $activities is in display order, keep first.
  */
 function merge_suggestion(array $activities) {
     $first = reset($activities) ?: [];
@@ -1650,14 +1667,40 @@ function merge_suggestion(array $activities) {
         foreach ($activities as $a) { if (isset($a[$field]) && $a[$field] !== null && $a[$field] !== '' && is_numeric($a[$field])) { $total = ($total ?? 0) + (float)$a[$field]; } }
         return $total;
     };
+    $kpi = ''; $dropped = 0;
+    foreach ($unique('kpi') as $k) {
+        $next = $kpi === '' ? $k : $kpi . '; ' . $k;
+        if (mb_strlen($next, 'UTF-8') <= 255) { $kpi = $next; } else { $dropped++; }
+    }
     return [
         'name'             => mb_substr($name, 0, 255),
         'description'      => $description,
-        'kpi'              => mb_substr(implode('; ', $unique('kpi')), 0, 255),
+        'kpi'              => $kpi,
+        'kpi_dropped'      => $dropped,
         'estimated_budget' => $sum('estimated_budget'),
         'actual_budget'    => $sum('actual_budget'),
         'notes'            => implode("\n\n", $unique('notes')),
     ];
+}
+
+/**
+ * Where an activity removed by a merge went: the id of the activity it became
+ * part of, or 0. Follows a chain (merged into one that was later merged
+ * itself), at most ten steps, and ignores merges that have been undone - so
+ * an old link, a bookmark or a search result still lands somewhere real.
+ */
+function merge_forwarding($db, $projectId) {
+    if (!merge_available($db)) { return 0; }
+    $id = (int)$projectId;
+    $seen = [];
+    for ($i = 0; $i < 10 && $id > 0 && !isset($seen[$id]); $i++) {
+        $seen[$id] = true;
+        if ($i > 0 && is_set($db->MQ("SELECT id FROM pm_projects_tbl WHERE id = ?", "one", [$id]))) { return $id; }
+        $row = $db->MQ("SELECT project_id FROM pm_merge_log_tbl WHERE undone_at IS NULL AND FIND_IN_SET(?, merged_ids) ORDER BY id DESC LIMIT 1", "one", [(string)$id]);
+        if (!is_set($row)) { return 0; }
+        $id = (int)$row['project_id'];
+    }
+    return 0;
 }
 
 /**

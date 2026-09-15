@@ -9,7 +9,8 @@ $keep     = (int)($posted['keep'] ?? ($data['keep'] ?? 0));
 $val = function ($k) use ($posted, $sug) {
     if (array_key_exists($k, $posted)) { return (string)$posted[$k]; }
     $v = $sug[$k] ?? '';
-    if (is_float($v) || is_int($v)) { $v = rtrim(rtrim(number_format((float)$v, 2, '.', ''), '0'), '.'); }
+    // Every digit the budgets had: rounding here would change a figure nobody edited.
+    if (is_float($v) || is_int($v)) { $v = rtrim(rtrim(sprintf('%.10F', (float)$v), '0'), '.'); }
     return (string)$v;
 };
 ?>
@@ -51,7 +52,7 @@ $val = function ($k) use ($posted, $sug) {
                                     <td>
                                         <ul class="afcdc-merge__tasks">
                                         <?php foreach ((array)$a['tasks'] as $t): ?>
-                                            <li><?= display($t['after']); ?><?php if ((string)$t['after'] !== trim((string)$t['name'])): ?><span class="afcdc-merge__was">now called "<?= display($t['name']); ?>"</span><?php endif; ?></li>
+                                            <li><?= display($t['after']); ?><?php if ((string)$t['after'] !== trim((string)$t['name'])): ?><span class="afcdc-merge__was">renamed from "<?= display($t['name']); ?>"</span><?php endif; ?></li>
                                         <?php endforeach; ?>
                                         <?php if (!$a['tasks']): ?><li class="afcdc-merge__was">No task</li><?php endif; ?>
                                         </ul>
@@ -81,6 +82,7 @@ $val = function ($k) use ($posted, $sug) {
                     <div class="form-group pb-3">
                         <label for="merge-kpi" class="control-label">Expected task</label>
                         <input type="text" class="form-control form-control-modern" id="merge-kpi" name="kpi" maxlength="255" value="<?= display($val('kpi')); ?>">
+                        <?php if ((int)($sug['kpi_dropped'] ?? 0) > 0 && !array_key_exists('kpi', $posted)): ?><span class="afcdc-merge__hint"><?= (int)$sug['kpi_dropped']; ?> more indicator<?= (int)$sug['kpi_dropped'] === 1 ? '' : 's'; ?> did not fit in this field. Check the activities' own pages and shorten what is here.</span><?php endif; ?>
                     </div>
                     <div class="row">
                         <div class="col-6 form-group pb-3">

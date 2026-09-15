@@ -414,7 +414,9 @@ reported through tasks can be merged, up to ten at a time. What a merge
 changed is kept in `pm_merge_log_tbl`, and "Undo merge" on the merged
 activity's page puts everything back - the removed activities with their
 own codes, tasks and deliveries - unless something has since been changed
-in a way that would make that unsafe, which it names.
+in a way that would make that unsafe, which it names. An old link to a
+merged activity, on its edit page or its graphs page, opens the activity
+it became part of (`merge_forwarding()`).
 
 **Status.** Everything that is delivered through tasks has one of three
 statuses, worded and coloured the same on every page: **Completed**

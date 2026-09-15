@@ -90,6 +90,8 @@ class DB extends \PDO {
 
     function txCommit() { return $this->DB_SERVER->commit(); }
 
+    function txRollBack() { return $this->DB_SERVER->inTransaction() ? $this->DB_SERVER->rollBack() : true; }
+
     function ESC($variable) {
         return $this->DB_SERVER->prepare($variable);
     }

@@ -481,6 +481,8 @@ class projects_graphsController extends coreController{
         $query = "SELECT * FROM pm_projects_tbl WHERE id=" . (int)$validated['id'];
         $project = $this->DB->MQ($query, "one");
         if (!$project) {
+            // Merged into another activity: open that one instead.
+            if (($to = merge_forwarding($this->DB, (int)$validated['id'])) > 0) { redirect($this->L("projects_graphs/project/" . $to)); }
             $this->setAnswer(404, "There is no activity with that id.");
             exit;
         }
