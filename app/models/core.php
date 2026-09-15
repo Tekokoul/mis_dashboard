@@ -24,6 +24,11 @@ class coreModel
         if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', (string)$table_name)) {
             db_error("model name", "refused model name: " . substr((string)$table_name, 0, 80));
         }
+        // The units tables wait for their switch, whichever screen names them
+        // (library.php units_enabled()); core/* answers 404 before this.
+        if (!units_enabled() && in_array(strtolower((string)$table_name), ['pm_units', 'pm_unit_review'], true)) {
+            db_error("model name", "units are switched off");
+        }
         if ($mode == "C") {
             return $this->S['db_table_prefix'] . $table_name . $this->S['db_table_suffix'];
         }
@@ -50,7 +55,8 @@ class coreModel
 
     function get_meta_filters($table_name, $mode = "C"){
         $settings = (file_exists(_MODELS_SETTINGS_PATH . $this->get_table_name($table_name, $mode) . ".json")) ? readJSONFile(_MODELS_SETTINGS_PATH . $this->get_table_name($table_name, $mode) . ".json") : [];
-        return (isset($settings['meta']['filters'])) ? $settings['meta']['filters'] : [];
+        // Unit filters wait for their switch (library.php units_enabled()).
+        return units_strip_settings((isset($settings['meta']['filters'])) ? (array)$settings['meta']['filters'] : []);
     }
 
     function get_callbacks($table_name, $on ,$mode = "C"){
@@ -102,6 +108,9 @@ and (table_name='" . $this->get_table_name($table_name) . "')
                     $model['common'][$field]['type'] = end($values['type']);
                 }
             }
+            // A unit field waits for its switch: while units are off the form
+            // neither shows nor saves it (library.php units_enabled()).
+            $model['common'] = units_strip_settings($model['common']);
 
 //            array_multisort(array_column($model['common'], "appear_in_form"), SORT_ASC, $model['common']);
         }

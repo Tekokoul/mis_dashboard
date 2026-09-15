@@ -32,7 +32,7 @@ $doc = json_decode((string)$raw, true);
 if (!is_array($doc) || !isset($doc['proposals']) || !is_array($doc['proposals'])) { fwrite(STDERR, "that is not a proposals file\n"); exit(1); }
 
 $s = $settings['db_master']; $s['db_provider'] = 'mysql'; $db = new DB($s);
-if (!unit_review_available($db)) { fwrite(STDERR, "the units tables are missing: restart the app container so its migrations run\n"); exit(1); }
+if (!unit_review_available($db)) { fwrite(STDERR, "units are switched off or their tables are missing: set UNITS_ENABLED=true in .env and recreate the app container so its migrations run\n"); exit(1); }
 
 $idByName = []; $nameById = [];
 foreach ((array)$db->MQ("SELECT id, name FROM pm_units_tbl", "all") as $u) { $idByName[mb_strtolower((string)$u['name'])] = (int)$u['id']; $nameById[(int)$u['id']] = (string)$u['name']; }

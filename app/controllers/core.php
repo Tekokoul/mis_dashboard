@@ -64,6 +64,7 @@ class coreController extends protectedController{
             "page" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize(array_merge($this->parts, $this->query), $rules);
+        $this->refuseSwitchedOff($validated['model']);
         $page = $validated['page'] ?? 1;
         $items_per_page = $_SESSION['user']['settings']['table_rows'] ?? _PAGINATION;
 
@@ -170,6 +171,17 @@ class coreController extends protectedController{
         $this->setAnswer(200, $how === 'accept' ? "Accepted." : "Dismissed.", ['pending' => unit_pending_count($this->DB)], "json");
     }
 
+    /**
+     * Content > Units and the unit vetting table are switched off unless
+     * UNITS_ENABLED=true: their lists, forms, saves and deletes answer as if
+     * they did not exist (library.php units_enabled()).
+     */
+    private function refuseSwitchedOff($model, $json = false) {
+        if (!in_array(strtolower((string)$model), ['pm_units', 'pm_unit_review'], true) || units_enabled()) { return; }
+        if ($json) { $this->setAnswer(404, "Units are switched off.", [], "json"); }
+        $this->setAnswer(404, "The page you asked for does not exist.");
+    }
+
     public function db_view(){
         $this->render();
     }
@@ -182,6 +194,7 @@ class coreController extends protectedController{
             "model" => FILTER_UNSAFE_RAW
         ];
         $validated = $this->sanitize($this->parts, $rules);
+        $this->refuseSwitchedOff($validated['model']);
 
         $data['model_name'] = $validated['model'];
         $data["model"] = $this->model->get_table_fields($validated['model']);
@@ -225,6 +238,7 @@ class coreController extends protectedController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        $this->refuseSwitchedOff($validated['tablename']);
         if ($validated['tablename'] === 'pm_projects_tasks') {
             // A task applies to every active reporting entity unless chosen otherwise (see library.php).
             $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
@@ -270,6 +284,7 @@ class coreController extends protectedController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->parts, $rules);
+        $this->refuseSwitchedOff($validated['model']);
 
         $data['model_name'] = $validated['model'];
         $data["model"] = $this->model->get_table_fields($validated['model']);
@@ -296,6 +311,7 @@ class coreController extends protectedController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        $this->refuseSwitchedOff($validated['tablename']);
         if ($validated['tablename'] === 'pm_projects_tasks') {
             // A task applies to every active reporting entity unless chosen otherwise (see library.php).
             $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
@@ -371,6 +387,7 @@ class coreController extends protectedController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->parts, $rules);
+        $this->refuseSwitchedOff($validated['model'], true);
         $executed = $this->model->delete_data($validated['model'], $validated['id']);
         if(in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem deleting entry", [], "json");

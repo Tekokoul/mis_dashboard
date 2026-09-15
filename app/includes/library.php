@@ -1255,6 +1255,7 @@ function ensure_default_task($db, $projectId) {
  */
 function feature_enabled($name) {
     if ($name === 'import') { return import_enabled(); }
+    if ($name === 'units') { return units_enabled(); }
     return false;
 }
 
@@ -1729,8 +1730,31 @@ function merge_history($db, $projectId, $justId = 0) {
  * objective's. A proposal only stands while its objective has no unit: once
  * a person sets one, on the form or by accepting, the note goes and nothing
  * here writes over it. Everything answers empty until the migration has run.
+ *
+ * Switched off unless UNITS_ENABLED=true (.env): the code ships with every
+ * release, but while it is off the Units menu entry, the Unit filters and
+ * field, the vetting and the migration that creates the tables all wait, and
+ * nothing here reads or writes a unit.
  */
+function units_enabled() {
+    return defined('_UNITS_ENABLED') && _UNITS_ENABLED === true;
+}
+
+/**
+ * Model settings - a meta.filters list, or the fields keyed by column -
+ * without what points at the units table, while units are switched off.
+ */
+function units_strip_settings(array $items) {
+    if (units_enabled()) { return $items; }
+    $isList = array_is_list($items);
+    foreach ($items as $key => $item) {
+        if (is_array($item) && (string)($item['link_to_table'] ?? '') === 'pm_units_tbl') { unset($items[$key]); }
+    }
+    return $isList ? array_values($items) : $items;
+}
+
 function units_available($db) {
+    if (!units_enabled()) { return false; }
     static $ok = null;
     if ($ok === null) {
         $ok = is_set($db->MQ("SHOW TABLES LIKE 'pm_units_tbl'", "one"))

@@ -381,6 +381,15 @@ a search is on).
 **Go to a page.** The "…" between page numbers, on the lists and on the Per
 Project table, opens a small box to type a page number.
 
+**Units are off unless switched on.** `UNITS_ENABLED=true` in `.env`, then
+recreate the app container (`docker compose up -d app` locally; the deploy on
+the server). Until then the Units menu entry, the Unit boxes and field, the
+vetting and the template's "one unit's objectives" do not exist,
+`core/*/pm_units` answers 404, and the app container does not create
+`pm_units_tbl`, `pm_unit_review_tbl` or `pm_objectives_tbl.unit_id`: the
+database is left as it is. Switching it on creates them on that start. A
+local copy that already has them keeps them, unread while units are off.
+
 **Units.** Every objective can belong to a unit: Software Development,
 Infrastructure and Networking, Procurement or Digital Health (Content ›
 Units, where they can be renamed or added to). Its programmes and
@@ -635,7 +644,7 @@ catalogue knows about it:
 
 **A template to update the work plan.** Import a work plan has "Download
 a template": the work plan as it stands - all of it, one unit's objectives
-or one objective - or an empty one (the goal and objective headings with
+(with units switched on) or one objective - or an empty one (the goal and objective headings with
 no activities under them), as an .xlsx this page reads straight back. Goals and
 objectives are heading rows (a number in WBS and no code); each activity
 has its AWP Code, name, description, indicator, budget and programme, and a
@@ -815,12 +824,15 @@ git pull && ./setup-production.sh deploy
 ```
 
 ```bash
-docker compose logs app | grep -i "schema\|content\|DDL\|widening\|adding"
+docker compose logs app | grep -i "schema\|content\|DDL\|widening\|adding\|creating\|units are"
 ```
 
-The line must say `leaving schema and content alone`; on this release it is
-followed by `widening core_users_tbl.password` and three `adding
-pm_projects_tbl.…` lines (once, never again). Then confirm no number fell:
+The line must say `leaving schema and content alone`. What follows is only
+what the server has not run yet, once and never again: for the September 2026
+release, `creating pm_merge_log_tbl (activity merges)`, and on every start
+while units are off, `units are switched off (UNITS_ENABLED) - not creating
+their tables`. (The release before printed `widening core_users_tbl.password`
+and three `adding pm_projects_tbl.…` lines.) Then confirm no number fell:
 
 ```bash
 docker compose exec -T db sh -c 'exec mariadb -u"$MARIADB_USER" -p"$MARIADB_PASSWORD" "$MARIADB_DATABASE" -e "SELECT (SELECT COUNT(*) FROM pm_pillars_tbl) AS lenses, (SELECT COUNT(*) FROM pm_objectives_tbl) AS deliverables, (SELECT COUNT(*) FROM pm_programmes_tbl) AS workstreams, (SELECT COUNT(*) FROM pm_projects_tbl) AS activities, (SELECT COUNT(*) FROM pm_projects_tasks_tbl) AS tickable_tasks, (SELECT COUNT(*) FROM pm_progress_tasks_tbl) AS progress_records;"'
@@ -871,6 +883,16 @@ on live rows: an activity filed under a programme belonging to another
 objective disappears from that objective's page while still counting on the
 overview, which is what made the Data Centre objective read 44% against an
 empty page.
+
+Going below the September 2026 release (merging, Not started / In progress /
+Completed, the units switch): what it adds to the database is inert to older
+code and stays - `pm_merge_log_tbl`, and only if units were switched on,
+`pm_units_tbl`, `pm_unit_review_tbl` and `pm_objectives_tbl.unit_id`. Two
+things older code cannot give back. A merge is undone only from the merged
+activity's page in this release, so undo any merge that has to go BEFORE
+rolling back; afterwards the merged-away activities stay removed. And a task
+saved as In progress (result 2) has no matching choice in the older status
+form, which saves it as Not delivered (0) if that task is saved again.
 
 Data, only if something was written that has to go: restore the dump the deploy
 took first. Note that `restore` asks you to type the database name to confirm,

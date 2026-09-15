@@ -42,7 +42,8 @@
     "type": "link",
     "link": "core/db_list/pm_units",
     "icon": "bx-sitemap",
-    "active_for": "1,2"
+    "active_for": "1,2",
+    "requires": "units"
   },
   {
     "title": "Objectives",

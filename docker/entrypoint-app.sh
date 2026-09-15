@@ -28,6 +28,8 @@ die() { printf '[entrypoint] ERROR: %s\n' "$*" >&2; exit 1; }
 : "${REQUIREMENTS_ALLOW_FROM:=127.0.0.1}"
 : "${APP_DEBUG:=false}"
 : "${AUTO_MIGRATE:=true}"
+# Units are off unless UNITS_ENABLED is "true" (any case); see .env.example.
+UNITS_ON=$( [ "$(printf '%s' "${UNITS_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')" = "true" ] && echo true || echo false )
 
 # APP_URL gives us both the scheme and the host the app should advertise.
 APP_SCHEME="${APP_URL%%://*}"
@@ -112,6 +114,10 @@ define('_MATCHER_HISTORY_WEIGHT', $(php_str "${MATCHER_HISTORY_WEIGHT:-0.95}"));
 // Workbook import (Content > Import a work plan). Off unless IMPORT_ENABLED=true:
 // the code ships with every release, the page does not exist until this is on.
 define('_IMPORT_ENABLED',  $( [ "$(printf '%s' "${IMPORT_ENABLED:-false}" | tr '[:upper:]' '[:lower:]')" = "true" ] && echo true || echo false ));
+// Units (Content > Units, the Unit filters and field, the unit vetting). Off
+// unless UNITS_ENABLED=true; while off the migration below does not create
+// their tables or the objectives' unit column.
+define('_UNITS_ENABLED',   ${UNITS_ON});
 PHPEOF
 chown www-data:www-data /var/www/html/app/configuration/settings.local.php
 chmod 640 /var/www/html/app/configuration/settings.local.php
@@ -423,59 +429,66 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
     #    vetting of proposed placements - tools/propose-units.php loads them
     #    and a person accepts each on the Objectives list. Additive: two new
     #    tables and one nullable column; no existing row changes.
-    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_units_tbl'") || [ -z "$have" ]; then
-        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
-    fi
-    if [ "$have" = "0" ]; then
-        log "creating pm_units_tbl (units)"
-        qddl "CREATE TABLE pm_units_tbl (
-                id INT(11) NOT NULL AUTO_INCREMENT,
-                name VARCHAR(255) NOT NULL DEFAULT '',
-                abbr VARCHAR(20) DEFAULT NULL,
-                description TEXT DEFAULT NULL,
-                position INT(11) NOT NULL DEFAULT 0,
-                active TINYINT(1) NOT NULL DEFAULT 1,
-                PRIMARY KEY (id),
-                UNIQUE KEY uq_units_name (name)
-              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
-            || die "could not create pm_units_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
-        # The four units go only into the table just created: a unit renamed
-        # or added later is never overwritten on a restart.
-        qddl "INSERT INTO pm_units_tbl (name, abbr, position, active) VALUES
-                ('Software Development', 'SD', 1, 1), ('Infrastructure and Networking', 'IN', 2, 1),
-                ('Procurement', 'PR', 3, 1), ('Digital Health', 'DH', 4, 1)" \
-            || die "could not add the four units to pm_units_tbl (see the error above)"
-    fi
-    if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_objectives_tbl' AND COLUMN_NAME='unit_id'") || [ -z "$have" ]; then
-        die "could not read pm_objectives_tbl columns from information_schema - refusing to guess whether the migration is needed"
-    fi
-    if [ "$have" = "0" ]; then
-        log "adding pm_objectives_tbl.unit_id"
-        qddl "ALTER TABLE pm_objectives_tbl ADD COLUMN unit_id INT(11) DEFAULT NULL AFTER pillar_id, ADD INDEX idx_objectives_unit (unit_id)" \
-            || die "could not add pm_objectives_tbl.unit_id (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
-    fi
-    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_unit_review_tbl'") || [ -z "$have" ]; then
-        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
-    fi
-    if [ "$have" = "0" ]; then
-        log "creating pm_unit_review_tbl (unit vetting)"
-        qddl "CREATE TABLE pm_unit_review_tbl (
-                id INT(11) NOT NULL AUTO_INCREMENT,
-                objective_id INT(11) NOT NULL,
-                unit_id INT(11) NOT NULL DEFAULT 0,
-                agreement VARCHAR(16) NOT NULL DEFAULT 'agreed',
-                reason TEXT DEFAULT NULL,
-                dissent TEXT DEFAULT NULL,
-                other_unit_ids VARCHAR(64) NOT NULL DEFAULT '',
-                status VARCHAR(16) NOT NULL DEFAULT 'proposed',
-                decided_by INT(11) NOT NULL DEFAULT 0,
-                decided_at DATETIME DEFAULT NULL,
-                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                PRIMARY KEY (id),
-                UNIQUE KEY uq_unit_review_objective (objective_id),
-                KEY idx_unit_review_status (status)
-              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
-            || die "could not create pm_unit_review_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    #    Only while UNITS_ENABLED=true: with units off nothing here runs and the
+    #    database is left as it is; switching them on creates all three on
+    #    that start.
+    if [ "$UNITS_ON" != "true" ]; then
+        log "units are switched off (UNITS_ENABLED) - not creating their tables"
+    else
+        if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_units_tbl'") || [ -z "$have" ]; then
+            die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+        fi
+        if [ "$have" = "0" ]; then
+            log "creating pm_units_tbl (units)"
+            qddl "CREATE TABLE pm_units_tbl (
+                    id INT(11) NOT NULL AUTO_INCREMENT,
+                    name VARCHAR(255) NOT NULL DEFAULT '',
+                    abbr VARCHAR(20) DEFAULT NULL,
+                    description TEXT DEFAULT NULL,
+                    position INT(11) NOT NULL DEFAULT 0,
+                    active TINYINT(1) NOT NULL DEFAULT 1,
+                    PRIMARY KEY (id),
+                    UNIQUE KEY uq_units_name (name)
+                  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
+                || die "could not create pm_units_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+            # The four units go only into the table just created: a unit renamed
+            # or added later is never overwritten on a restart.
+            qddl "INSERT INTO pm_units_tbl (name, abbr, position, active) VALUES
+                    ('Software Development', 'SD', 1, 1), ('Infrastructure and Networking', 'IN', 2, 1),
+                    ('Procurement', 'PR', 3, 1), ('Digital Health', 'DH', 4, 1)" \
+                || die "could not add the four units to pm_units_tbl (see the error above)"
+        fi
+        if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_objectives_tbl' AND COLUMN_NAME='unit_id'") || [ -z "$have" ]; then
+            die "could not read pm_objectives_tbl columns from information_schema - refusing to guess whether the migration is needed"
+        fi
+        if [ "$have" = "0" ]; then
+            log "adding pm_objectives_tbl.unit_id"
+            qddl "ALTER TABLE pm_objectives_tbl ADD COLUMN unit_id INT(11) DEFAULT NULL AFTER pillar_id, ADD INDEX idx_objectives_unit (unit_id)" \
+                || die "could not add pm_objectives_tbl.unit_id (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
+        fi
+        if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_unit_review_tbl'") || [ -z "$have" ]; then
+            die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+        fi
+        if [ "$have" = "0" ]; then
+            log "creating pm_unit_review_tbl (unit vetting)"
+            qddl "CREATE TABLE pm_unit_review_tbl (
+                    id INT(11) NOT NULL AUTO_INCREMENT,
+                    objective_id INT(11) NOT NULL,
+                    unit_id INT(11) NOT NULL DEFAULT 0,
+                    agreement VARCHAR(16) NOT NULL DEFAULT 'agreed',
+                    reason TEXT DEFAULT NULL,
+                    dissent TEXT DEFAULT NULL,
+                    other_unit_ids VARCHAR(64) NOT NULL DEFAULT '',
+                    status VARCHAR(16) NOT NULL DEFAULT 'proposed',
+                    decided_by INT(11) NOT NULL DEFAULT 0,
+                    decided_at DATETIME DEFAULT NULL,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (id),
+                    UNIQUE KEY uq_unit_review_objective (objective_id),
+                    KEY idx_unit_review_status (status)
+                  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
+                || die "could not create pm_unit_review_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+        fi
     fi
 
     # 9. Merging activities: what each merge changed - the rows removed, the
