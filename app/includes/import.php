@@ -106,6 +106,10 @@ function import_header_roles(array $cells) {
         ['code',        '/awp|\bcode\b|\bref\b/'],
         // Before "name", so "Programme name" is a programme, not the activity.
         ['programme',   '/programme|\bprogram\b|workstream/'],
+        // Before "name" too: the template's Task column, beside Activity. A
+        // sheet whose only such column is "Task" still reads it as the
+        // activity's name (below).
+        ['task',        '/^(sub-?)?tasks?$/'],
         ['name',        '/task|activit|\bname\b|title|deliverable/'],
         ['kpi',         '/indicator|\bkpi\b/'],
         ['quarter',     '/qtr|quarter/'],
@@ -128,6 +132,7 @@ function import_header_roles(array $cells) {
             break;
         }
     }
+    if (isset($roles['task']) && !isset($roles['name'])) { $roles['name'] = $roles['task']; unset($roles['task']); }
     return $roles;
 }
 
@@ -163,9 +168,20 @@ function import_parse_rows(array $rows) {
         $warnings[] = 'This sheet has no activity-code column, so a numbered row is read as an activity when it sits deeper than the headings above it.';
     }
     $current = ['wbs' => '', 'name' => ''];
+    $last = null;   // the activity a task row belongs to: the one above it, under the same heading
     foreach ($rows as $n => $cells) {
         if ($n <= $header) { continue; }
         $name = $get($cells, 'name'); $code = $get($cells, 'code'); $wbs = $get($cells, 'wbs');
+        $task = $get($cells, 'task');
+        // A task row: no activity name, a task name, and - for a task the
+        // dashboard already has - its number in the code column ("T213").
+        $taskNo = preg_match('/^T\s*-?\s*(\d{1,10})$/i', $code, $tm) ? (int)$tm[1] : 0;
+        if ($name === '' && ($task !== '' || $taskNo > 0)) {
+            if ($task === '') { $warnings[] = 'Row ' . $n . ' is task ' . $code . ' with no name; skipped (a workbook never empties a task).'; continue; }
+            if ($last === null) { $warnings[] = 'Row ' . $n . ' is a task ("' . mb_substr($task, 0, 60) . '") with no activity above it; skipped.'; continue; }
+            $activities[$last]['tasks'][] = ['row' => (int)$n, 'id' => $taskNo, 'name' => mb_substr($task, 0, 255), 'description' => $get($cells, 'description')];
+            continue;
+        }
         if ($name === '' && $code === '') { continue; }
         if ($name === '') { $warnings[] = 'Row ' . $n . ' has a code (' . $code . ') but no activity name; skipped.'; continue; }
         // A heading is a numbered row, with no activity code, no deeper than
@@ -178,12 +194,14 @@ function import_parse_rows(array $rows) {
         $depth = ($wbs !== '' && preg_match('/^\d+(\.\d+)*$/', $wbs)) ? substr_count($wbs, '.') : -1;
         if ($code === '' && $depth === 0) {
             $current = ['wbs' => '', 'name' => ''];   // a lens: the objective above no longer applies
+            $last = null;
             continue;
         }
         if ($code === '' && $depth === 1) {
             $clean = trim((string)preg_replace('/^\s*' . preg_quote($wbs, '/') . '\s*[-–:.]?\s*/u', '', $name));
             $current = ['wbs' => $wbs, 'name' => $clean !== '' ? $clean : $name];
             $objectives[] = $current + ['row' => $n];
+            $last = null;
             continue;
         }
         // Deeper than a heading and carrying no code: the numbering is the
@@ -206,7 +224,11 @@ function import_parse_rows(array $rows) {
             'programme'    => mb_substr($get($cells, 'programme'), 0, 255),
             'wb_wbs'       => $current['wbs'],
             'wb_objective' => $current['name'],
+            'tasks'        => [],
         ];
+        $last = count($activities) - 1;
+        // An activity row may name one task of its own in the Task column.
+        if ($task !== '') { $activities[$last]['tasks'][] = ['row' => (int)$n, 'id' => 0, 'name' => mb_substr($task, 0, 255), 'description' => '']; }
     }
     if (!$activities) { return null; }
     // A sheet with dozens of spacer rows can produce more per-row warnings than
@@ -277,7 +299,10 @@ function import_similarity(array $a, array $b) {
  * and the workbook code an earlier import recorded for it).
  */
 function import_catalogue($db) {
-    $cat = ['activities' => [], 'objectives' => [], 'programmes' => [], 'pillars' => [], 'codes' => [], 'names' => []];
+    $cat = ['activities' => [], 'objectives' => [], 'programmes' => [], 'pillars' => [], 'codes' => [], 'names' => [], 'tasks' => []];
+    foreach ((array)$db->MQ("SELECT id, project_id, name, description FROM pm_projects_tasks_tbl ORDER BY id", "all") as $t) {
+        $cat['tasks'][(int)$t['project_id']][(int)$t['id']] = $t;
+    }
     foreach ((array)$db->MQ("SELECT id, name, abbr FROM pm_pillars_tbl", "all") as $r) { $cat['pillars'][(int)$r['id']] = $r; }
     foreach ((array)$db->MQ("SELECT id, pillar_id, name, abbr, active FROM pm_objectives_tbl", "all") as $r) {
         $r['tokens'] = filing_words($r['name']);
@@ -375,6 +400,63 @@ function import_changes(array $existing, array $a) {
 }
 
 /**
+ * What the workbook's task rows would do to an existing activity's tasks:
+ * ['add' => [['name', 'description'], ...], 'edit' => [['id', 'name' => [old, new], 'description' => [old, new]], ...]].
+ * A row carrying the number of one of this activity's tasks ("T213") edits
+ * that task; any other row is that activity's task of the same name, or a new
+ * one. A blank description never erases one, and nothing is ever removed.
+ */
+function import_task_changes(array $existing, array $rows) {
+    $add = []; $edit = []; $seen = []; $byName = [];
+    foreach ($existing as $id => $t) { $byName[import_norm($t['name'])] = (int)$id; }
+    foreach ($rows as $w) {
+        $name = trim((string)($w['name'] ?? '')); $desc = trim((string)($w['description'] ?? ''));
+        if ($name === '') { continue; }
+        $id = (int)($w['id'] ?? 0);
+        if ($id <= 0 || !isset($existing[$id])) { $id = $byName[import_norm($name)] ?? 0; }
+        if ($id > 0) {
+            if (isset($seen['t' . $id])) { continue; }
+            $seen['t' . $id] = true;
+            $t = $existing[$id]; $one = [];
+            if (import_norm($t['name']) !== import_norm($name)) { $one['name'] = [(string)$t['name'], mb_substr($name, 0, 255)]; }
+            if ($desc !== '' && import_norm($t['description']) !== import_norm($desc)) { $one['description'] = [(string)$t['description'], $desc]; }
+            if ($one) { $edit[] = ['id' => $id] + $one; }
+            continue;
+        }
+        $k = import_norm($name);
+        if (isset($seen['n' . $k])) { continue; }
+        $seen['n' . $k] = true;
+        $add[] = ['name' => mb_substr($name, 0, 255), 'description' => $desc];
+    }
+    return array_filter(['add' => $add, 'edit' => $edit]);
+}
+
+/** Add a task to an activity, applying to every active reporting entity as the forms do. Its id, or 0. */
+function import_add_task($db, $projectId, $name, $description) {
+    $name = mb_substr(trim((string)$name), 0, 255);
+    if ($name === '' || (int)$projectId <= 0) { return 0; }
+    $db->MQ("INSERT INTO pm_projects_tasks_tbl (project_id, name, description, applies_to) VALUES (?, ?, ?, ?)", false,
+        [(int)$projectId, $name, trim((string)$description), json_encode(default_applies_to($db, null))]);
+    $r = $db->MQ("SELECT LAST_INSERT_ID() AS id", "one");
+    return (int)($r['id'] ?? 0);
+}
+
+/** The task lines of a Changed row, for the list of differences under it. */
+function import_task_changes_html(array $tc) {
+    $cut = function ($v) { $v = trim((string)$v); return $v === '' ? '<em>nothing</em>' : display(mb_substr($v, 0, 160)) . (mb_strlen($v) > 160 ? '…' : ''); };
+    $html = '';
+    foreach ((array)($tc['edit'] ?? []) as $e) {
+        foreach (['name', 'description'] as $k) {
+            if (isset($e[$k])) { $html .= '<li><strong>Task T' . (int)$e['id'] . ' ' . $k . '</strong>: <del>' . $cut($e[$k][0]) . '</del> → <ins>' . $cut($e[$k][1]) . '</ins></li>'; }
+        }
+    }
+    foreach ((array)($tc['add'] ?? []) as $t) {
+        $html .= '<li><strong>New task</strong>: <ins>' . $cut($t['name']) . '</ins>' . (trim((string)($t['description'] ?? '')) !== '' ? ' - ' . $cut($t['description']) : '') . '</li>';
+    }
+    return $html;
+}
+
+/**
  * One workbook activity against the catalogue and the guesser. Returns the
  * columns of a pm_import_rows_tbl row (without batch_id / row_no).
  */
@@ -426,7 +508,7 @@ function import_analyse($db, array $a, array $cat) {
 
     $out = [
         'kind' => 'new', 'code' => $a['code'], 'name' => $a['name'], 'description' => $a['description'], 'kpi' => $a['kpi'], 'budget' => $a['budget'],
-        'extra' => json_encode(['quarter' => $a['quarter'], 'start' => $a['start'], 'finish' => $a['finish'], 'owner' => $a['owner'], 'pct' => $a['pct'], 'days' => $a['days'], 'wb_wbs' => $a['wb_wbs'], 'wb_objective' => $a['wb_objective'], 'wb_programme' => (string)($a['programme'] ?? ''), 'hint_similarity' => round($hintSim, 2)], JSON_UNESCAPED_UNICODE),
+        'extra' => json_encode(['quarter' => $a['quarter'], 'start' => $a['start'], 'finish' => $a['finish'], 'owner' => $a['owner'], 'pct' => $a['pct'], 'days' => $a['days'], 'wb_wbs' => $a['wb_wbs'], 'wb_objective' => $a['wb_objective'], 'wb_programme' => (string)($a['programme'] ?? ''), 'hint_similarity' => round($hintSim, 2), 'tasks' => array_values((array)($a['tasks'] ?? []))], JSON_UNESCAPED_UNICODE),
         'match_project_id' => $match, 'match_how' => $how, 'match_score' => round($score, 3), 'changes' => null,
         'hint_objective_id' => $hint,
         'sug_pillar_id' => 0, 'sug_objective_id' => 0, 'sug_programme_id' => 0, 'alt_objective_id' => 0, 'alt_programme_id' => 0,
@@ -435,6 +517,8 @@ function import_analyse($db, array $a, array $cat) {
     ];
     if ($match > 0 && $how !== 'similar') {
         $changes = import_changes($cat['activities'][$match], $a);
+        $taskChanges = import_task_changes((array)($cat['tasks'][$match] ?? []), (array)($a['tasks'] ?? []));
+        if ($taskChanges) { $changes['tasks'] = $taskChanges; }
         $out['kind'] = $changes ? 'changed' : 'same';
         $out['changes'] = $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null;
         return $out;
@@ -743,6 +827,16 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
                   : (import_norm($was) === import_norm($now));
             if (!$same) { $stale[] = $names[$f]; }
         }
+        $taskChanges = (array)($changes['tasks'] ?? []);
+        $current = [];
+        foreach ((array)$db->MQ("SELECT id, name, description FROM pm_projects_tasks_tbl WHERE project_id = ?", "all", [$id]) as $t) { $current[(int)$t['id']] = $t; }
+        foreach ((array)($taskChanges['edit'] ?? []) as $e) {
+            $t = $current[(int)$e['id']] ?? null;
+            if (!$t || (isset($e['name']) && import_norm($e['name'][0]) !== import_norm($t['name']))
+                    || (isset($e['description']) && import_norm($e['description'][0]) !== import_norm($t['description']))) {
+                $stale[] = 'task T' . (int)$e['id'];
+            }
+        }
         if ($stale) {
             return ['ok' => false, 'message' => 'Not applied: the ' . implode(' and ', $stale) . ' of ' . (string)$existing['abbr']
                 . ' has been edited since this workbook was read, so the difference shown is out of date. Read the workbook again to compare against the activity as it stands.'];
@@ -757,8 +851,32 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
             $bind[] = $id;
             $db->MQ("UPDATE pm_projects_tbl SET " . implode(', ', $sets) . " WHERE id = ?", false, $bind);
         }
-        $db->MQ("UPDATE pm_import_rows_tbl SET status = 'accepted', result_project_id = ?, decided_by = ?, decided_at = NOW() WHERE id = ?", false, [$id, $userId, (int)$row['id']]);
-        return ['ok' => true, 'message' => 'Updated ' . (string)$existing['abbr'] . '.', 'project_id' => $id, 'code' => (string)$existing['abbr']];
+        $edited = 0; $added = 0;
+        foreach ((array)($taskChanges['edit'] ?? []) as $e) {
+            $set = []; $b = [];
+            if (isset($e['name'])) { $set[] = 'name = ?'; $b[] = mb_substr((string)$e['name'][1], 0, 255); }
+            if (isset($e['description'])) { $set[] = 'description = ?'; $b[] = (string)$e['description'][1]; }
+            if (!$set) { continue; }
+            $b[] = (int)$e['id']; $b[] = $id;
+            $db->MQ("UPDATE pm_projects_tasks_tbl SET " . implode(', ', $set) . " WHERE id = ? AND project_id = ?", false, $b);
+            $edited++;
+        }
+        $names = [];
+        foreach ($current as $t) { $names[import_norm($t['name'])] = true; }
+        foreach ((array)($taskChanges['add'] ?? []) as $i => $t) {
+            // Added by hand since the workbook was read: not added twice.
+            if (isset($names[import_norm($t['name'])])) { continue; }
+            $tid = import_add_task($db, $id, (string)$t['name'], (string)($t['description'] ?? ''));
+            if ($tid > 0) { $taskChanges['add'][$i]['id'] = $tid; $names[import_norm($t['name'])] = true; $added++; }
+        }
+        // The new tasks' ids go on the row, so tools/export-import.php writes those same ids on live.
+        if ($taskChanges) { $changes['tasks'] = $taskChanges; }
+        $db->MQ("UPDATE pm_import_rows_tbl SET status = 'accepted', result_project_id = ?, changes = ?, decided_by = ?, decided_at = NOW() WHERE id = ?", false,
+            [$id, $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null, $userId, (int)$row['id']]);
+        $bits = [];
+        if ($added) { $bits[] = $added . ' task' . ($added === 1 ? '' : 's') . ' added'; }
+        if ($edited) { $bits[] = $edited . ' task' . ($edited === 1 ? '' : 's') . ' updated'; }
+        return ['ok' => true, 'message' => 'Updated ' . (string)$existing['abbr'] . ($bits ? ' (' . implode(', ', $bits) . ')' : '') . '.', 'project_id' => $id, 'code' => (string)$existing['abbr']];
     }
     if (!in_array($row['kind'], ['new', 'unclear'], true)) { return ['ok' => false, 'message' => 'Nothing to accept on that row.']; }
     // The comparison with the catalogue was made when the workbook was read.
@@ -809,6 +927,12 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
     $n = $db->MQ("SELECT LAST_INSERT_ID() AS id", "one");
     $newId = (int)($n['id'] ?? 0);
     if ($newId <= 0) { return ['ok' => false, 'message' => 'The activity could not be created.']; }
+    $made = 0; $madeNames = [];
+    foreach ((array)($extra['tasks'] ?? []) as $t) {
+        $k = import_norm($t['name'] ?? '');
+        if ($k === '' || isset($madeNames[$k])) { continue; }
+        if (import_add_task($db, $newId, (string)$t['name'], (string)($t['description'] ?? '')) > 0) { $made++; $madeNames[$k] = true; }
+    }
     ensure_default_task($db, $newId);
     // Where the person put it is a statement about this wording: kept as
     // proposed it confirms the proposal, moved it corrects it, and with no
@@ -818,7 +942,7 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
         'name' => (string)$row['name'], 'description' => $text, 'kpi' => (string)$row['kpi'],
     ], ['pillar_id' => (int)$row['sug_pillar_id'], 'objective_id' => (int)$row['sug_objective_id'], 'programme_id' => (int)$row['sug_programme_id']], $newId, true);
     $db->MQ("UPDATE pm_import_rows_tbl SET status = 'accepted', result_project_id = ?, decided_by = ?, decided_at = NOW() WHERE id = ?", false, [$newId, $userId, (int)$row['id']]);
-    return ['ok' => true, 'message' => 'Created ' . $code . '.', 'project_id' => $newId, 'code' => $code];
+    return ['ok' => true, 'message' => 'Created ' . $code . ($made ? ' with ' . $made . ' task' . ($made === 1 ? '' : 's') : '') . '.', 'project_id' => $newId, 'code' => $code];
 }
 
 /** What the workbook knew that the catalogue has no column for, kept on the activity's notes. */
@@ -852,6 +976,9 @@ function import_settle($db, array $row, $isSame) {
         if (!isset($cat['activities'][$id])) { return ['ok' => false, 'message' => 'The activity it resembled no longer exists.']; }
         $a = ['name' => (string)$row['name'], 'description' => (string)$row['description'], 'kpi' => (string)$row['kpi'], 'budget' => $row['budget'] === null ? null : (float)$row['budget']];
         $changes = import_changes($cat['activities'][$id], $a);
+        $extra = json_decode((string)$row['extra'], true) ?: [];
+        $taskChanges = import_task_changes((array)($cat['tasks'][$id] ?? []), (array)($extra['tasks'] ?? []));
+        if ($taskChanges) { $changes['tasks'] = $taskChanges; }
         $db->MQ("UPDATE pm_import_rows_tbl SET kind = ?, match_how = 'person', match_score = 1, changes = ?, status = ? WHERE id = ?", false,
             [$changes ? 'changed' : 'same', $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null, $changes ? 'pending' : 'unchanged', (int)$row['id']]);
         return ['ok' => true, 'message' => $changes ? 'Treated as the same activity; the differences are ready to accept.' : 'Treated as the same activity; nothing differs.'];
@@ -930,6 +1057,7 @@ function import_row_note(array $r, array $cat, $canAct) {
         $names = ['name' => 'Name', 'description' => 'Description', 'kpi' => 'Indicator', 'estimated_budget' => 'Budget'];
         $html .= '<ul class="afcdc-import__diff">';
         foreach ((array)$r['changes_data'] as $f => $pair) {
+            if ($f === 'tasks') { continue; }
             $fmt = function ($v) use ($f) {
                 $v = trim((string)$v);
                 if ($v === '') { return '<em>nothing</em>'; }
@@ -938,6 +1066,7 @@ function import_row_note(array $r, array $cat, $canAct) {
             };
             $html .= '<li><strong>' . display($names[$f] ?? $f) . '</strong>: <del>' . $fmt($pair[0]) . '</del> → <ins>' . $fmt($pair[1]) . '</ins></li>';
         }
+        $html .= import_task_changes_html((array)($r['changes_data']['tasks'] ?? []));
         $html .= '</ul>';
         if ($canAct) {
             $html .= '<a href="#" class="afcdc-review__act" data-import-action="accept" data-id="' . (int)$r['id'] . '">Apply the changes</a>';

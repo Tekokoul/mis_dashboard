@@ -172,7 +172,7 @@ class projectsController extends coreController{
                         'applies_to' => default_applies_to($this->DB, null),
                     ]);
                 }
-                $this->ensureDefaultTask((int)$new_id);   // only adds "Delivered" when there is still no task
+                $this->ensureDefaultTask((int)$new_id);   // only adds "Task" when there is still no task
                 // What the form had suggested when this was saved; keeping it
                 // is a confirmation, changing it is a correction to learn from.
                 record_filing_feedback($this->DB, 'pm_projects', $this->query, [
@@ -357,7 +357,7 @@ class projectsController extends coreController{
             }
             if ($validated['tablename'] === 'pm_projects') {
                 // The tasks first: removing the last one leaves the activity
-                // with none, and ensureDefaultTask then gives it "Delivered"
+                // with none, and ensureDefaultTask then gives it "Task"
                 // back rather than letting it fall off Progress entirely.
                 $this->applyTaskEdits((int)$validated['id'], $postedTasks, $postedNewTasks);
                 $this->ensureDefaultTask((int)$validated['id']);
@@ -625,7 +625,7 @@ class projectsController extends coreController{
         }
     }
 
-    /** The "Delivered" task an activity needs to be reported at all (library: ensure_default_task). */
+    /** The default "Task" an activity needs to be reported at all (library: ensure_default_task). */
     private function ensureDefaultTask($projectId) {
         ensure_default_task($this->DB, $projectId);
     }

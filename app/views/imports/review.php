@@ -128,6 +128,9 @@ $rowClass = function (array $r) {
                                             if ($when !== '') { $facts[] = $when; }
                                             if (($extra['owner'] ?? '') !== '') { $facts[] = 'Owner ' . display($extra['owner']); }
                                             if (($extra['wb_objective'] ?? '') !== '') { $facts[] = 'Under "' . display(trim((string)($extra['wb_wbs'] ?? '') . ' ' . (string)$extra['wb_objective'])) . '" in the workbook'; }
+                                            // A new activity is created with the tasks listed under it (a Changed row lists its task changes in the note).
+                                            $wbTasks = array_values(array_filter(array_map(function ($t) { return trim((string)($t['name'] ?? '')); }, (array)($extra['tasks'] ?? [])), 'strlen'));
+                                            if ($wbTasks && in_array($kind, ['new', 'unclear'], true)) { $facts[] = count($wbTasks) . ' task' . (count($wbTasks) === 1 ? '' : 's') . ': ' . display(implode(', ', array_slice($wbTasks, 0, 6))) . (count($wbTasks) > 6 ? ', …' : ''); }
                                             print implode(' · ', $facts);
                                             ?>
                                         </div>

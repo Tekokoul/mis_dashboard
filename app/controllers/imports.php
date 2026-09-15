@@ -45,7 +45,8 @@ class importsController extends protectedController {
      * GET imports/template[?scope=unit:3|objective:12]: the work plan as it
      * stands, as a workbook this page reads straight back - goals and
      * objectives as heading rows, every activity with its code, name,
-     * description, indicator, budget and programme - and a second sheet on
+     * description, indicator, budget and programme, and its tasks as rows
+     * under it (T and the task's number, name, description) - and a second sheet on
      * how to use it. Rows nobody touches come back as "already in"; only
      * what was changed or added waits for review.
      */
@@ -72,7 +73,7 @@ class importsController extends protectedController {
         $objectives = (array)$this->DB->MQ("SELECT o.id, o.abbr, o.name, o.pillar_id, g.name AS pillar_name, g.position AS pillar_position
                                               FROM pm_objectives_tbl o LEFT JOIN pm_pillars_tbl g ON g.id = o.pillar_id" . $where . "
                                              ORDER BY g.position, g.id, o.position, o.id", "all", $params);
-        $byObjective = [];
+        $byObjective = []; $tasksOf = [];
         if ($objectives && !$empty) {
             $ids = array_map('intval', array_column($objectives, 'id'));
             $acts = (array)$this->DB->MQ("SELECT p.id, p.objective_id, p.abbr, p.name, p.description, p.kpi, p.estimated_budget, g.abbr AS programme_abbr, g.name AS programme_name
@@ -81,21 +82,27 @@ class importsController extends protectedController {
             // Code order as a person reads it (1.2.9 before 1.2.10); this controller has no model to sort in SQL.
             usort($acts, function ($a, $b) { return strnatcmp((string)$a['abbr'], (string)$b['abbr']) ?: ((int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0)); });
             foreach ($acts as $a) { $byObjective[(int)$a['objective_id']][] = $a; }
+            $actIds = array_map('intval', array_column($acts, 'id'));
+            if ($actIds) {
+                foreach ((array)$this->DB->MQ("SELECT id, project_id, name, description FROM pm_projects_tasks_tbl WHERE project_id IN (" . implode(',', array_fill(0, count($actIds), '?')) . ") ORDER BY id", "all", $actIds) as $t) {
+                    $tasksOf[(int)$t['project_id']][] = $t;
+                }
+            }
         }
 
         // The Work plan sheet, in the shape import_parse_rows() reads: a header
         // row, a goal as a row numbered "1", an objective as "1.0", and each
         // activity under it with its code. Heading cells in every column carry
         // the row's colour so a heading reads as one band.
-        $band = function ($style, $wbs, $name) { return [['v' => (string)$wbs, 's' => $style], ['v' => '', 's' => $style], ['v' => (string)$name, 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style]]; };
-        $rows = [array_map(function ($h) { return ['v' => $h, 's' => 1]; }, ['WBS', 'AWP Code', 'Activity', 'Description', 'Indicator', 'Budget (USD)', 'Programme', 'Status'])];
+        $band = function ($style, $wbs, $name) { return [['v' => (string)$wbs, 's' => $style], ['v' => '', 's' => $style], ['v' => (string)$name, 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style], ['v' => '', 's' => $style]]; };
+        $rows = [array_map(function ($h) { return ['v' => $h, 's' => 1]; }, ['WBS', 'AWP Code', 'Activity', 'Task', 'Description', 'Indicator', 'Budget (USD)', 'Programme', 'Status'])];
         // Whether each activity has been delivered, counted as the Progress page
         // counts it (delivery_rollup), in the dashboard's colours. For reading
         // only: no import column role matches "Status", so changing it in the
         // workbook records nothing.
-        $rollup = $byObjective ? delivery_rollup($this->DB)['activity'] : [];
+        $roll = $byObjective ? delivery_rollup($this->DB) : ['activity' => [], 'task' => []];
         $statusStyle = ['completed' => 7, 'in_progress' => 8, 'not_started' => 9];
-        $pillar = null; $pos = 0; $n = 0; $count = 0;
+        $pillar = null; $pos = 0; $n = 0; $count = 0; $taskCount = 0;
         foreach ($objectives as $o) {
             if ($pillar !== (int)$o['pillar_id']) {
                 $pillar = (int)$o['pillar_id']; $n = 0;
@@ -110,29 +117,38 @@ class importsController extends protectedController {
             foreach ($byObjective[(int)$o['id']] ?? [] as $a) {
                 $count++;
                 $budget = ($a['estimated_budget'] === null || $a['estimated_budget'] === '') ? null : (float)$a['estimated_budget'];
-                $status = delivery_rollup_status($rollup[(int)$a['id']] ?? null);
-                $rows[] = [null, ['v' => (string)$a['abbr'], 's' => 0], ['v' => (string)$a['name'], 's' => 4], ['v' => (string)$a['description'], 's' => 4], ['v' => (string)$a['kpi'], 's' => 4],
+                $status = delivery_rollup_status($roll['activity'][(int)$a['id']] ?? null);
+                $rows[] = [null, ['v' => (string)$a['abbr'], 's' => 0], ['v' => (string)$a['name'], 's' => 4], null, ['v' => (string)$a['description'], 's' => 4], ['v' => (string)$a['kpi'], 's' => 4],
                            $budget === null ? null : ['v' => $budget, 's' => 5], ['v' => trim((string)$a['programme_abbr'] . ' ' . (string)$a['programme_name']), 's' => 4],
                            ['v' => delivery_status_label($status), 's' => $statusStyle[$status] ?? 4]];
+                // Its tasks, a row each under it: the task's number in AWP Code
+                // (how the import finds it again) and its name in Task.
+                foreach ($tasksOf[(int)$a['id']] ?? [] as $t) {
+                    $taskCount++;
+                    $ts = delivery_rollup_status($roll['task'][(int)$t['id']] ?? null);
+                    $rows[] = [null, ['v' => 'T' . (int)$t['id'], 's' => 0], null, ['v' => (string)$t['name'], 's' => 4], ['v' => (string)$t['description'], 's' => 4], null, null, null,
+                               ['v' => delivery_status_label($ts), 's' => $statusStyle[$ts] ?? 4]];
+                }
             }
         }
         $how = [
             [['v' => 'How to use this template', 's' => 6]],
-            [['v' => $empty ? 'An empty template: ' . $what . ', as the dashboard had them on ' . date('j F Y') . '. Add each activity as a row under its objective.' : 'Holds ' . $what . ': ' . $count . ' activit' . ($count === 1 ? 'y' : 'ies') . ', as the dashboard had them on ' . date('j F Y') . '.', 's' => 4]],
+            [['v' => $empty ? 'An empty template: ' . $what . ', as the dashboard had them on ' . date('j F Y') . '. Add each activity as a row under its objective.' : 'Holds ' . $what . ': ' . $count . ' activit' . ($count === 1 ? 'y' : 'ies') . ' and their ' . $taskCount . ' task' . ($taskCount === 1 ? '' : 's') . ', as the dashboard had them on ' . date('j F Y') . '.', 's' => 4]],
             [],
-            [['v' => '1. Change what needs changing on the Work plan sheet: an activity\'s name, description, indicator or budget. Leave the AWP Code of an existing activity as it is - it is how each row finds the activity it updates.', 's' => 4]],
+            [['v' => '1. Change what needs changing on the Work plan sheet: an activity\'s name, description, indicator or budget, or a task\'s name or description. Leave the AWP Code of an existing activity or task (T and a number) as it is - it is how each row finds what it updates.', 's' => 4]],
             [['v' => '2. To add an activity, add a row under the objective it belongs to. Leave AWP Code empty (the code is given when the row is accepted), fill in Activity and Description, and copy the Programme cell from another activity of the same programme, for example "1.2 PRG Network Connectivity Programme".', 's' => 4]],
-            [['v' => '3. Keep the header row, and the goal and objective rows (a number in WBS and no code): they tell the dashboard where rows belong.', 's' => 4]],
-            [['v' => '4. A blank description, indicator or budget never erases what the dashboard has. Deleting a row does not delete the activity: a workbook only adds and updates.', 's' => 4]],
-            [['v' => '5. Save as .xlsx and upload it on Content > Import a work plan. Nothing changes until someone accepts each row there. Rows you did not touch are listed as already in.', 's' => 4]],
+            [['v' => '3. Tasks are the rows under their activity, with the task\'s name in Task and Activity left empty. To add a task, add such a row under the activity with AWP Code empty; a new activity\'s tasks go under it the same way. Many activities have a single task called "Task": rename that row rather than adding another beside it, or the activity only counts as completed once "Task" is completed too.', 's' => 4]],
+            [['v' => '4. Keep the header row, and the goal and objective rows (a number in WBS and no code): they tell the dashboard where rows belong.', 's' => 4]],
+            [['v' => '5. A blank description, indicator or budget never erases what the dashboard has. Deleting a row does not delete the activity or the task: a workbook only adds and updates.', 's' => 4]],
+            [['v' => '6. Save as .xlsx and upload it on Content > Import a work plan. Nothing changes until someone accepts each row there. Rows you did not touch are listed as already in.', 's' => 4]],
             [],
             [['v' => 'Budget is in US dollars, as a number.', 's' => 4]],
-            [['v' => 'Status says whether each activity has been delivered - Completed, In progress or Not started - as the Progress page showed it that day. It is there to read: changing it here records nothing. Record a delivery on the Progress page.', 's' => 4]],
+            [['v' => 'Status says whether each activity and task has been delivered - Completed, In progress or Not started - as the Progress page showed it that day. It is there to read: changing it here records nothing. Record a delivery on the Progress page.', 's' => 4]],
         ];
         $tmp = tempnam(sys_get_temp_dir(), 'afcdc-template-');
         try {
             xlsx_write($tmp, [
-                ['name' => 'Work plan', 'rows' => $rows, 'widths' => [8, 12, 48, 60, 36, 14, 40, 16], 'freeze' => 1],
+                ['name' => 'Work plan', 'rows' => $rows, 'widths' => [8, 12, 44, 34, 56, 32, 14, 36, 16], 'freeze' => 1],
                 ['name' => 'How to use', 'rows' => $how, 'widths' => [120]],
             ]);
         } catch (RuntimeException $e) {

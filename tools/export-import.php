@@ -15,10 +15,12 @@
  *   NEW activities  - INSERT with the local id, so the two copies keep the
  *                     same ids (they have since the local copy was taken
  *                     from live), guarded by NOT EXISTS on that id AND on the
- *                     code, plus the "Delivered" task with its local id.
+ *                     code, plus its tasks with their local ids.
  *   CHANGED ones    - UPDATE ... WHERE id = ? AND name = <the name before>,
  *                     so a row edited on live since is left alone and shows
- *                     up in the check.
+ *                     up in the check. Task edits the same way (WHERE id,
+ *                     project_id and the name before); tasks the workbook
+ *                     added go in with the ids they were given here.
  *
  * Skipped and unchanged rows produce nothing. Filing corrections
  * (pm_filing_feedback_tbl) stay local: live learns from its own users.
@@ -50,7 +52,7 @@ $out = [];
 $out[] = "-- Workbook import" . ($which === 'all' ? 's' : ' #' . (int)$which) . " accepted on the local copy, exported " . date('Y-m-d H:i') . ".";
 $out[] = "-- Run as root inside a transaction; the checks at the end must return no rows before COMMIT.";
 $out[] = "START TRANSACTION;";
-$newIds = []; $updated = [];
+$newIds = []; $updated = []; $taskUpdates = []; $taskAdds = [];
 foreach ($rows as $r) {
     $pid = (int)$r['result_project_id'];
     $p = $db->MQ("SELECT * FROM pm_projects_tbl WHERE id = ?", "one", [$pid]);
@@ -62,11 +64,30 @@ foreach ($rows as $r) {
             if (!isset($changes[$f])) { continue; }
             $sets[] = "`" . $f . "` = " . $q($f === 'estimated_budget' ? (float)$changes[$f][1] : (string)$changes[$f][1]);
         }
-        if (!$sets) { continue; }
-        $before = isset($changes['name']) ? (string)$changes['name'][0] : (string)$p['name'];
+        $tc = (array)($changes['tasks'] ?? []);
+        if (!$sets && !$tc) { continue; }
         $out[] = "-- row " . (int)$r['row_no'] . " of " . $r['filename'] . ": update #" . $pid . " " . $p['abbr'];
-        $out[] = "UPDATE pm_projects_tbl SET " . implode(', ', $sets) . " WHERE id = " . $pid . " AND name = " . $q($before) . ";";
-        $updated[] = [$pid, isset($changes['name']) ? (string)$changes['name'][1] : $before];
+        if ($sets) {
+            $before = isset($changes['name']) ? (string)$changes['name'][0] : (string)$p['name'];
+            $out[] = "UPDATE pm_projects_tbl SET " . implode(', ', $sets) . " WHERE id = " . $pid . " AND name = " . $q($before) . ";";
+            $updated[] = [$pid, isset($changes['name']) ? (string)$changes['name'][1] : $before];
+        }
+        foreach ((array)($tc['edit'] ?? []) as $e) {
+            $set = [];
+            if (isset($e['name'])) { $set[] = "name = " . $q((string)$e['name'][1]); }
+            if (isset($e['description'])) { $set[] = "description = " . $q((string)$e['description'][1]); }
+            if (!$set) { continue; }
+            $out[] = "UPDATE pm_projects_tasks_tbl SET " . implode(', ', $set) . " WHERE id = " . (int)$e['id'] . " AND project_id = " . $pid
+                   . (isset($e['name']) ? " AND name = " . $q((string)$e['name'][0]) : "") . ";";
+            if (isset($e['name'])) { $taskUpdates[] = [(int)$e['id'], (string)$e['name'][1]]; }
+        }
+        foreach ((array)($tc['add'] ?? []) as $a) {
+            $tid = (int)($a['id'] ?? 0);
+            $t = $tid > 0 ? $db->MQ("SELECT * FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", "one", [$tid, $pid]) : null;
+            if (!is_set($t)) { $out[] = "-- task " . $q((string)($a['name'] ?? '')) . " added to #" . $pid . " is not there locally (not accepted, or removed since); skipped"; continue; }
+            $out[] = "INSERT INTO pm_projects_tasks_tbl (id, project_id, tasks, name, description, applies_to)\n  SELECT " . $tid . ", " . $pid . ", " . $q($t['tasks']) . ", " . $q($t['name']) . ", " . $q($t['description']) . ", " . $q($t['applies_to']) . " FROM DUAL\n   WHERE NOT EXISTS (SELECT 1 FROM pm_projects_tasks_tbl WHERE id = " . $tid . ")\n     AND EXISTS (SELECT 1 FROM pm_projects_tbl WHERE id = " . $pid . " AND abbr = " . $q($p['abbr']) . ");";
+            $taskAdds[] = $tid;
+        }
         continue;
     }
     // A new activity, with its local id and its task.
@@ -105,6 +126,15 @@ if ($updated) {
     $out[] = "-- 3. every update landed (the WHERE ... AND name = <before> guard refused none)";
     $out[] = "SELECT " . count($updated) . " - COUNT(*) AS missing_updates FROM pm_projects_tbl WHERE " . $pairs . " HAVING missing_updates <> 0;";
 }
+if ($taskUpdates) {
+    $pairs = implode(' OR ', array_map(function ($u) use ($q) { return "(id = " . $u[0] . " AND name = " . $q($u[1]) . ")"; }, $taskUpdates));
+    $out[] = "-- 5. every task rename landed";
+    $out[] = "SELECT " . count($taskUpdates) . " - COUNT(*) AS missing_task_updates FROM pm_projects_tasks_tbl WHERE " . $pairs . " HAVING missing_task_updates <> 0;";
+}
+if ($taskAdds) {
+    $out[] = "-- 6. every task the workbook added is there";
+    $out[] = "SELECT " . count($taskAdds) . " - COUNT(*) AS missing_tasks FROM pm_projects_tasks_tbl WHERE id IN (" . implode(',', $taskAdds) . ") HAVING missing_tasks <> 0;";
+}
 $out[] = "-- 4. no code is used twice";
 $out[] = "SELECT abbr, COUNT(*) AS n FROM pm_projects_tbl GROUP BY abbr HAVING n > 1;";
 $out[] = "";
@@ -113,4 +143,4 @@ $out[] = "COMMIT;";
 $out[] = "-- Otherwise:";
 $out[] = "-- ROLLBACK;";
 echo implode("\n", $out), "\n";
-fwrite(STDERR, sprintf("%d new, %d updated\n", count($newIds), count($updated)));
+fwrite(STDERR, sprintf("%d new, %d updated, %d task renames, %d tasks added\n", count($newIds), count($updated), count($taskUpdates), count($taskAdds)));

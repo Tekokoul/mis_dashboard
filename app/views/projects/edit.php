@@ -71,7 +71,7 @@ $col_width = 12/$columns;
             <?php if ($tasksHere) { ?>
             <div class="card card-modern" id="afcdc-new-tasks">
                 <div class="card-body">
-                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Change them here and press <strong>Save</strong> with everything else. Remove them all and a single task, <strong>Delivered</strong>, is put back: an activity with no task cannot be reported on at all.</p>
+                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Change them here and press <strong>Save</strong> with everything else. Remove them all and a single task, <strong>Task</strong>, is put back: an activity with no task cannot be reported on at all.</p>
                     <div class="table-responsive">
                         <table class="table table-ecommerce-simple table-borderless table-striped mb-0">
                             <thead>

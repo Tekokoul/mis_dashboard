@@ -33,7 +33,7 @@ $val = function ($k) use ($posted, $sug) {
                     <?php if ($errors) { print '<div class="afcdc-form-errors" role="alert"><strong>Not merged.</strong> ' . display(implode(' ', $errors)) . '</div>'; } ?>
                     <?php if ($problems && !$errors) { print '<div class="afcdc-form-errors" role="alert"><strong>These cannot be merged.</strong> ' . display(implode(' ', $problems)) . '</div>'; } ?>
                     <h4 class="afcdc-merge__title">What is merged</h4>
-                    <p class="afcdc-merge__lead">Choose the activity to keep. It keeps its code, its place and its page. The others' tasks and recorded deliveries move to it, and the others are removed. A task called "Delivered" takes the name of the activity it came from.</p>
+                    <p class="afcdc-merge__lead">Choose the activity to keep. It keeps its code, its place and its page. The others' tasks and recorded deliveries move to it, and the others are removed. A task still called "Task" takes the name of the activity it came from.</p>
                     <?php if (!empty($data['placements_differ'])): ?><div class="afcdc-gap-panel">These sit under different programmes. The merged activity stays under the programme of the one you keep.</div><?php endif; ?>
                     <div class="table-responsive">
                         <table class="table table-ecommerce-simple table-borderless table-striped mb-0 afcdc-merge__table">

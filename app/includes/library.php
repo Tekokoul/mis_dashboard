@@ -1223,9 +1223,9 @@ function record_filing_feedback($db, $model, array $posted, $suggested, $rowId =
 /**
  * An activity is reported through its tasks: with none it is missing from
  * Progress and counts for nothing on the overview. Every seeded activity
- * has exactly one task, "Delivered", applying to every reporting entity;
- * an activity added or saved through the form, or created by an import,
- * gets the same when it has none.
+ * has exactly one task, "Task" (called "Delivered" before September 2026),
+ * applying to every reporting entity; an activity added or saved through
+ * the form, or created by an import, gets the same when it has none.
  */
 function ensure_default_task($db, $projectId) {
     $projectId = (int)$projectId;
@@ -1244,8 +1244,8 @@ function ensure_default_task($db, $projectId) {
     $ids = [];
     foreach ((array)$db->MQ("SELECT id FROM pm_members_tbl WHERE active = 1", "all") as $m) { $ids[] = (string)(int)$m['id']; }
     if (!$ids) { return; }
-    $db->MQ("INSERT INTO pm_projects_tasks_tbl (project_id, name, description, applies_to) VALUES (?, 'Delivered', ?, ?)", false,
-        [$projectId, trim((string)$project['abbr'] . ' ' . (string)$project['name']), json_encode($ids)]);
+    $db->MQ("INSERT INTO pm_projects_tasks_tbl (project_id, name, description, applies_to) VALUES (?, ?, ?, ?)", false,
+        [$projectId, default_task_name(), trim((string)$project['abbr'] . ' ' . (string)$project['name']), json_encode($ids)]);
 }
 
 /**
@@ -1556,7 +1556,8 @@ function allocation_review_panel($review) {
  * Merging activities (projectsController::merge): two or more activities
  * that are the same piece of work - "Purchase 140 Starlink kits" and
  * "Purchase 600 Starlink kits" - become one, "Purchase Starlink kits", and
- * each merged activity's "Delivered" task takes that activity's old name, so
+ * each merged activity's default task ("Task", or "Delivered" from before)
+ * takes that activity's old name, so
  * the difference between them lives on as its tasks. pm_merge_log_tbl keeps
  * what each merge changed, so it can be undone.
  */
@@ -1620,17 +1621,29 @@ function merge_common_name(array $names) {
 }
 
 /**
- * What a task is called once its activity is merged: "Delivered" (or no name)
- * takes the activity's old name - or its code, for an activity with no name -
- * and any other name stays. Never "".
+ * The name the default task carries ("Delivered" until September 2026), and
+ * whether a name is that placeholder rather than something a person wrote:
+ * no name, "Task", or the old "Delivered".
+ */
+function default_task_name() { return 'Task'; }
+
+function is_default_task_name($name) {
+    $n = mb_strtolower(trim((string)$name), 'UTF-8');
+    return $n === '' || $n === 'task' || $n === 'delivered';
+}
+
+/**
+ * What a task is called once its activity is merged: the default task (or
+ * no name) takes the activity's old name - or its code, for an activity with
+ * no name - and any other name stays. Never "".
  */
 function merge_task_name(array $task, array $activity) {
     $name = trim((string)($task['name'] ?? ''));
-    if ($name === '' || mb_strtolower($name, 'UTF-8') === 'delivered') {
+    if (is_default_task_name($name)) {
         $label = trim((string)($activity['name'] ?? ''));
         if ($label === '') { $label = trim((string)($activity['abbr'] ?? '')); }
         if ($label !== '') { return mb_substr($label, 0, 250); }
-        return $name !== '' ? $name : 'Delivered';
+        return $name !== '' ? $name : default_task_name();
     }
     return $name;
 }

@@ -46,7 +46,7 @@ $col_width = 12/$columns;
             <?php
             // Tasks can be typed before the activity exists: they are created
             // with it (projectsController::add_update). With none, a single
-            // task "Delivered" is created, as before.
+            // task "Task" is created.
             // Anything typed comes back, name or description: keeping only the
             // named rows threw away the very row a refusal is about, leaving
             // "a name for every task" on screen with no row to name.
@@ -54,7 +54,7 @@ $col_width = 12/$columns;
             ?>
             <div class="card card-modern" id="afcdc-new-tasks">
                 <div class="card-body">
-                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Leave empty and a single task, <strong>Delivered</strong>, is created with it.</p>
+                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Leave empty and a single task, <strong>Task</strong>, is created with it.</p>
                     <div class="table-responsive">
                         <table class="table table-ecommerce-simple table-borderless table-striped mb-0">
                             <thead>

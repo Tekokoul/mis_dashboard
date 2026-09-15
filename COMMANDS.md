@@ -425,7 +425,7 @@ become one. Tick them on the Projects / Interventions list and press
 the names share ("Purchase Starlink kits"), puts the descriptions,
 indicators, budgets and notes together, and lets you choose which activity
 to keep: that one keeps its code, its place and its page. The others'
-tasks and recorded deliveries move to it, each task called "Delivered"
+tasks and recorded deliveries move to it, each task still called "Task" (or "Delivered", its old name)
 takes the name of the activity it came from (so the two purchases become
 the merged activity's two tasks), and the others are removed. The merged
 activity counts as delivered once all of its tasks are. Only activities
@@ -506,7 +506,7 @@ screen; press it again to step back.
 **Tasks on the add form.** The Tasks card on a new activity takes names and
 descriptions before the activity exists (+ adds a row, Enter in a row adds
 the next); they are created with the activity, applying to every active
-reporting entity. With none typed, the single task "Delivered" is created
+reporting entity. With none typed, the single task "Task" is created
 as before. Editing tasks afterwards is unchanged (the modal on the edit
 form).
 
@@ -660,8 +660,11 @@ objectives are heading rows (a number in WBS and no code); each activity
 has its AWP Code, name, description, indicator, budget and programme, then
 its Status (Completed, In progress or Not started, in their colours, counted as
 the Progress page counts them - there to read: no import role matches it, so
-changing it records nothing), and a
-second sheet says how to use it. Change what needs changing, add rows under
+changing it records nothing). Its tasks follow it, a row each: T and the
+task's number in AWP Code, its name in Task, its description and status. A
+row with a task name and no code under an activity adds a task to it (or to
+the new activity above it), a changed name or description updates that task,
+and nothing is deleted. A second sheet says how to use it. Change what needs changing, add rows under
 the right objective (no code, and the Programme cell copied from a
 neighbour says where it goes), save and upload it: rows nobody touched come
 back as already in, and only the changes wait for review. Deleting a row
@@ -673,7 +676,8 @@ nothing in it can run as a formula.
 - **Already in the system** - found by the code an earlier import or the
   re-filing recorded for it, or by its exact name; nothing differs.
 - **Changed** - found the same way, but the workbook's name, notes
-  (description), indicator or budget differ. The differences are shown; Apply
+  (description), indicator, budget or tasks differ (a task renamed or
+  re-described, or added under it). The differences are shown; Apply
   updates that activity in place. Its placement is never changed here: when
   the workbook lists it under another objective the note says so and it stays
   where it sits, because that placement was a person's decision (the edit form
@@ -693,7 +697,7 @@ nothing in it can run as a formula.
   Already in the system; "It is new" keeps the proposal.
 
 Accept creates the activity where the boxes say (next free code under the
-programme, goal from the objective, the "Delivered" task, a note recording the
+programme, goal from the objective, its tasks from the workbook (or the single "Task"), a note recording the
 workbook, row and code it came from) and records the placement as an example
 the guesser learns from - kept as proposed it confirms, moved it corrects.
 Skip leaves the catalogue alone. Accept all agreed takes every agreed new row
