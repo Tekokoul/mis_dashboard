@@ -99,7 +99,7 @@ $latest = $data['latest_delivery'] ?? null;
                             </span>
                             <div class="afcdc-deliverable__meta">
                                 <div class="progress progress-lg progress-squared w-100">
-                                    <div class="progress-bar<?= delivery_status_bar($objStatus); ?>" role="progressbar"
+                                    <div class="progress-bar" role="progressbar"
                                          aria-valuenow="<?= $objPct; ?>" aria-valuemin="0" aria-valuemax="100"
                                          aria-valuetext="<?= $objAll === 0 ? '0 activities' : $objDone.' of '.$objAll.' activities completed'; ?>"
                                          style="width: <?= $objPct; ?>%;">
@@ -109,7 +109,7 @@ $latest = $data['latest_delivery'] ?? null;
                                 <span class="afcdc-progress-zero">
                                     <?php if ($objPct < 12): ?><?= pct($objPct); ?>%<?php endif; ?>
                                     <?php if ($objAll > 0): ?> · <?= $objDone; ?> of <?= $objAll; ?> activities completed<?php endif; ?>
-                                    <?php if ($objAll > 0): ?> <?= delivery_status_chip($objStatus); ?><?php endif; ?>
+                                    <?php if ($objAll > 0): ?> <?= delivery_status_chip($objStatus, 'green'); ?><?php endif; ?>
                                 </span>
                             </div>
                         </div>

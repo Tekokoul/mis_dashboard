@@ -40,7 +40,7 @@
                         <a class="stretched-link" href="<?=$this->L("projects_graphs/objective/".(int)$objective['id']);?>"><?= display($objective['name']); ?></a>
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
-                            <div class="progress-bar<?= delivery_status_bar($oStatus); ?>" role="progressbar" aria-valuenow="<?=(float)$objective['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$objective['progress'];?>%;">
+                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$objective['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$objective['progress'];?>%;">
                                 <?php if ((float)$objective['progress'] >= 12): ?><?= pct($objective['progress']); ?>%<?php endif; ?>
                             </div>
                         </div>
@@ -50,7 +50,7 @@
                         <span class="afcdc-progress-zero">
                             <?php if ($oPct < 12): ?><?= pct($oPct); ?>%<?php endif; ?>
                             <?php if ($oAll > 0): ?> · <?= $oDone; ?> of <?= $oAll; ?> activities completed<?php endif; ?>
-                            <?php if ($oAll > 0): ?> <?= delivery_status_chip($oStatus); ?><?php endif; ?>
+                            <?php if ($oAll > 0): ?> <?= delivery_status_chip($oStatus, 'green'); ?><?php endif; ?>
                         </span>
                     </div>
                     <hr>

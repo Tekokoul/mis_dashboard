@@ -419,8 +419,12 @@ merged activity, on its edit page or its graphs page, opens the activity
 it became part of (`merge_forwarding()`).
 
 **Status.** Everything that is delivered through tasks has one of three
-statuses, worded and coloured the same on every page: **Completed**
-(green), **In progress** (orange) and **Not started** (red). The Record
+statuses, worded the same on every page: **Completed**, **In progress**
+and **Not started**. Projects (activities) and their tasks carry them in
+colour - green, orange and red, on the tag and the progress bar - on a
+programme's page, an activity's page and the task table. The main
+dashboard (the overview, a goal's page, an objective's programmes) stays
+in its own greens, with a tag only for Completed and In progress. The Record
 delivery form's Status box sets it for a task (stored as 1, 2 and 0; 0 and
 1 are what "Not delivered" and "Delivered" always stored, so nothing
 recorded before changes meaning). An activity, programme or objective is

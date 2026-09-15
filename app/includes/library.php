@@ -1848,10 +1848,20 @@ function delivery_status_label($status) {
     return ['completed' => 'Completed', 'in_progress' => 'In progress', 'not_started' => 'Not started'][(string)$status] ?? 'Nothing to measure yet';
 }
 
-/** The status as a tag: green, orange or red, with an icon so colour is never the only sign. */
-function delivery_status_chip($status) {
+/**
+ * The status as a tag, with an icon so colour is never the only sign.
+ * 'colour' (projects - activities - and their tasks): green, orange or red.
+ * 'green' (objectives and programmes on the main dashboard): the dashboard's
+ * own greens, and no tag at all for something not started yet.
+ */
+function delivery_status_chip($status, $tone = 'colour') {
     $icon = ['completed' => 'bx-check-circle', 'in_progress' => 'bx-adjust', 'not_started' => 'bx-time-five'][(string)$status] ?? 'bx-minus-circle';
-    $class = ['completed' => 'completed', 'in_progress' => 'in-progress', 'not_started' => 'not-started'][(string)$status] ?? 'idle';
+    if ($tone === 'green') {
+        if (!in_array((string)$status, ['completed', 'in_progress'], true)) { return ''; }
+        $class = $status === 'completed' ? 'good' : 'active';
+    } else {
+        $class = ['completed' => 'completed', 'in_progress' => 'in-progress', 'not_started' => 'not-started'][(string)$status] ?? 'idle';
+    }
     return '<span class="afcdc-status afcdc-status--' . $class . '"><i class="bx ' . $icon . '" aria-hidden="true"></i> ' . display(delivery_status_label($status)) . '</span>';
 }
 
