@@ -411,7 +411,15 @@ $(function () {
     // Esc closes the panel and goes no further: the page's own Esc (a step
     // back, below) must not fire on the same press.
     wrap.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) { e.preventDefault(); e.stopPropagation(); close(true); } });
-    document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) { close(false); } });
+    document.addEventListener('click', function (e) { if (!wrap.contains(e.target) && !e.target.closest('.afcdc-chips')) { close(false); } });
+    var closer = box.querySelector('.afcdc-filterbox__close');
+    if (closer) { closer.addEventListener('click', function () { close(true); }); }
+    // A filter's name beside the box (its quiet chip while nothing is chosen) opens the panel on that box.
+    $(document).on('click', '[data-afcdc-focus]', function (e) {
+        e.preventDefault(); open(false);
+        var s = box.querySelector('select[name="' + $(this).attr('data-afcdc-focus') + '"]');
+        if (s) { s.focus(); }
+    });
     // The search suggestions render inside the panel and ask for it to be open.
     $(wrap).on('afcdc:open', function () { open(false); });
 });

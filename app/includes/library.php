@@ -1902,6 +1902,13 @@ function delivery_status_chip($status, $tone = 'colour') {
     return '<span class="afcdc-status afcdc-status--' . $class . '"><i class="bx ' . $icon . '" aria-hidden="true"></i> ' . display(delivery_status_label($status)) . '</span>';
 }
 
+/** The status as a small square in its colour, the word for the screen reader and on hover (the Tasks column of the Projects list). */
+function delivery_status_square($status) {
+    $class = ['completed' => 'completed', 'in_progress' => 'in-progress', 'not_started' => 'not-started'][(string)$status] ?? 'idle';
+    $label = delivery_status_label($status);
+    return '<span class="afcdc-square afcdc-square--' . $class . '" title="' . display($label) . '"><span class="visually-hidden">' . display($label) . '</span></span>';
+}
+
 /** The class that colours a progress bar by its status ("" leaves the bar as it was). */
 function delivery_status_bar($status) {
     return ['completed' => ' afcdc-bar--completed', 'in_progress' => ' afcdc-bar--in-progress'][(string)$status] ?? '';

@@ -749,8 +749,9 @@ html .afcdc-toolbar .afcdc-search .btn {
 }
 html .afcdc-toolbar .afcdc-search .btn { display: inline-flex; align-items: center; }
 html .afcdc-search.is-active .form-control { border-left: 3px solid var(--au-green-deep); }
-html .afcdc-search__filters { gap: 0.3rem; }
+html .afcdc-search__filters { gap: 0.35rem; font-weight: 600; white-space: nowrap; }
 html .afcdc-search__filters .bx { font-size: 1.15rem; }
+html .afcdc-search__word { font-size: 0.8125rem; }
 html .afcdc-search__filters.is-active { color: var(--au-green-deep); border-color: var(--au-green-deep) !important; }
 html .afcdc-search__filters[aria-expanded="true"] { background: #E8EEE9; color: var(--au-green-deep); }
 html .afcdc-search__count {
@@ -761,19 +762,33 @@ html .afcdc-search__count {
 /* The panel hangs under the box's left edge (custom.js hangs it under the
    right edge instead when the window is short of room), over the table. */
 html .afcdc-filterbox {
-    position: absolute; top: calc(100% + 0.4rem); left: 0; z-index: 35;
-    width: min(42rem, calc(100vw - 2rem)); padding: 0.9rem 1rem;
-    background: var(--afcdc-surface); border: 1px solid #D9DCD6; border-radius: 6px;
-    box-shadow: 0 14px 36px rgba(29, 33, 30, 0.18);
+    position: absolute; top: calc(100% + 0.5rem); left: 0; z-index: 35;
+    width: min(46rem, calc(100vw - 2rem)); padding: 0 1.1rem 1.1rem;
+    background: var(--afcdc-surface); border: 1px solid #D3D8D4; border-radius: 10px;
+    box-shadow: 0 18px 44px rgba(29, 33, 30, 0.2), 0 2px 6px rgba(29, 33, 30, 0.08);
 }
 html .afcdc-filterbox.is-right { left: auto; right: 0; }
-html .afcdc-filterbox__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 0.75rem 1rem; }
+/* The head: a green band with the title, the count in force, and a close. */
+html .afcdc-filterbox__head {
+    display: flex; align-items: center; gap: 0.6rem;
+    margin: 0 -1.1rem 0.9rem; padding: 0.65rem 0.75rem 0.65rem 1.1rem;
+    background: var(--au-green-deep); color: #FFF; border-radius: 9px 9px 0 0;
+}
+html .afcdc-filterbox__head strong { font-size: 0.875rem; font-weight: 700; letter-spacing: 0.02em; }
+html .afcdc-filterbox__n { font-size: 0.75rem; opacity: 0.85; }
+html .afcdc-filterbox__close {
+    margin-left: auto; display: inline-flex; align-items: center; justify-content: center;
+    width: 1.75rem; height: 1.75rem; border: 0; border-radius: 999px; background: rgba(255, 255, 255, 0.14); color: #FFF; font-size: 1.25rem; line-height: 1;
+}
+html .afcdc-filterbox__close:hover, html .afcdc-filterbox__close:focus-visible { background: rgba(255, 255, 255, 0.28); }
+html .afcdc-filterbox__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr)); gap: 0.85rem 1rem; }
 html .afcdc-filterbox .afcdc-filter { min-width: 0; }
 html .afcdc-filterbox .afcdc-filter .form-select-sm { width: 100%; min-width: 0; max-width: none; }
-html .afcdc-filterbox__foot { display: flex; align-items: center; gap: 0.5rem; margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid var(--afcdc-rule); }
-html .afcdc-filterbox__hint { margin-left: auto; font-size: 0.75rem; color: var(--afcdc-ink-soft); }
+html .afcdc-filterbox__foot { display: flex; align-items: center; gap: 1rem; margin-top: 1rem; padding-top: 0.85rem; border-top: 1px solid var(--afcdc-rule); }
+html .afcdc-filterbox__clear { font-size: 0.8125rem; font-weight: 600; color: var(--afcdc-ink-soft); text-decoration: underline; }
+html .afcdc-filterbox__clear:hover, html .afcdc-filterbox__clear:focus-visible { color: var(--au-green-deep); }
 /* What the search finds, at the top of the same panel while you type. */
-html .afcdc-filterbox__found .afcdc-typeahead { position: static; margin: -0.4rem -1rem 0.75rem; max-height: 15rem; border: 0; border-bottom: 1px solid var(--afcdc-rule); border-radius: 0; box-shadow: none; }
+html .afcdc-filterbox__found .afcdc-typeahead { position: static; margin: -0.3rem -1.1rem 0.85rem; max-height: 15rem; border: 0; border-bottom: 1px solid var(--afcdc-rule); border-radius: 0; box-shadow: none; }
 html .afcdc-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem; }
 html .afcdc-chip {
     display: inline-flex; align-items: center; gap: 0.35rem; max-width: 100%;
@@ -784,6 +799,17 @@ html .afcdc-chip {
 html .afcdc-chip:hover, html .afcdc-chip:focus-visible { background: #D6E6DA; color: var(--au-green-deep); text-decoration: none; }
 html .afcdc-chip > span { color: var(--afcdc-ink-soft); font-weight: 500; }
 html .afcdc-chip > b { font-size: 1.05rem; line-height: 1; font-weight: 400; }
+/* A filter's name while nothing is chosen: a quiet outline, so the filters are in view before they are wanted. */
+html button.afcdc-chip--off { background: transparent; border: 1px dashed #B9C2BC; color: var(--afcdc-ink-soft); font-weight: 500; padding: 0.15rem 0.6rem; cursor: pointer; }
+html button.afcdc-chip--off:hover, html button.afcdc-chip--off:focus-visible { border-style: solid; border-color: var(--au-green-deep); color: var(--au-green-deep); background: #F0F6F1; }
+/* The Tasks column on the Projects list: how many, and a square in the status colour. */
+html .afcdc-col-tasks { white-space: nowrap; font-variant-numeric: tabular-nums; }
+html .afcdc-tasks-n { display: inline-block; min-width: 1.1rem; text-align: right; font-weight: 600; color: var(--afcdc-ink); }
+html .afcdc-square { display: inline-block; width: 0.8rem; height: 0.8rem; margin-left: 0.5rem; border-radius: 3px; vertical-align: -0.05em; background: var(--afcdc-ink-soft); }
+html .afcdc-square--completed   { background: var(--afcdc-completed); }
+html .afcdc-square--in-progress { background: var(--afcdc-in-progress); }
+html .afcdc-square--not-started { background: var(--afcdc-not-started); }
+html .afcdc-square--idle        { background: transparent; border: 2px solid var(--afcdc-idle); }
 @media (max-width: 767.98px) {
     html .afcdc-search-wrap { flex: 1 1 100%; }
     html .afcdc-filterbox, html .afcdc-filterbox.is-right { width: auto; left: 0; right: 0; }

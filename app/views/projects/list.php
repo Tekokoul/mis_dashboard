@@ -67,6 +67,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                             ?>
                                             <th width="<?=$properties['list_width'];?>%" class="afcdc-col-<?= preg_replace('/[^a-z0-9_]/i', '', $field); ?>"><?=ucfirst($title)?></th>
                                             <?php
+                                            // Beside the name: how many tasks, and a square in the status colour.
+                                            if ($field === 'name') { ?><th width="7%" class="afcdc-col-tasks" title="How many tasks the activity is delivered through, and its status: green completed, orange in progress, red not started">Tasks</th><?php }
                                         }
                                     }
                                     ?>
@@ -76,6 +78,15 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                 <tbody>
                                 <?php
                                 $aa = (($data['page']-1)*$data['items'])+1;
+                                // The Tasks column: each row's task count (one query for the page) and its status as the graphs count it (library: delivery_rollup).
+                                $statusRoll = delivery_rollup($this->DB)['activity'];
+                                $taskCounts = [];
+                                $pageIds = array_values(array_filter(array_map('intval', array_column((array)$data['data'], 'id'))));
+                                if ($pageIds) {
+                                    foreach ((array)$this->DB->MQ("SELECT project_id, COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE project_id IN (" . implode(',', array_fill(0, count($pageIds), '?')) . ") GROUP BY project_id", "all", $pageIds) as $tc) {
+                                        $taskCounts[(int)$tc['project_id']] = (int)$tc['n'];
+                                    }
+                                }
                                 foreach ($data['data'] as $row) {
                                     $link = "projects/edit/".$row['id'];
                                     ?>
@@ -103,6 +114,11 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 print ($first)
                                                     ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
                                                     : '<td' . $attrs . '>' . $inner . '</td>';
+                                                if ($field === 'name') {
+                                                    $n = $taskCounts[(int)$row['id']] ?? 0;
+                                                    print '<td class="afcdc-col-tasks"><span class="afcdc-tasks-n" title="' . $n . ' task' . ($n === 1 ? '' : 's') . '">' . $n . '</span>'
+                                                        . delivery_status_square(delivery_rollup_status($statusRoll[(int)$row['id']] ?? null)) . '</td>';
+                                                }
                                                 $first = false;
                                             }
                                         }

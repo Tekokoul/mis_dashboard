@@ -239,14 +239,16 @@ has the same Objective box under Goal; so does the Objectives list, where it
 picks one objective (`AND id = ?`). The key is `objective_id` everywhere, the
 one the search dropdown's objective suggestions set.
 
-**Where the filters are.** On every list only the search box shows.
-Pressing it, or the filter button on it, opens a small panel under it with
-every filter, Apply and Clear (`list_toolbar()` in list_builder.php; the
-panel, the narrowing and Esc are in custom.js), and what the search would
-find appears at the top of the same panel as you type. Picking a filter no
-longer submits on its own: set several, then Apply. A filter in force stands
-beside the box as a chip whose x lifts it, and the filters narrowed by it.
-Under 768px the panel spans the screen and its boxes stack.
+**Where the filters are.** On every list only the search box shows, with a
+Filters button on it. Pressing the box or the button opens a panel under it
+- a green head with a close, every filter in a grid, Apply and Clear all
+(`list_toolbar()` in list_builder.php; the panel, the narrowing, Esc and
+the chips are in custom.js) - and what the search would find appears at the
+top of the same panel as you type. Picking a filter no longer submits on its
+own: set several, then Apply. Every filter has a chip beside the box: quiet
+while nothing is chosen (a press opens the panel on that box), green with the
+choice and an x once it narrows the list; the x lifts it and the filters
+narrowed by it. Under 768px the panel spans the screen and its boxes stack.
 
 **A "narrow by" box on a form** is a `cascade` key on a dropdown field:
 
@@ -399,6 +401,12 @@ a search is on).
 
 **Go to a page.** The "…" between page numbers, on the lists and on the Per
 Project table, opens a small box to type a page number.
+
+**Tasks beside the name.** The Projects / Interventions list has a Tasks
+column after the name: how many tasks the activity is delivered through,
+and a small square in its status colour - green completed, orange in
+progress, red not started, an outline when there is nothing to measure -
+counted as the graphs count it (`delivery_status_square()`, `delivery_rollup()`).
 
 **Units are off unless switched on.** `UNITS_ENABLED=true` in `.env`, then
 recreate the app container (`docker compose up -d app` locally; the deploy on

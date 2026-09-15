@@ -340,22 +340,26 @@ function list_toolbar(array $filters, array $filter_data, $search, $clear_href, 
            . ' placeholder="' . ($filters ? 'Search or filter' : 'Search') . '" value="' . display($search) . '" autocomplete="off"'
            . ($model !== '' ? ' data-afcdc-suggest="' . display($model) . '" data-afcdc-open="' . display($open) . '" role="combobox" aria-autocomplete="list" aria-expanded="false"' : '') . '>';
     if ($filters) {
-        $html .= '<button type="button" class="btn btn-light border afcdc-search__filters' . ($active ? ' is-active' : '') . '" aria-expanded="false" aria-controls="afcdc-filterbox" title="Filters">'
-               . '<i class="bx bx-filter-alt" aria-hidden="true"></i><span class="visually-hidden">Filters</span>'
+        $html .= '<button type="button" class="btn btn-light border afcdc-search__filters' . ($active ? ' is-active' : '') . '" aria-expanded="false" aria-controls="afcdc-filterbox" title="Filter the list">'
+               . '<i class="bx bx-filter-alt" aria-hidden="true"></i><span class="afcdc-search__word">Filters</span>'
                . ($active ? '<span class="afcdc-search__count" aria-label="' . count($active) . ' in force">' . count($active) . '</span>' : '') . '</button>';
     }
     $html .= '<button class="btn btn-light border" type="submit" aria-label="Search"><i class="bx bx-search" aria-hidden="true"></i></button>';
     $html .= '</div>';
     if ($filters) {
         $html .= '<div class="afcdc-filterbox" id="afcdc-filterbox" role="group" aria-label="Filters" hidden>';
+        $html .= '<div class="afcdc-filterbox__head"><strong>Filter the list</strong>' . ($active ? '<span class="afcdc-filterbox__n">' . count($active) . ' in force</span>' : '')
+               . '<button type="button" class="afcdc-filterbox__close" aria-label="Close the filters"><i class="bx bx-x" aria-hidden="true"></i></button></div>';
         $html .= '<div class="afcdc-filterbox__found"></div><div class="afcdc-filterbox__grid">';
         foreach ($filters as $f) { $html .= filter_DropDown($f['key'], $f, $filter_data[$f['key']] ?? ''); }
-        $html .= '</div><div class="afcdc-filterbox__foot"><button type="submit" class="btn btn-sm btn-primary">Apply</button>'
-               . ($narrowing ? '<a class="btn btn-sm btn-light border" href="' . $clear_href . '">Clear</a>' : '')
-               . '<span class="afcdc-filterbox__hint">Esc closes</span></div></div>';
+        $html .= '</div><div class="afcdc-filterbox__foot"><button type="submit" class="btn btn-primary btn-sm px-4">Apply</button>'
+               . ($narrowing ? '<a class="afcdc-filterbox__clear" href="' . $clear_href . '">Clear all</a>' : '') . '</div></div>';
     }
     $html .= '</div>';
-    if ($active) {
+    if ($filters) {
+        // Every filter has a chip beside the box: quiet while nothing is
+        // chosen (a press opens the panel on that box), green with the
+        // choice and an x once it narrows the list.
         $byKey = []; $below = [];
         foreach ($filters as $f) {
             $byKey[(string)$f['key']] = $f;
@@ -366,8 +370,14 @@ function list_toolbar(array $filters, array $filter_data, $search, $clear_href, 
             foreach ($below[$key] ?? [] as $k) { $out[] = $k; foreach ($dependents($k) as $d) { $out[] = $d; } }
             return $out;
         };
-        $html .= '<div class="afcdc-chips" role="group" aria-label="Filters in force">';
-        foreach ($active as $key => $value) {
+        $html .= '<div class="afcdc-chips" role="group" aria-label="Filters">';
+        foreach ($filters as $f) {
+            $key = (string)$f['key'];
+            if (!isset($active[$key])) {
+                $html .= '<button type="button" class="afcdc-chip afcdc-chip--off" data-afcdc-focus="' . display($key) . '">' . display((string)($f['title'] ?? ucfirst($key))) . '</button>';
+                continue;
+            }
+            $value = $active[$key];
             $keep = $active;
             unset($keep[$key]);
             foreach ($dependents($key) as $d) { unset($keep[$d]); }
