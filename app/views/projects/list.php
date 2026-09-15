@@ -70,7 +70,6 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                 <tr>
                                     <th width="3%" class="afcdc-col-check"><input type="checkbox" name="select-all" class="select-all checkbox-style-1 p-relative top-2" value="" /></th>
                                     <th width="4%" class="afcdc-col-num">#</th>
-                                    <th width="2%" class="afcdc-col-dot"><span class="visually-hidden">Status</span></th>
                                     <?php
                                     foreach ($data['fields'] as $field => $properties){
                                         if(isset($properties['appear_in_list'])){
@@ -87,8 +86,6 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                 <tbody>
                                 <?php
                                 $aa = (($data['page']-1)*$data['items'])+1;
-                                // Each row's status as a coloured dot (library: delivery_status).
-                                $statusRoll = delivery_rollup($this->DB);
                                 foreach ($data['data'] as $row) {
                                     $link = "projects/edit/".$row['id'];
                                     ?>
@@ -96,7 +93,6 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                     <tr<?= $trClass !== '' ? ' class="' . $trClass . '"' : ''; ?>>
                                         <td width="30" class="afcdc-col-check"><input type="checkbox" name="checkboxRow1" class="checkbox-style-1 p-relative top-2" value="<?= (int)$row['id']; ?>" aria-label="Select <?= display(($row['abbr'] ?? '') . ' ' . ($row['name'] ?? '')); ?>" /></td>
                                         <td class="afcdc-col-num"><?=$aa;?></td>
-                                        <td class="afcdc-col-dot"><?= delivery_status_dot(delivery_rollup_status($statusRoll['activity'][(int)$row['id']] ?? null)); ?></td>
                                         <?php
                                         $first = true;
                                         foreach ($data['fields'] as $field => $properties) {

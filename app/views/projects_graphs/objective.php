@@ -39,9 +39,9 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
             $gStatus = $prgStatus($programme);
             ?>
                 <div class="row afcdc-drill">
-                    <div class="col col-7"><a class="stretched-link" href="<?=$this->L("projects_graphs/programme/".(int)$programme['id']);?>"><?=display($programme['name']);?></a> <?= delivery_status_chip($gStatus, 'green'); ?></div>
+                    <div class="col col-7"><a class="stretched-link" href="<?=$this->L("projects_graphs/programme/".(int)$programme['id']);?>"><?=display($programme['name']);?></a> <?= delivery_status_chip($gStatus); ?></div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
-                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$programme['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$programme['progress'];?>%;">
+                            <div class="progress-bar<?= delivery_status_bar($gStatus); ?>" role="progressbar" aria-valuenow="<?=(float)$programme['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$programme['progress'];?>%;">
                                 <?php if ((float)$programme['progress'] >= 12): ?><?= pct($programme['progress']); ?>%<?php endif; ?>
                             </div>
                         </div>

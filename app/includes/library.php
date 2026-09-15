@@ -1865,13 +1865,6 @@ function delivery_status_chip($status, $tone = 'colour') {
     return '<span class="afcdc-status afcdc-status--' . $class . '"><i class="bx ' . $icon . '" aria-hidden="true"></i> ' . display(delivery_status_label($status)) . '</span>';
 }
 
-/** The status as a dot and nothing else: the word is its label, on hover and for screen readers. */
-function delivery_status_dot($status) {
-    $class = ['completed' => 'completed', 'in_progress' => 'in-progress', 'not_started' => 'not-started'][(string)$status] ?? 'idle';
-    $label = display(delivery_status_label($status));
-    return '<span class="afcdc-dot afcdc-dot--' . $class . '" role="img" aria-label="' . $label . '" title="' . $label . '"></span>';
-}
-
 /** The class that colours a progress bar by its status ("" leaves the bar as it was). */
 function delivery_status_bar($status) {
     return ['completed' => ' afcdc-bar--completed', 'in_progress' => ' afcdc-bar--in-progress'][(string)$status] ?? '';

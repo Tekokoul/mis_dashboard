@@ -54,6 +54,10 @@ class importsController extends protectedController {
         require_once __DIR__ . '/../includes/xlsx.php';
         $scope = is_string($this->query['scope'] ?? null) ? $this->query['scope'] : '';
         $where = ''; $params = []; $what = 'the whole work plan'; $slug = '';
+        // Empty: the goal and objective headings with no activity under them,
+        // so rows added there are filed under the right objective.
+        $empty = ($scope === 'empty');
+        if ($empty) { $what = 'no activities yet, only the goal and objective headings'; $slug = 'empty'; }
         if (preg_match('/^objective:(\d{1,10})$/', $scope, $m)) {
             $o = $this->DB->MQ("SELECT id, abbr, name FROM pm_objectives_tbl WHERE id = ?", "one", [(int)$m[1]]);
             if (!is_set($o)) { $this->setAnswer(404, "There is no such objective."); }
@@ -69,7 +73,7 @@ class importsController extends protectedController {
                                               FROM pm_objectives_tbl o LEFT JOIN pm_pillars_tbl g ON g.id = o.pillar_id" . $where . "
                                              ORDER BY g.position, g.id, o.position, o.id", "all", $params);
         $byObjective = [];
-        if ($objectives) {
+        if ($objectives && !$empty) {
             $ids = array_map('intval', array_column($objectives, 'id'));
             $acts = (array)$this->DB->MQ("SELECT p.id, p.objective_id, p.abbr, p.name, p.description, p.kpi, p.estimated_budget, g.abbr AS programme_abbr, g.name AS programme_name
                                             FROM pm_projects_tbl p LEFT JOIN pm_programmes_tbl g ON g.id = p.programme_id
@@ -106,7 +110,7 @@ class importsController extends protectedController {
         }
         $how = [
             [['v' => 'How to use this template', 's' => 6]],
-            [['v' => 'Holds ' . $what . ': ' . $count . ' activit' . ($count === 1 ? 'y' : 'ies') . ', as the dashboard had them on ' . date('j F Y') . '.', 's' => 4]],
+            [['v' => $empty ? 'An empty template: ' . $what . ', as the dashboard had them on ' . date('j F Y') . '. Add each activity as a row under its objective.' : 'Holds ' . $what . ': ' . $count . ' activit' . ($count === 1 ? 'y' : 'ies') . ', as the dashboard had them on ' . date('j F Y') . '.', 's' => 4]],
             [],
             [['v' => '1. Change what needs changing on the Work plan sheet: an activity\'s name, description, indicator or budget. Leave the AWP Code of an existing activity as it is - it is how each row finds the activity it updates.', 's' => 4]],
             [['v' => '2. To add an activity, add a row under the objective it belongs to. Leave AWP Code empty (the code is given when the row is accepted), fill in Activity and Description, and copy the Programme cell from another activity of the same programme, for example "1.2 PRG Network Connectivity Programme".', 's' => 4]],

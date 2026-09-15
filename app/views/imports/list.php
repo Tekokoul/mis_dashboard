@@ -27,12 +27,13 @@
                 </form>
                 <div class="afcdc-import__template">
                     <h4 class="afcdc-import__title">Download a template</h4>
-                    <p class="afcdc-import__lead">The work plan as it stands, laid out the way this page reads it. Change what needs changing, add rows under the right objective, save it and upload it above: only what you changed comes back to review.</p>
+                    <p class="afcdc-import__lead">The work plan as it stands, or an empty one, laid out the way this page reads it. Change what needs changing, add rows under the right objective, save it and upload it above: only what you changed comes back to review.</p>
                     <form action="<?= $this->L('imports/template'); ?>" method="get">
                         <div class="form-group mb-3">
                             <label for="template-scope" class="control-label">What it holds</label>
                             <select class="form-select" id="template-scope" name="scope">
                                 <option value="">The whole work plan</option>
+                                <option value="empty">An empty template (objective headings, no activities)</option>
                                 <?php if (!empty($data['template_units'])): ?>
                                 <optgroup label="One unit's objectives">
                                     <?php foreach ($data['template_units'] as $u): ?><option value="unit:<?= (int)$u['id']; ?>"><?= display($u['name']); ?></option><?php endforeach; ?>

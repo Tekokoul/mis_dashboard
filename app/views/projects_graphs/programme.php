@@ -20,6 +20,8 @@ $val_all = ($data['programme']['totals']>0) ? round(($data['programme']['progres
             <label class="gaugeBasicTextfield"><?=pct($data['programme']['progress']);?>%</label>
         </div>
         <?php $t = (int)($data['programme']['totals'] ?? 0); $c = (int)($data['programme']['completed'] ?? 0); if ($t > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= $c; ?> of <?= $t; ?> activities completed</p><?php endif; ?>
+        <?php // The programme's own status, in the same colours as its projects (counted as the graphs count it: under this programme and its objective). ?>
+        <p class="mb-3"><strong>Status:</strong> <?= delivery_status_chip(delivery_rollup_status(delivery_rollup($this->DB)['programme'][(int)$data['programme']['objective_id'] . ':' . (int)$data['programme']['id']] ?? null)); ?></p>
         <div>
             <p><strong>Description:</strong><br><?=nl2br(display($data['programme']['description']))?></p>
         </div>

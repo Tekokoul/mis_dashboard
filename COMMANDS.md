@@ -420,14 +420,12 @@ it became part of (`merge_forwarding()`).
 
 **Status.** Everything that is delivered through tasks has one of three
 statuses, worded the same on every page: **Completed**, **In progress**
-and **Not started**. Projects (activities) and their tasks carry them in
-colour - green, orange and red, on the tag and the progress bar - on a
-programme's page, an activity's page and the task table. The main
-dashboard (the overview, a goal's page, an objective's programmes) stays
-in its own greens, with a tag only for Completed and In progress. On the
-Projects / Interventions list each row has a dot in the same colours, with
-no word beside it; the word is on hover and read out to screen readers (an
-activity with no task to measure has a hollow grey dot). The Record
+and **Not started**. Programmes and projects (activities), with their tasks, carry them in
+colour - green, orange and red, on the tag and the progress bar - on an
+objective's page (its programmes), a programme's page (its own status and
+its projects), an activity's page and the task table. Objectives, on the
+overview and a goal's page, stay in the dashboard's own greens, with a tag
+only for Completed and In progress. The Record
 delivery form's Status box sets it for a task (stored as 1, 2 and 0; 0 and
 1 are what "Not delivered" and "Delivered" always stored, so nothing
 recorded before changes meaning). An activity, programme or objective is
@@ -637,7 +635,8 @@ catalogue knows about it:
 
 **A template to update the work plan.** Import a work plan has "Download
 a template": the work plan as it stands - all of it, one unit's objectives
-or one objective - as an .xlsx this page reads straight back. Goals and
+or one objective - or an empty one (the goal and objective headings with
+no activities under them), as an .xlsx this page reads straight back. Goals and
 objectives are heading rows (a number in WBS and no code); each activity
 has its AWP Code, name, description, indicator, budget and programme, and a
 second sheet says how to use it. Change what needs changing, add rows under
