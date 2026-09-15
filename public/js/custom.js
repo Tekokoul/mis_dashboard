@@ -418,6 +418,63 @@ $(function () {
     });
 });
 
+/* Merging activities. On the Projects list the row checkboxes pick them and
+ * "Merge selected" opens the merge page with them; on the merge page Merge
+ * asks once more; on the merged activity's page "Undo merge" puts them back.
+ * The server re-checks everything: this only gathers the ids. */
+$(function () {
+    var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
+    var $btn = $('[data-afcdc-merge]');
+    var $table = $('#datatable-list');
+    if ($btn.length && $table.length) {
+        var boxes = 'tbody input[name="checkboxRow1"]';
+        var picked = function () {
+            return $table.find(boxes + ':checked').map(function () { return this.value; }).get().filter(function (v) { return /^\d+$/.test(v); });
+        };
+        var refresh = function () {
+            var ids = picked();
+            $btn.prop('hidden', ids.length < 2).text('Merge ' + ids.length + ' selected');
+        };
+        $table.on('change', boxes, function () {
+            var all = $table.find(boxes);
+            $table.find('input.select-all').prop('checked', all.length > 0 && all.filter(':checked').length === all.length);
+            refresh();
+        });
+        $table.on('change', 'input.select-all', function () { $table.find(boxes).prop('checked', this.checked); refresh(); });
+        $btn.on('click', function (e) {
+            e.preventDefault();
+            var ids = picked();
+            if (ids.length < 2) { return; }
+            if (ids.length > 10) { window.alert('Merge up to ten activities at a time.'); return; }
+            window.location.href = $btn.attr('data-afcdc-merge') + '?ids=' + ids.join(',') + '&back=' + encodeURIComponent(window.location.pathname + window.location.search);
+        });
+        refresh();   // a page restored from the browser's cache keeps its ticks
+    }
+    $(document).on('submit', 'form.afcdc-merge-form', function (e) {
+        var $f = $(this);
+        var keep = $.trim($f.find('input[name="keep"]:checked').closest('tr').find('.afcdc-merge__code').text());
+        var n = $f.find('input[name="ids[]"]').length;
+        if (!window.confirm('Merge these ' + n + ' activities into ' + (keep || 'the one you keep') + '? The others are removed and their tasks and deliveries move to it. The merge can be undone on its page.')) { e.preventDefault(); }
+    });
+    $(document).on('click', '[data-merge-undo]', function (e) {
+        e.preventDefault();
+        if (!window.confirm('Undo this merge? The merged activities come back with their own codes, tasks and deliveries.')) { return; }
+        var id = $(this).attr('data-merge-undo');
+        $.ajax({ url: prefix + '/projects/merge_undo/' + encodeURIComponent(id), method: 'POST', data: { csrf: window.CSRF_TOKEN || '' }, dataType: 'json' })
+            .done(function () {
+                // Back to this page as the activity it was before, keeping where Back leads.
+                var q = window.location.search.replace(/([?&])(merged|unmerged)=[^&]*/g, '$1').replace(/[?&]+$/, '').replace(/\?&+/, '?').replace(/&&+/g, '&');
+                window.location.href = window.location.pathname + (q ? q + '&' : '?') + 'unmerged=1';
+            })
+            .fail(function (xhr) {
+                var msg = 'That did not go through (' + xhr.status + ').';
+                try { var j = JSON.parse(xhr.responseText); if (j && j.message) { msg = j.message; } } catch (err) {}
+                if (xhr.status === 403) { msg = 'The page had been open too long. Reload and try again.'; }
+                window.alert(msg);
+            });
+    });
+});
+
 /* Required fields on the activity form. The browser's own check cannot show
  * itself on a select2 box: the real <select> is hidden, so "an invalid form
  * control is not focusable" is all that happens and the click does nothing.
@@ -610,7 +667,7 @@ $(function () {
     // browser remembers; one step back would reopen it, and Esc on the form
     // would come here again. Up the breadcrumb instead. The routes are the
     // ones backTo() refuses on the server.
-    var formRoute = /\/(?:projects\/(?:add|edit|add_update|edit_update|progress_edit|progress_edit_update)|core\/db_(?:add|edit|add_update|edit_update)|users\/(?:add|edit|add_update|edit_update))(?:\/|$|\?|#)/;
+    var formRoute = /\/(?:projects\/(?:add|edit|add_update|edit_update|progress_edit|progress_edit_update|merge|merge_update)|core\/db_(?:add|edit|add_update|edit_update)|users\/(?:add|edit|add_update|edit_update))(?:\/|$|\?|#)/;
     function fromForm(url) {
         var a = document.createElement('a');
         a.href = url;

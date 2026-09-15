@@ -478,6 +478,30 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
             || die "could not create pm_unit_review_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
+    # 9. Merging activities: what each merge changed - the rows removed, the
+    #    tasks and deliveries moved, the fields rewritten - so it can be undone
+    #    from the merged activity's page (projectsController::merge_undo).
+    #    Additive: one new table.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_merge_log_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_merge_log_tbl (activity merges)"
+        qddl "CREATE TABLE pm_merge_log_tbl (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                project_id INT(11) NOT NULL,
+                merged_ids VARCHAR(255) NOT NULL DEFAULT '',
+                snapshot LONGTEXT NOT NULL,
+                merged_by INT(11) NOT NULL DEFAULT 0,
+                merged_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                undone_by INT(11) NOT NULL DEFAULT 0,
+                undone_at DATETIME DEFAULT NULL,
+                PRIMARY KEY (id),
+                KEY idx_merge_log_project (project_id, undone_at)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
+            || die "could not create pm_merge_log_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    fi
+
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)
     if [ "${users:-0}" -eq 0 ]; then
         log "NOTE: no accounts exist yet. Create one with:"

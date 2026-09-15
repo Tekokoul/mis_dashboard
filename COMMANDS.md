@@ -399,6 +399,23 @@ repository, which the tool checks against the objective's current name:
 docker compose exec -T app php /var/www/html/tools/propose-units.php - --dry-run < unit-proposals.json
 ```
 
+**Merging activities.** Two or more activities that are the same piece of
+work - "Purchase 140 Starlink kits" and "Purchase 600 Starlink kits" - can
+become one. Tick them on the Projects / Interventions list and press
+"Merge N selected". The merge page proposes a common name from the words
+the names share ("Purchase Starlink kits"), puts the descriptions,
+indicators, budgets and notes together, and lets you choose which activity
+to keep: that one keeps its code, its place and its page. The others'
+tasks and recorded deliveries move to it, each task called "Delivered"
+takes the name of the activity it came from (so the two purchases become
+the merged activity's two tasks), and the others are removed. The merged
+activity counts as delivered once all of its tasks are. Only activities
+reported through tasks can be merged, up to ten at a time. What a merge
+changed is kept in `pm_merge_log_tbl`, and "Undo merge" on the merged
+activity's page puts everything back - the removed activities with their
+own codes, tasks and deliveries - unless something has since been changed
+in a way that would make that unsafe, which it names.
+
 **Delivered or not.** The Projects / Interventions list has a Delivery box
 beside Goal and Programme: Delivered keeps the activities delivered in
 full, Partly delivered those with some of it recorded, Not delivered those

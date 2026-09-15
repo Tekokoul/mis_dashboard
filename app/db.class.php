@@ -76,6 +76,20 @@ class DB extends \PDO {
         }
     }
 
+    /**
+     * A transaction on the connection MQ uses. Started through PDO, not with
+     * "START TRANSACTION", so PDO knows it is open: MQ exits through
+     * db_error() on any failure, the connection is persistent, and an open
+     * transaction must never outlive the request that began it.
+     */
+    function txBegin() {
+        $db = $this->DB_SERVER;
+        register_shutdown_function(function () use ($db) { if ($db && $db->inTransaction()) { $db->rollBack(); } });
+        return $db->beginTransaction();
+    }
+
+    function txCommit() { return $this->DB_SERVER->commit(); }
+
     function ESC($variable) {
         return $this->DB_SERVER->prepare($variable);
     }

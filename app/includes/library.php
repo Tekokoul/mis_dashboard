@@ -1552,6 +1552,133 @@ function allocation_review_panel($review) {
 }
 
 /**
+ * Merging activities (projectsController::merge): two or more activities
+ * that are the same piece of work - "Purchase 140 Starlink kits" and
+ * "Purchase 600 Starlink kits" - become one, "Purchase Starlink kits", and
+ * each merged activity's "Delivered" task takes that activity's old name, so
+ * the difference between them lives on as its tasks. pm_merge_log_tbl keeps
+ * what each merge changed, so it can be undone.
+ */
+function merge_available($db) {
+    static $ok = null;
+    if ($ok === null) { $ok = is_set($db->MQ("SHOW TABLES LIKE 'pm_merge_log_tbl'", "one")); }
+    return $ok;
+}
+
+/**
+ * A name for the merged activity: the words every name shares, in order,
+ * spelt as in the first name. "Purchase 140 Starlink kits" + "Purchase 600
+ * Starlink kits" -> "Purchase Starlink kits"; "Procurement of 700 devices" +
+ * "Procurement of 1000 mobile devices" -> "Procurement of devices". A name
+ * never starts or ends on a joining word, and "" means nothing useful is
+ * shared (the caller keeps the name of the activity kept).
+ */
+function merge_common_name(array $names) {
+    $names = array_values(array_filter(array_map(function ($n) { return trim((string)preg_replace('/\s+/u', ' ', (string)$n)); }, $names), 'strlen'));
+    if (!$names) { return ''; }
+    if (count($names) === 1) { return $names[0]; }
+    $tokens = function ($s) { return preg_split('/\s+/u', $s, -1, PREG_SPLIT_NO_EMPTY); };
+    $key = function ($w) { return mb_strtolower((string)preg_replace('/[^\p{L}\p{N}]+/u', '', (string)$w), 'UTF-8'); };
+    $common = $tokens($names[0]);
+    foreach (array_slice($names, 1) as $other) {
+        $a = array_map($key, $common);
+        $b = array_map($key, $tokens($other));
+        $n = count($a); $m = count($b);
+        if ($n === 0 || $m === 0) { return ''; }
+        // Longest common subsequence of words.
+        $len = array_fill(0, $n + 1, array_fill(0, $m + 1, 0));
+        for ($i = $n - 1; $i >= 0; $i--) {
+            for ($j = $m - 1; $j >= 0; $j--) {
+                $len[$i][$j] = ($a[$i] !== '' && $a[$i] === $b[$j]) ? $len[$i + 1][$j + 1] + 1 : max($len[$i + 1][$j], $len[$i][$j + 1]);
+            }
+        }
+        $kept = []; $i = 0; $j = 0;
+        while ($i < $n && $j < $m) {
+            if ($a[$i] !== '' && $a[$i] === $b[$j]) { $kept[] = $common[$i]; $i++; $j++; }
+            elseif ($len[$i + 1][$j] >= $len[$i][$j + 1]) { $i++; }
+            else { $j++; }
+        }
+        $common = $kept;
+    }
+    $joins = ['of', 'and', 'or', 'for', 'the', 'a', 'an', 'to', 'in', 'on', 'at', 'with', 'by', 'from', 'via', ''];
+    while ($common && in_array($key(end($common)), $joins, true)) { array_pop($common); }
+    while ($common && in_array($key($common[0]), $joins, true)) { array_shift($common); }
+    $meaningful = array_filter($common, function ($w) use ($key) { $k = $key($w); return $k !== '' && !ctype_digit($k); });
+    if (!$meaningful) { return ''; }
+    $out = (string)preg_replace('/[\s,;:\-\x{2013}\x{2014}]+$/u', '', implode(' ', $common));
+    return mb_strtoupper(mb_substr($out, 0, 1, 'UTF-8'), 'UTF-8') . mb_substr($out, 1, null, 'UTF-8');
+}
+
+/** What a task is called once its activity is merged: "Delivered" takes the activity's old name, any other name stays. */
+function merge_task_name(array $task, array $activity) {
+    $name = trim((string)($task['name'] ?? ''));
+    if ($name === '' || mb_strtolower($name, 'UTF-8') === 'delivered') {
+        return mb_substr(trim((string)($activity['name'] ?? '')), 0, 250);
+    }
+    return $name;
+}
+
+/**
+ * The merged activity's fields as first proposed: the common name, and the
+ * descriptions, indicators, budgets and notes of all of them combined - the
+ * kept one first. Descriptions that differ are kept apart under their names.
+ * $activities is in display order, keep first.
+ */
+function merge_suggestion(array $activities) {
+    $first = reset($activities) ?: [];
+    $name = merge_common_name(array_column($activities, 'name'));
+    if ($name === '') { $name = (string)($first['name'] ?? ''); }
+    $descs = [];
+    foreach ($activities as $a) {
+        $d = trim((string)($a['description'] ?? ''));
+        if ($d !== '' && !in_array($d, $descs, true)) { $descs[(int)$a['id']] = $d; }
+    }
+    if (count($descs) <= 1) {
+        $description = $descs ? reset($descs) : '';
+    } else {
+        $parts = [];
+        foreach ($activities as $a) { if (isset($descs[(int)$a['id']])) { $parts[] = trim((string)$a['name']) . ': ' . $descs[(int)$a['id']]; } }
+        $description = implode("\n\n", $parts);
+    }
+    $unique = function ($field) use ($activities) {
+        $out = [];
+        foreach ($activities as $a) { $v = trim((string)($a[$field] ?? '')); if ($v !== '' && !in_array($v, $out, true)) { $out[] = $v; } }
+        return $out;
+    };
+    $sum = function ($field) use ($activities) {
+        $total = null;
+        foreach ($activities as $a) { if (isset($a[$field]) && $a[$field] !== null && $a[$field] !== '' && is_numeric($a[$field])) { $total = ($total ?? 0) + (float)$a[$field]; } }
+        return $total;
+    };
+    return [
+        'name'             => mb_substr($name, 0, 255),
+        'description'      => $description,
+        'kpi'              => mb_substr(implode('; ', $unique('kpi')), 0, 255),
+        'estimated_budget' => $sum('estimated_budget'),
+        'actual_budget'    => $sum('actual_budget'),
+        'notes'            => implode("\n\n", $unique('notes')),
+    ];
+}
+
+/**
+ * Merges into this activity that have not been undone, newest first. Only
+ * the newest can be undone: an older one is untangled after it.
+ */
+function merge_history($db, $projectId, $justId = 0) {
+    if (!merge_available($db) || (int)$projectId <= 0) { return []; }
+    $out = [];
+    $rows = (array)$db->MQ("SELECT id, merged_at, merged_by, snapshot FROM pm_merge_log_tbl WHERE project_id = ? AND undone_at IS NULL ORDER BY id DESC", "all", [(int)$projectId]);
+    foreach ($rows as $i => $r) {
+        $snap = json_decode((string)$r['snapshot'], true) ?: [];
+        $merged = [];
+        foreach ((array)($snap['merged'] ?? []) as $a) { $merged[] = ['abbr' => (string)($a['abbr'] ?? ''), 'name' => (string)($a['name'] ?? '')]; }
+        $out[] = ['id' => (int)$r['id'], 'merged_at' => (string)$r['merged_at'], 'by' => (string)($snap['merged_by_name'] ?? ''),
+                  'merged' => $merged, 'can_undo' => $i === 0, 'just' => (int)$r['id'] === (int)$justId];
+    }
+    return $out;
+}
+
+/**
  * Units: the division an objective belongs to (pm_units_tbl, set on
  * pm_objectives_tbl.unit_id), and the vetting of the units proposed for
  * objectives (pm_unit_review_tbl, loaded by tools/propose-units.php).

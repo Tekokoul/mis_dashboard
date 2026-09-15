@@ -863,6 +863,18 @@ html tr.afcdc-review--split .afcdc-review__tag, html tr.afcdc-review--low .afcdc
 html tr.afcdc-review--accepted .afcdc-review__tag { background: var(--au-green-deep); color: #FFF; }
 html .afcdc-review__why { font-style: italic; }
 html .afcdc-review__also { display: inline; color: var(--afcdc-ink-soft); }
+/* Merging activities */
+html .afcdc-add-col { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+html .afcdc-merge__title { font-size: 1rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--afcdc-ink); }
+html .afcdc-merge__lead { font-size: 0.875rem; line-height: 1.5; color: var(--afcdc-ink-soft); max-width: 70ch; margin-bottom: 1rem; }
+html .afcdc-merge__table td { vertical-align: top; font-size: 0.875rem; }
+html .afcdc-merge__table input[type="radio"] { width: 1.1rem; height: 1.1rem; margin-top: 0.15rem; }
+html .afcdc-merge__tasks { margin: 0; padding-left: 1.1rem; }
+html .afcdc-merge__tasks li { margin-bottom: 0.15rem; }
+html .afcdc-merge__was { display: block; color: var(--afcdc-ink-soft); font-size: 0.75rem; }
+html .afcdc-merge__hint { display: block; margin-top: 0.25rem; color: var(--afcdc-ink-soft); font-size: 0.75rem; }
+html .afcdc-review-panel.afcdc-merge-panel { border-left-color: var(--au-green-deep); background: #F1F7F3; }
+html .afcdc-merge-panel .afcdc-review__tag { background: var(--au-green-deep); color: #FFF; }
 html .afcdc-review__act { margin-left: 0.5rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; white-space: nowrap; }
 
 

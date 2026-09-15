@@ -35,6 +35,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                         <div class="row align-items-start mb-3">
                             <div class="col-12 col-lg-auto mb-3 mb-lg-0 afcdc-add-col">
                                 <a href="<?=$this->L("projects/add");?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a>
+                                <?php // Appears once two or more rows are ticked (custom.js); opens the merge page with them. ?>
+                                <?php if (can_vet() && merge_available($this->DB)): ?><a href="#" class="btn btn-light border btn-md btn-py-2 px-3 afcdc-merge" data-afcdc-merge="<?= $this->L('projects/merge'); ?>" hidden>Merge selected</a><?php endif; ?>
                             </div>
                             <?php
                             $html = "";
@@ -89,7 +91,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                     ?>
                                     <?php $review = $data['reviews'][(int)$row['id']] ?? null; $gaps = $data['gaps'][(int)$row['id']] ?? []; $trClass = trim(((isset($row['active']) && (string)$row['active'] === '0') ? 'afcdc-row--inactive ' : '') . ($gaps ? 'afcdc-gap ' : '') . (allocation_review_visible($review) ? 'afcdc-review afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) : '')); ?>
                                     <tr<?= $trClass !== '' ? ' class="' . $trClass . '"' : ''; ?>>
-                                        <td width="30" class="afcdc-col-check"><input type="checkbox" name="checkboxRow1" class="checkbox-style-1 p-relative top-2" value="" /></td>
+                                        <td width="30" class="afcdc-col-check"><input type="checkbox" name="checkboxRow1" class="checkbox-style-1 p-relative top-2" value="<?= (int)$row['id']; ?>" aria-label="Select <?= display(($row['abbr'] ?? '') . ' ' . ($row['name'] ?? '')); ?>" /></td>
                                         <td class="afcdc-col-num"><?=$aa;?></td>
                                         <?php
                                         $first = true;
