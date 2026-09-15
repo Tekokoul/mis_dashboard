@@ -510,6 +510,9 @@ class projectsController extends coreController{
                 return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'hint' => $why !== '' ? '' : (string)($r['prg'] ?? ''), 'why' => $why];
             }, $rows)];
             $bind = [];
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_objectives_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY $order LIMIT 3", "all", $bind);
+            $groups[] = ['label' => 'Objectives', 'items' => array_map(function ($r) { return ['label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'filter' => 'objective_id', 'value' => (int)$r['id']]; }, $rows)];
+            $bind = [];
             $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_programmes_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY $order LIMIT 3", "all", $bind);
             $groups[] = ['label' => 'Programmes', 'items' => array_map(function ($r) { return ['label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'filter' => 'programme_id', 'value' => (int)$r['id']]; }, $rows)];
         } elseif ($model === 'pm_programmes') {

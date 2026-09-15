@@ -334,21 +334,39 @@ $(function () {
         });
     });
 
+    /* The parent values a box narrowed by $sel may keep: what is chosen in
+     * $sel, or - with nothing chosen there - every option of $sel that its
+     * own parent allows, so a goal with no objective chosen still narrows
+     * the programme box to that goal's programmes. null: no narrowing. */
+    function narrowedTo($sel, depth) {
+        var v = String($sel.val() || '');
+        if (v && v !== '%') { return [v]; }
+        var up = $sel.attr('data-afcdc-narrow-by');
+        var $up = up ? $('select[name="' + up + '"]') : $();
+        var keep = ($up.length && (depth || 0) < 5) ? narrowedTo($up, (depth || 0) + 1) : null;
+        if (!keep) { return null; }
+        return $sel.find('option[data-parent]').filter(function () { return keep.indexOf(String($(this).attr('data-parent'))) !== -1; })
+                   .map(function () { return String(this.value); }).get();
+    }
+
     $('select[data-afcdc-narrow-by]').each(function () {
         var $child  = $(this);
         var $parent = $('select[name="' + $child.attr('data-afcdc-narrow-by') + '"]');
         if (!$parent.length) { return; }
-        var p = String($parent.val() || '');
-        if (p && p !== '%') {
+        var keep = narrowedTo($parent);
+        if (keep) {
             $child.find('option[data-parent]').each(function () {
                 // The option in force stays even if it disagrees with the
                 // parent (a stale link), so the box always shows what the
                 // list is actually filtered by.
-                if (!this.selected && String($(this).attr('data-parent')) !== p) { $(this).remove(); }
+                if (!this.selected && keep.indexOf(String($(this).attr('data-parent'))) === -1) { $(this).remove(); }
             });
         }
         // Bound directly, so it runs before the document-level autosubmit.
-        $parent.on('change', function () { $child.val('%'); });
+        // A cleared box clears the boxes narrowed by it in turn (goal ->
+        // objective -> programme); triggerHandler does not bubble, so the
+        // form still submits once.
+        $parent.on('change afcdc:clear', function () { $child.val('%').triggerHandler('afcdc:clear'); });
     });
 });
 

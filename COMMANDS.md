@@ -228,11 +228,16 @@ objective's goal). The options then carry the parent id, the box lists only
 the options under the chosen parent, and it clears itself when the parent
 changes - otherwise the page would show nothing. `all_label` is the wording
 of the "All" option. A filter may bring its own `sql` when its value is not a
-column of the list: the Programmes list's Objective box narrows by the Goal
-box (`parent_field: pillar_id`) and filters on `objective_id`, and the
-Objectives list has the same box, where it picks one objective (`AND id = ?`).
-The key is `objective_id` on both, the one the search dropdown's objective
-suggestions set.
+column of the list.
+
+Narrowing follows a chain. On the Projects / Interventions and Progress lists
+the Objective box narrows by Goal (`parent_field: pillar_id`) and the
+Programme box by Objective (`parent_field: objective_id`). With only a goal
+chosen the programme box still lists just that goal's programmes, and
+clearing a box clears the boxes below it (custom.js). The Programmes list
+has the same Objective box under Goal; so does the Objectives list, where it
+picks one objective (`AND id = ?`). The key is `objective_id` everywhere, the
+one the search dropdown's objective suggestions set.
 
 **A "narrow by" box on a form** is a `cascade` key on a dropdown field:
 
@@ -451,7 +456,7 @@ completed work only. On the overview, the goal and objective pages, a
 programme's page, an activity's page and the task table, lists are ordered
 Completed first, then In progress, then Not started, in code order within
 each. The Projects / Interventions list has a Status box that narrows the
-list to one of the three, beside Goal and Programme, with the search, the
+list to one of the three, beside Goal, Objective and Programme, with the search, the
 page links and Clear; it is added in code (`addDeliveryFilter`) because it
 is worked out rather than read from a column. On a narrow window the boxes
 shrink before the row wraps; under 768px they stack.
