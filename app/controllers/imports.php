@@ -124,6 +124,8 @@ class importsController extends protectedController {
                 // Its tasks, a row each under it: the task's number in AWP Code
                 // (how the import finds it again) and its name in Task.
                 foreach ($tasksOf[(int)$a['id']] ?? [] as $t) {
+                    // The default task ("Task") says nothing a person wrote: left out.
+                    if (is_default_task_name($t['name'])) { continue; }
                     $taskCount++;
                     $ts = delivery_rollup_status($roll['task'][(int)$t['id']] ?? null);
                     $rows[] = [null, ['v' => 'T' . (int)$t['id'], 's' => 0], null, ['v' => (string)$t['name'], 's' => 4], ['v' => (string)$t['description'], 's' => 4], null, null, null,
@@ -137,7 +139,7 @@ class importsController extends protectedController {
             [],
             [['v' => '1. Change what needs changing on the Work plan sheet: an activity\'s name, description, indicator or budget, or a task\'s name or description. Leave the AWP Code of an existing activity or task (T and a number) as it is - it is how each row finds what it updates.', 's' => 4]],
             [['v' => '2. To add an activity, add a row under the objective it belongs to. Leave AWP Code empty (the code is given when the row is accepted), fill in Activity and Description, and copy the Programme cell from another activity of the same programme, for example "1.2 PRG Network Connectivity Programme".', 's' => 4]],
-            [['v' => '3. Tasks are the rows under their activity, with the task\'s name in Task and Activity left empty. To add a task, add such a row under the activity with AWP Code empty; a new activity\'s tasks go under it the same way. Many activities have a single task called "Task": rename that row rather than adding another beside it, or the activity only counts as completed once "Task" is completed too.', 's' => 4]],
+            [['v' => '3. Tasks are the rows under their activity, with the task\'s name in Task and Activity left empty. To add a task, add such a row under the activity with AWP Code empty; a new activity\'s tasks go under it the same way. An activity that only has the default task, "Task", shows no task rows: the first task you add under it takes that task\'s place - unless a delivery has already been recorded against it, in which case both are kept.', 's' => 4]],
             [['v' => '4. Keep the header row, and the goal and objective rows (a number in WBS and no code): they tell the dashboard where rows belong.', 's' => 4]],
             [['v' => '5. A blank description, indicator or budget never erases what the dashboard has. Deleting a row does not delete the activity or the task: a workbook only adds and updates.', 's' => 4]],
             [['v' => '6. Save as .xlsx and upload it on Content > Import a work plan. Nothing changes until someone accepts each row there. Rows you did not touch are listed as already in.', 's' => 4]],

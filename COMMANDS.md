@@ -661,7 +661,10 @@ has its AWP Code, name, description, indicator, budget and programme, then
 its Status (Completed, In progress or Not started, in their colours, counted as
 the Progress page counts them - there to read: no import role matches it, so
 changing it records nothing). Its tasks follow it, a row each: T and the
-task's number in AWP Code, its name in Task, its description and status. A
+task's number in AWP Code, its name in Task, its description and status. The
+default task ("Task", or the old "Delivered") is left out: the first task
+added under such an activity takes its place, unless a delivery was recorded
+against it, in which case both are kept. A
 row with a task name and no code under an activity adds a task to it (or to
 the new activity above it), a changed name or description updates that task,
 and nothing is deleted. A second sheet says how to use it. Change what needs changing, add rows under

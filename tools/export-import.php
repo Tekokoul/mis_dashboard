@@ -52,7 +52,7 @@ $out = [];
 $out[] = "-- Workbook import" . ($which === 'all' ? 's' : ' #' . (int)$which) . " accepted on the local copy, exported " . date('Y-m-d H:i') . ".";
 $out[] = "-- Run as root inside a transaction; the checks at the end must return no rows before COMMIT.";
 $out[] = "START TRANSACTION;";
-$newIds = []; $updated = []; $taskUpdates = []; $taskAdds = [];
+$newIds = []; $updated = []; $taskUpdates = []; $taskAdds = []; $taskReplaced = [];
 foreach ($rows as $r) {
     $pid = (int)$r['result_project_id'];
     $p = $db->MQ("SELECT * FROM pm_projects_tbl WHERE id = ?", "one", [$pid]);
@@ -85,6 +85,12 @@ foreach ($rows as $r) {
             $tid = (int)($a['id'] ?? 0);
             $t = $tid > 0 ? $db->MQ("SELECT * FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", "one", [$tid, $pid]) : null;
             if (!is_set($t)) { $out[] = "-- task " . $q((string)($a['name'] ?? '')) . " added to #" . $pid . " is not there locally (not accepted, or removed since); skipped"; continue; }
+            if ((int)($a['replaces'] ?? 0) === $tid) {
+                // It took the place of the default task: the same row on live, renamed only while it is still the default.
+                $out[] = "UPDATE pm_projects_tasks_tbl SET name = " . $q($t['name']) . ", description = " . $q($t['description']) . " WHERE id = " . $tid . " AND project_id = " . $pid . " AND LOWER(TRIM(IFNULL(name, ''))) IN ('', 'task', 'delivered');";
+                $taskReplaced[] = [$tid, (string)$t['name']];
+                continue;
+            }
             $out[] = "INSERT INTO pm_projects_tasks_tbl (id, project_id, tasks, name, description, applies_to)\n  SELECT " . $tid . ", " . $pid . ", " . $q($t['tasks']) . ", " . $q($t['name']) . ", " . $q($t['description']) . ", " . $q($t['applies_to']) . " FROM DUAL\n   WHERE NOT EXISTS (SELECT 1 FROM pm_projects_tasks_tbl WHERE id = " . $tid . ")\n     AND EXISTS (SELECT 1 FROM pm_projects_tbl WHERE id = " . $pid . " AND abbr = " . $q($p['abbr']) . ");";
             $taskAdds[] = $tid;
         }
@@ -135,6 +141,11 @@ if ($taskAdds) {
     $out[] = "-- 6. every task the workbook added is there";
     $out[] = "SELECT " . count($taskAdds) . " - COUNT(*) AS missing_tasks FROM pm_projects_tasks_tbl WHERE id IN (" . implode(',', $taskAdds) . ") HAVING missing_tasks <> 0;";
 }
+if ($taskReplaced) {
+    $pairs = implode(' OR ', array_map(function ($u) use ($q) { return "(id = " . $u[0] . " AND name = " . $q($u[1]) . ")"; }, $taskReplaced));
+    $out[] = "-- 7. every default task the workbook replaced carries its new name";
+    $out[] = "SELECT " . count($taskReplaced) . " - COUNT(*) AS missing_replacements FROM pm_projects_tasks_tbl WHERE " . $pairs . " HAVING missing_replacements <> 0;";
+}
 $out[] = "-- 4. no code is used twice";
 $out[] = "SELECT abbr, COUNT(*) AS n FROM pm_projects_tbl GROUP BY abbr HAVING n > 1;";
 $out[] = "";
@@ -143,4 +154,4 @@ $out[] = "COMMIT;";
 $out[] = "-- Otherwise:";
 $out[] = "-- ROLLBACK;";
 echo implode("\n", $out), "\n";
-fwrite(STDERR, sprintf("%d new, %d updated, %d task renames, %d tasks added\n", count($newIds), count($updated), count($taskUpdates), count($taskAdds)));
+fwrite(STDERR, sprintf("%d new, %d updated, %d task renames, %d tasks added, %d default tasks replaced\n", count($newIds), count($updated), count($taskUpdates), count($taskAdds), count($taskReplaced)));
