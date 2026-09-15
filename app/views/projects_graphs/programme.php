@@ -19,7 +19,7 @@ $val_all = ($data['programme']['totals']>0) ? round(($data['programme']['progres
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=(float)$data['programme']['progress']?>" role="img" aria-label="<?= display($data['programme']['name']); ?>: <?= pct($data['programme']['progress']); ?> percent complete"></canvas>
             <label class="gaugeBasicTextfield"><?=pct($data['programme']['progress']);?>%</label>
         </div>
-        <?php $t = (int)($data['programme']['totals'] ?? 0); $c = (int)($data['programme']['completed'] ?? 0); if ($t > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= $c; ?> of <?= $t; ?> activities delivered</p><?php endif; ?>
+        <?php $t = (int)($data['programme']['totals'] ?? 0); $c = (int)($data['programme']['completed'] ?? 0); if ($t > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= $c; ?> of <?= $t; ?> activities completed</p><?php endif; ?>
         <div>
             <p><strong>Description:</strong><br><?=nl2br(display($data['programme']['description']))?></p>
         </div>
@@ -29,17 +29,21 @@ $val_all = ($data['programme']['totals']>0) ? round(($data['programme']['progres
             <h3 class="pb-4">Included projects</h3>
         </div>  
         <?php
-        foreach ($data['projects'] as $project){
+        // Completed first, then In progress, then Not started; code order within each.
+        $roll = delivery_rollup($this->DB);
+        $statusOf = function ($p) use ($roll) { return delivery_rollup_status($roll['activity'][(int)$p['id']] ?? null); };
+        foreach (sort_by_delivery_status((array)$data['projects'], $statusOf) as $project){
             $prj_val = ($project['totals']>0) ? round(($project['progress']/$project['totals']*100), 2) : 0;
+            $pStatus = $statusOf($project);
             ?>
                 <div class="row afcdc-drill">
-                    <div class="col col-7"><?= activity_flag($data['gaps'][(int)$project['id']] ?? []); ?><a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$project['id']);?>"><?=display($project['name']);?></a>
+                    <div class="col col-7"><?= activity_flag($data['gaps'][(int)$project['id']] ?? []); ?><a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$project['id']);?>"><?=display($project['name']);?></a> <?= delivery_status_chip($pStatus); ?>
                         <?php if (in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true)): ?>
                             <a href="<?=$this->L("projects/progress_edit/".(int)$project['id']);?>" class="btn btn-xs btn-light border ms-2 afcdc-record-link"><i class="bx bx-edit"></i> Record delivery</a>
                         <?php endif; ?>
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
-                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$project['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$project['progress'];?>%;">
+                            <div class="progress-bar<?= delivery_status_bar($pStatus); ?>" role="progressbar" aria-valuenow="<?=(float)$project['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$project['progress'];?>%;">
                                 <?php if ((float)$project['progress'] >= 12): ?><?= pct($project['progress']); ?>%<?php endif; ?>
                             </div>
                         </div>

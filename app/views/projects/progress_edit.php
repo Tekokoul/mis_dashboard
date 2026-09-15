@@ -40,12 +40,12 @@ $col_width = 12/$columns;
             <div class="col col-lg-<?=$col_width;?> col-md-12">
             <?php if (($_GET['saved'] ?? '') === '1'): ?>
             <div id="afcdc-saved" class="alert alert-success py-2 mb-3" role="status" tabindex="-1">
-                <i class="bx bx-check-circle" aria-hidden="true"></i> <strong>Delivery recorded.</strong> Every gauge on the overview now reflects it.
+                <i class="bx bx-check-circle" aria-hidden="true"></i> <strong>Status saved.</strong> Every gauge on the overview now reflects it.
                 <a href="<?= $this->L('projects_graphs/overview'); ?>" class="alert-link">View overview</a>
             </div>
             <?php endif; ?>
             <p class="afcdc-note mb-3">To mark this activity as done, click <strong>Record delivery</strong> on its task,
-                set <strong>Delivery status</strong> to <strong>Delivered</strong> and press <strong>Save delivery</strong>.
+                set <strong>Status</strong> to <strong>Completed</strong> (or <strong>In progress</strong> while the work is under way) and press <strong>Save delivery</strong>.
                 Every gauge on the dashboard recalculates immediately.</p>
             <div id="project_details" aria-busy="true">
                 <div class="card card-modern"><div class="card-body"><span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span><span role="status">Loading tasks…</span></div></div>

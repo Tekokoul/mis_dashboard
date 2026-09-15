@@ -1122,9 +1122,9 @@ class projectsController extends coreController{
                     "type" => "int",
                     "hidden" => true
                 ],
-                // One vocabulary everywhere: the task table says "Delivered /
-                // Not delivered", the button says "Record delivery", so the
-                // form does too (it used to say Task / Result / Finished).
+                // One vocabulary everywhere (library: delivery_status): Not
+                // started, In progress, Completed - on the task table, the
+                // graphs and the Status box of the Projects list.
                 "task" => [
                     "title" => "Task",
                     "type" => "varchar",
@@ -1142,12 +1142,16 @@ class projectsController extends coreController{
                     "no_editor" => true
                 ],
                 "result" => [
-                    "title" => "Delivery status",
+                    "title" => "Status",
                     "type" => "dropdown",
                     "values_from" => "values_list",
+                    // Stored values: 0 and 1 are what "Not delivered" and
+                    // "Delivered" always stored; 2 is new. Every percentage
+                    // counts 1 only.
                     "values_list" => [
-                          "0" => "Not delivered",
-                          "1" => "Delivered"
+                          "0" => "Not started",
+                          "2" => "In progress",
+                          "1" => "Completed"
                     ]
                 ],
                 "actual_budget" => [
@@ -1162,7 +1166,7 @@ class projectsController extends coreController{
                 ],
                 "progress_date" => [
                     "type" => "datetime",
-                    "title" => "Date delivered"
+                    "title" => "Date"
                 ]
             ]];
         $task = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_projects_tasks')." where project_id=". (int)$validated['project_id'] ." and id=".(int)$validated['id'], "one");
@@ -1199,6 +1203,8 @@ class projectsController extends coreController{
         // As in get_task_details: the entity comes from the session, so a
         // posted member_id cannot record delivery for someone else.
         $validated['member_id'] = $this->member_id;
+        // Not started (0), Completed (1) or In progress (2); anything else is Not started.
+        $validated['result'] = in_array((int)($validated['result'] ?? 0), [0, 1, 2], true) ? (int)$validated['result'] : 0;
 
         // actual_budget is optional. It was previously interpolated bare, so
         // leaving the field blank produced "VALUES (..., )" - a syntax error on
@@ -1542,23 +1548,22 @@ class projectsController extends coreController{
     }
 
     /**
-     * "Delivered or not" on the Projects list, by the overview's arithmetic
-     * (library: activity_delivery_groups): Delivered has every task recorded
-     * for every entity it applies to, Partly delivered some of them, Not
-     * delivered none. The ids are worked out here, as integers; the person's
-     * choice is the one bound value every filter carries.
+     * The Status box on the Projects list (library: delivery_status):
+     * Completed (1), In progress (2), Not started (0). The ids are worked out
+     * here, as integers; the person's choice is the one bound value every
+     * filter carries. The key stays "delivered" so saved links keep working.
      */
     private function addDeliveryFilter(array &$data) {
         $g = activity_delivery_groups($this->DB);
         $list = function (array $ids) { return $ids ? implode(',', $ids) : '0'; };   // no activity has id 0: IN (0) is nothing
         $done = $list($g['delivered']); $some = $list($g['partly']);
         $data['meta_filters'][] = [
-            'title'       => 'Delivery',
+            'title'       => 'Status',
             'key'         => 'delivered',
             'type'        => 'dropdown',
             'values_from' => 'values_list',
-            'values_list' => ['1' => 'Delivered', '2' => 'Partly delivered', '0' => 'Not delivered'],
-            'all_label'   => 'Delivered or not',
+            'values_list' => ['0' => 'Not started', '2' => 'In progress', '1' => 'Completed'],
+            'all_label'   => 'Any status',
             'sql'         => "AND (CASE ? WHEN '1' THEN `id` IN (" . $done . ") WHEN '2' THEN `id` IN (" . $some . ")"
                            . " ELSE `id` NOT IN (" . $done . ") AND `id` NOT IN (" . $some . ") END)",
         ];

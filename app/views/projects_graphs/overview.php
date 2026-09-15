@@ -35,7 +35,7 @@ $latest = $data['latest_delivery'] ?? null;
                         <?php if ($overall >= 8): ?><?= pct($overall); ?>%<?php endif; ?>
                     </div>
                 </div>
-                <div class="m-2 afcdc-progress-zero"><?php if ($overall < 8): ?><?= pct($overall); ?>% complete · <?php endif; ?><?= $overallDone; ?> of <?= $overallAll; ?> activities delivered · <?= max(0, $overallAll - $overallDone); ?> remaining</div>
+                <div class="m-2 afcdc-progress-zero"><?php if ($overall < 8): ?><?= pct($overall); ?>% complete · <?php endif; ?><?= $overallDone; ?> of <?= $overallAll; ?> activities completed · <?= max(0, $overallAll - $overallDone); ?> remaining</div>
             </div>
         </section>
     </div>
@@ -70,13 +70,18 @@ $latest = $data['latest_delivery'] ?? null;
                         <canvas class="gaugeBasic" width="300" height="150"
                                 data-value="<?= $lensPct; ?>"
                                 role="img"
-                                aria-label="<?= $lensName; ?>: <?= pct($lensPct); ?> percent complete<?= ($lensAll > 0) ? ", {$lensDone} of {$lensAll} activities delivered" : ", no activities yet"; ?>"></canvas>
+                                aria-label="<?= $lensName; ?>: <?= pct($lensPct); ?> percent complete<?= ($lensAll > 0) ? ", {$lensDone} of {$lensAll} activities completed" : ", no activities yet"; ?>"></canvas>
                         <label class="gaugeBasicTextfield"><?= pct($lensPct); ?>%</label>
-                        <?php if ($lensAll > 0): ?><span class="afcdc-progress-zero d-block"><?= $lensDone; ?> of <?= $lensAll; ?> activities delivered</span><?php endif; ?>
+                        <?php if ($lensAll > 0): ?><span class="afcdc-progress-zero d-block"><?= $lensDone; ?> of <?= $lensAll; ?> activities completed</span><?php endif; ?>
                     </div>
 
                     <div>
-                        <?php foreach ($objectives as $objective):
+                        <?php
+                        // Completed first, then In progress, then Not started; WBS order within each.
+                        $roll = delivery_rollup($this->DB);
+                        $pillarId = (int)$lens['id'];
+                        $objStatusOf = function ($o) use ($roll, $pillarId) { return delivery_rollup_status($roll['objective'][$pillarId . ':' . (int)$o['id']] ?? null); };
+                        foreach (sort_by_delivery_status((array)$objectives, $objStatusOf) as $objective):
                             $objName = htmlspecialchars($objective['name'], ENT_QUOTES, 'UTF-8');
                             $objPct  = (float)$objective['progress'];
                             // abbr holds the WBS code (1.1, 2.3 ...) when it is seeded.
@@ -85,10 +90,7 @@ $latest = $data['latest_delivery'] ?? null;
                             // deliverable had stalled or simply has no activity under it yet.
                             $objAll  = (int)($objective['totals'] ?? 0);
                             $objDone = (int)($objective['completed'] ?? 0);
-                            if ($objAll === 0)      { $st = 'idle';   $stIcon = 'bx-minus-circle'; $stText = 'Nothing to measure yet'; }
-                            elseif ($objPct >= 100) { $st = 'good';   $stIcon = 'bx-check-circle'; $stText = 'Delivered'; }
-                            elseif ($objPct <= 0)   { $st = 'idle';   $stIcon = 'bx-time-five';    $stText = 'Not started'; }
-                            else                    { $st = 'active'; $stIcon = 'bx-adjust';       $stText = 'In progress'; }
+                            $objStatus = $objStatusOf($objective);
                         ?>
                         <div class="afcdc-deliverable afcdc-drill<?= $objAll === 0 ? ' afcdc-deliverable--unfunded' : ''; ?>">
                             <span class="afcdc-deliverable__wbs"><?= htmlspecialchars($wbs !== '' ? $wbs : '—', ENT_QUOTES, 'UTF-8'); ?></span>
@@ -97,18 +99,17 @@ $latest = $data['latest_delivery'] ?? null;
                             </span>
                             <div class="afcdc-deliverable__meta">
                                 <div class="progress progress-lg progress-squared w-100">
-                                    <div class="progress-bar" role="progressbar"
+                                    <div class="progress-bar<?= delivery_status_bar($objStatus); ?>" role="progressbar"
                                          aria-valuenow="<?= $objPct; ?>" aria-valuemin="0" aria-valuemax="100"
-                                         aria-valuetext="<?= $objAll === 0 ? '0 activities' : $objDone.' of '.$objAll.' activities delivered'; ?>"
+                                         aria-valuetext="<?= $objAll === 0 ? '0 activities' : $objDone.' of '.$objAll.' activities completed'; ?>"
                                          style="width: <?= $objPct; ?>%;">
                                         <?php if ($objPct >= 12): ?><?= pct($objPct); ?>%<?php endif; ?>
                                     </div>
                                 </div>
                                 <span class="afcdc-progress-zero">
                                     <?php if ($objPct < 12): ?><?= pct($objPct); ?>%<?php endif; ?>
-                                    <?php if ($objAll > 0): ?> · <?= $objDone; ?> of <?= $objAll; ?> activities delivered<?php endif; ?>
-                                    <?php // A status word only when there is movement to report; an idle row is just its number. ?>
-                                    <?php if ($st === 'active' || $st === 'good'): ?> <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span><?php endif; ?>
+                                    <?php if ($objAll > 0): ?> · <?= $objDone; ?> of <?= $objAll; ?> activities completed<?php endif; ?>
+                                    <?php if ($objAll > 0): ?> <?= delivery_status_chip($objStatus); ?><?php endif; ?>
                                 </span>
                             </div>
                         </div>
@@ -129,7 +130,7 @@ $latest = $data['latest_delivery'] ?? null;
 <div class="row">
     <div class="col-md-12">
         <p class="afcdc-note">
-            Progress is the share of delivery records marked <em>Delivered</em>. Each activity counts once for every
+            Progress is the share of delivery records marked <em>Completed</em>. Each activity counts once for every
             RCC or division user it applies to — today every activity is reported once, centrally, by DHIS HQ, so one
             record per activity. Staff record a delivery under <strong>Progress</strong> in the sidebar, on the
             activity's page, with <strong>Record delivery</strong>; every gauge recalculates on the next load.

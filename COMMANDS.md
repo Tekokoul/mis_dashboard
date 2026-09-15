@@ -416,19 +416,24 @@ activity's page puts everything back - the removed activities with their
 own codes, tasks and deliveries - unless something has since been changed
 in a way that would make that unsafe, which it names.
 
-**Delivered or not.** The Projects / Interventions list has a Delivery box
-beside Goal and Programme: Delivered keeps the activities delivered in
-full, Partly delivered those with some of it recorded, Not delivered those
-with none. The arithmetic is the overview's (`activity_delivery_groups()`
-in library.php, the same as the graphs' `activityProgress`): every task of
-the activity, for every reporting entity it applies to, has a delivery
-recorded. The overview's headline counts those task assignments rather
-than activities, which is why it can say 29 delivered where the box finds
-27 in full and 2 partly. The box narrows the list like the others - with
-the search, the page links and Clear - and is added in code
-(`addDeliveryFilter`), not in the model settings, because it is worked out
-rather than read from a column. On a narrow window the boxes shrink
-before the row wraps; under 768px they stack.
+**Status.** Everything that is delivered through tasks has one of three
+statuses, worded and coloured the same on every page: **Completed**
+(green), **In progress** (orange) and **Not started** (red). The Record
+delivery form's Status box sets it for a task (stored as 1, 2 and 0; 0 and
+1 are what "Not delivered" and "Delivered" always stored, so nothing
+recorded before changes meaning). An activity, programme or objective is
+Completed when every one of its tasks is completed by every reporting
+entity it applies to, In progress when some of that is completed or any of
+it is in progress, and Not started otherwise (`delivery_status()` and
+`delivery_rollup()` in library.php). The percentages and gauges still count
+completed work only. On the overview, the goal and objective pages, a
+programme's page, an activity's page and the task table, lists are ordered
+Completed first, then In progress, then Not started, in code order within
+each. The Projects / Interventions list has a Status box that narrows the
+list to one of the three, beside Goal and Programme, with the search, the
+page links and Clear; it is added in code (`addDeliveryFilter`) because it
+is worked out rather than read from a column. On a narrow window the boxes
+shrink before the row wraps; under 768px they stack.
 
 **Adding the level below.** A goal's form offers "Add an objective", an
 objective's "Add a programme", a programme's "Add an activity"; on a form

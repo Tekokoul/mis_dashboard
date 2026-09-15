@@ -137,6 +137,10 @@ html.modern.fixed .page-header {
     --afcdc-good:     #2E7D3C;
     --afcdc-warning:  #B4842A;
     --afcdc-critical: #B02E4E;
+    /* Status (library: delivery_status). Each passes 4.5:1 on its own tag ground. */
+    --afcdc-completed:   #2E7D3C;
+    --afcdc-in-progress: #B45309;
+    --afcdc-not-started: #B42318;
     --afcdc-idle:     #8A918C;
 }
 
@@ -274,6 +278,15 @@ html .afcdc-status--critical { color: var(--afcdc-critical); }
    for the disabled pagination arrows. */
 html .afcdc-status--idle     { color: var(--afcdc-ink-soft); }
 html .afcdc-status--active   { color: var(--au-green-deep); }
+/* Completed green, In progress orange, Not started red - on a tint of the same
+   hue so a row of them reads at a glance; the icon and the word still carry it. */
+html .afcdc-status--completed   { color: var(--afcdc-completed);   background: #EAF4EC; }
+html .afcdc-status--in-progress { color: var(--afcdc-in-progress); background: #FDF0E2; }
+html .afcdc-status--not-started { color: var(--afcdc-not-started); background: #FBEAE8; }
+html .afcdc-status--completed i, html .afcdc-status--in-progress i, html .afcdc-status--not-started i { font-size: 1em; }
+html .progress-bar.afcdc-bar--completed   { background-color: var(--afcdc-completed) !important; }
+html .progress-bar.afcdc-bar--in-progress { background-color: var(--afcdc-in-progress) !important; }
+html .afcdc-drill .afcdc-status { margin-left: 0.25rem; vertical-align: 0.1em; }
 
 /* --- Progress ------------------------------------------------------------
    Progress is a magnitude, so it stays one hue. The track is tinted rather

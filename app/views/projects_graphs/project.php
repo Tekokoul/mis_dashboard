@@ -36,23 +36,21 @@ foreach ($members as $member){
         // "Delivered", so an undelivered activity read "Tasks: Delivered".
         $t = (int)($data['project']['totals'] ?? 0);
         $c = (int)($data['project']['completed'] ?? 0);
-        if ($t === 0)      { $st = 'idle';   $stIcon = 'bx-minus-circle'; $stText = 'Nothing to measure yet'; $stLine = 'Nothing to measure yet'; }
-        elseif ($c >= $t)  { $st = 'good';   $stIcon = 'bx-check-circle'; $stText = 'Delivered';              $stLine = $t === 1 ? 'Delivered' : "Delivered by all $t reporting entities"; }
-        elseif ($c > 0)    { $st = 'active'; $stIcon = 'bx-adjust';       $stText = 'Partly delivered';       $stLine = "Delivered by $c of $t reporting entities"; }
-        else               { $st = 'idle';   $stIcon = 'bx-time-five';    $stText = 'Not delivered';          $stLine = $t === 1 ? 'Not yet delivered' : "Not yet delivered by any of $t reporting entities"; }
+        $roll = delivery_rollup($this->DB);
+        $st = delivery_rollup_status($roll['activity'][(int)$data['project']['id']] ?? null);
+        $stLine = $st === 'completed' ? ($t === 1 ? 'Completed' : "Completed by all $t reporting entities")
+                : ($c > 0 ? "Completed by $c of $t reporting entities" : '');
         // Actual budget: the figure entered on the activity itself; failing
         // that, the spend recorded with its delivery records.
         $actual_shown = ($data['project']['actual_budget'] ?? null) !== null && (float)$data['project']['actual_budget'] > 0
             ? (float)$data['project']['actual_budget'] : $actual_budget;
         ?>
         <?php // Only movement is worth a line: nothing is said for an activity that has not been delivered yet. ?>
-        <?php if ($c > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= display($stLine); ?></p><?php endif; ?>
+        <?php if ($c > 0 && $stLine !== ''): ?><p class="afcdc-deliverable__meta mb-3"><?= display($stLine); ?></p><?php endif; ?>
         <div>
             <p><strong>Description:</strong><br><?=nl2br(display($data['project']['description']))?><hr>
-            <?php if ($st === 'active' || $st === 'good'): ?>
-            <strong>Delivery status:</strong><br>
-            <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span><hr>
-            <?php endif; ?>
+            <strong>Status:</strong><br>
+            <?= delivery_status_chip($st); ?><hr>
             <strong>Tasks:</strong><br><?=display($data['project']['kpi'])?><hr>
             <strong>Estimated budget:</strong><br>USD <?=(display_price($data['project']['estimated_budget'] ?? 0,2,".",",")??'N/A');?><hr>
             <strong>Actual budget:</strong><br>USD <?=(display_price($actual_shown,2,".",",")??'N/A');?><hr>
@@ -70,18 +68,21 @@ foreach ($members as $member){
             if (!$tasks) {
                 print '<p class="text-muted">No task on this activity yet, so there is nothing to deliver against it.</p>';
             }
-            foreach ($tasks as $task){
+            // Completed first, then In progress, then Not started.
+            $taskStatus = function ($task) use ($roll) { return delivery_rollup_status($roll['task'][(int)$task['id']] ?? null); };
+            foreach (sort_by_delivery_status((array)$tasks, $taskStatus) as $task){
+                $tStatus = $taskStatus($task);
                 ?>
                 <div class="row afcdc-drill afcdc-drill--flat">
                     <div class="col col-7">
-                        <?= display($task['name']); ?>
+                        <?= display($task['name']); ?> <?= delivery_status_chip($tStatus); ?>
                         <?php if ($mayRecord): ?>
                             <a href="<?=$this->L("projects/progress_edit/".(int)$data['project']['id']);?>" class="btn btn-xs btn-light border ms-2 afcdc-record-link"><i class="bx bx-edit"></i> Record delivery</a>
                         <?php endif; ?>
-                        <br><span class="afcdc-deliverable__meta"><?= (int)$task['completed']; ?> of <?= (int)$task['assignments']; ?> delivered</span>
+                        <br><span class="afcdc-deliverable__meta"><?= (int)$task['completed']; ?> of <?= (int)$task['assignments']; ?> completed</span>
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
-                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$task['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$task['progress'];?>%;">
+                            <div class="progress-bar<?= delivery_status_bar($tStatus); ?>" role="progressbar" aria-valuenow="<?=(float)$task['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$task['progress'];?>%;">
                                 <?php if ((float)$task['progress'] >= 12): ?><?= pct($task['progress']); ?>%<?php endif; ?>
                             </div>
                         </div>

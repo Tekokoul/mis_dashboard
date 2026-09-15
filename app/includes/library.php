@@ -1781,46 +1781,103 @@ function unit_review_panel($review) {
 }
 
 /**
- * Delivery, activity by activity: [assignments, delivered] keyed by activity
- * id, the same rule as the overview's "n of m activities delivered"
- * (projects_graphs::activityProgress, which does one activity at a time):
- * every task counts once per reporting entity it applies to, and a delivery
- * is a progress row with result 1 for that task, activity and entity. Worked
- * out here rather than in SQL because applies_to is JSON text holding the
- * entity ids as strings; it is two queries over a few hundred rows.
+ * Status: Completed, In progress or Not started - for a task, an activity, a
+ * programme or an objective, on every page that shows one. The arithmetic is
+ * the graphs' (projects_graphs::activityProgress): every task counts once for
+ * each reporting entity it applies to. Completed when every one of those is
+ * recorded as completed (result 1); In progress when some are, or any is
+ * recorded as in progress (result 2); Not started otherwise. Something with
+ * no task to measure is "none". The percentages still count completed only.
  */
-function activity_delivery_totals($db) {
-    $out = [];
-    $tasks = [];   // task id => [activity id, entity ids]
-    foreach ((array)$db->MQ("SELECT id, project_id, applies_to FROM pm_projects_tasks_tbl", "all") as $t) {
-        $to = json_decode((string)$t['applies_to'], true);
-        if (!is_array($to) || count($to) === 0) { continue; }
-        $entities = array_values(array_unique(array_map('intval', $to)));
-        $pid = (int)$t['project_id'];
-        $tasks[(int)$t['id']] = [$pid, $entities];
-        if (!isset($out[$pid])) { $out[$pid] = [0, 0]; }
-        $out[$pid][0] += count($entities);
-    }
-    foreach ((array)$db->MQ("SELECT task_id, project_id, member_id FROM pm_progress_tasks_tbl WHERE result = 1", "all") as $r) {
-        $tid = (int)$r['task_id']; $pid = (int)$r['project_id'];
-        if (!isset($tasks[$tid]) || $tasks[$tid][0] !== $pid || !in_array((int)$r['member_id'], $tasks[$tid][1], true)) { continue; }
-        $out[$pid][1]++;
-    }
-    return $out;
+function delivery_status($assignments, $completed, $started = 0) {
+    if ((int)$assignments <= 0) { return 'none'; }
+    if ((int)$completed >= (int)$assignments) { return 'completed'; }
+    if ((int)$completed > 0 || (int)$started > 0) { return 'in_progress'; }
+    return 'not_started';
+}
+
+/** Completed first, then In progress, then Not started, then nothing to measure. */
+function delivery_status_rank($status) {
+    return ['completed' => 0, 'in_progress' => 1, 'not_started' => 2][(string)$status] ?? 3;
+}
+
+function delivery_status_label($status) {
+    return ['completed' => 'Completed', 'in_progress' => 'In progress', 'not_started' => 'Not started'][(string)$status] ?? 'Nothing to measure yet';
+}
+
+/** The status as a tag: green, orange or red, with an icon so colour is never the only sign. */
+function delivery_status_chip($status) {
+    $icon = ['completed' => 'bx-check-circle', 'in_progress' => 'bx-adjust', 'not_started' => 'bx-time-five'][(string)$status] ?? 'bx-minus-circle';
+    $class = ['completed' => 'completed', 'in_progress' => 'in-progress', 'not_started' => 'not-started'][(string)$status] ?? 'idle';
+    return '<span class="afcdc-status afcdc-status--' . $class . '"><i class="bx ' . $icon . '" aria-hidden="true"></i> ' . display(delivery_status_label($status)) . '</span>';
+}
+
+/** The class that colours a progress bar by its status ("" leaves the bar as it was). */
+function delivery_status_bar($status) {
+    return ['completed' => ' afcdc-bar--completed', 'in_progress' => ' afcdc-bar--in-progress'][(string)$status] ?? '';
 }
 
 /**
- * Activity ids by how far they are delivered: 'delivered' has something to
- * deliver and all of it recorded, 'partly' some of it; everything else has
- * nothing recorded (or nothing to deliver yet). The overview's headline
- * counts assignments, not activities, which is why it can say 29 where
- * only 27 activities are delivered in full: the other two are partly.
+ * [assignments, completed, in progress] for every task, activity, programme
+ * and objective, from three queries. Programmes are keyed "objective:programme"
+ * and objectives "goal:objective", because the graphs count an activity under
+ * the programme and objective it sits in, not under a parent's other parent.
  */
+function delivery_rollup($db) {
+    static $cache = null;
+    if ($cache !== null) { return $cache; }
+    // objective_all: every activity with that objective, whatever its goal (the goal page counts them so).
+    $out = ['task' => [], 'activity' => [], 'programme' => [], 'objective' => [], 'objective_all' => []];
+    $acts = [];
+    foreach ((array)$db->MQ("SELECT id, pillar_id, objective_id, programme_id FROM pm_projects_tbl", "all") as $a) { $acts[(int)$a['id']] = $a; }
+    $tasks = [];
+    foreach ((array)$db->MQ("SELECT id, project_id, applies_to FROM pm_projects_tasks_tbl", "all") as $t) {
+        $to = json_decode((string)$t['applies_to'], true);
+        $entities = is_array($to) ? array_values(array_unique(array_filter(array_map('intval', $to)))) : [];
+        $tasks[(int)$t['id']] = [(int)$t['project_id'], $entities];
+        $out['task'][(int)$t['id']] = [count($entities), 0, 0];
+    }
+    foreach ((array)$db->MQ("SELECT task_id, project_id, member_id, result FROM pm_progress_tasks_tbl WHERE result IN (1, 2)", "all") as $r) {
+        $tid = (int)$r['task_id'];
+        if (!isset($tasks[$tid]) || $tasks[$tid][0] !== (int)$r['project_id'] || !in_array((int)$r['member_id'], $tasks[$tid][1], true)) { continue; }
+        $out['task'][$tid][(int)$r['result'] === 1 ? 1 : 2]++;
+    }
+    foreach ($out['task'] as $tid => $v) {
+        $pid = $tasks[$tid][0];
+        $keys = [['activity', $pid]];
+        if (isset($acts[$pid])) {
+            $keys[] = ['programme', (int)$acts[$pid]['objective_id'] . ':' . (int)$acts[$pid]['programme_id']];
+            $keys[] = ['objective', (int)$acts[$pid]['pillar_id'] . ':' . (int)$acts[$pid]['objective_id']];
+            $keys[] = ['objective_all', (int)$acts[$pid]['objective_id']];
+        }
+        foreach ($keys as $k) {
+            if (!isset($out[$k[0]][$k[1]])) { $out[$k[0]][$k[1]] = [0, 0, 0]; }
+            for ($i = 0; $i < 3; $i++) { $out[$k[0]][$k[1]][$i] += $v[$i]; }
+        }
+    }
+    return $cache = $out;
+}
+
+/** The status of one entry of delivery_rollup(): delivery_rollup_status($roll['activity'][$id] ?? null). */
+function delivery_rollup_status($counts) {
+    $c = is_array($counts) ? $counts : [0, 0, 0];
+    return delivery_status($c[0] ?? 0, $c[1] ?? 0, $c[2] ?? 0);
+}
+
+/** Order a list by status, keeping the order it had within each status (usort is stable). */
+function sort_by_delivery_status(array $rows, callable $statusOf) {
+    $rows = array_values($rows);
+    usort($rows, function ($a, $b) use ($statusOf) { return delivery_status_rank($statusOf($a)) <=> delivery_status_rank($statusOf($b)); });
+    return $rows;
+}
+
+/** Activity ids by status, for the Status box on the Projects list: 'delivered' = completed, 'partly' = in progress. */
 function activity_delivery_groups($db) {
     $out = ['delivered' => [], 'partly' => []];
-    foreach (activity_delivery_totals($db) as $pid => $t) {
-        if ($t[0] > 0 && $t[1] >= $t[0]) { $out['delivered'][] = (int)$pid; }
-        elseif ($t[1] > 0) { $out['partly'][] = (int)$pid; }
+    foreach (delivery_rollup($db)['activity'] as $pid => $c) {
+        $st = delivery_rollup_status($c);
+        if ($st === 'completed') { $out['delivered'][] = (int)$pid; }
+        elseif ($st === 'in_progress') { $out['partly'][] = (int)$pid; }
     }
     return $out;
 }

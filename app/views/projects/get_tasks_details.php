@@ -25,13 +25,16 @@
                                 <?php
                                 // The partial is not paginated; page/items are only set on list pages.
                                 $aa = (((int)($data['page'] ?? 1)) - 1) * ((int)($data['items'] ?? 0)) + 1;
-                                foreach ($data['data'] as $row) {
+                                // Completed first, then In progress, then Not started.
+                                $taskStatus = function ($row) { $r = (int)($row['result'] ?? 0); return $r === 1 ? 'completed' : ($r === 2 ? 'in_progress' : 'not_started'); };
+                                foreach (sort_by_delivery_status((array)$data['data'], $taskStatus) as $row) {
                                     ?>
                                     <?php
-                                    // A task is either delivered or not; say so in words and colour,
-                                    // and make the thing to click look like a button. The word alone
-                                    // used to be the only control, and nobody found it.
-                                    $done  = ((int)($row['result'] ?? 0) === 1);
+                                    // Say the status in words, colour and an icon, and make the thing
+                                    // to click look like a button. The word alone used to be the only
+                                    // control, and nobody found it.
+                                    $status = $taskStatus($row);
+                                    $done  = ($status === 'completed');
                                     $attrs = 'data-project-id="'.(int)$row['project_id'].'" data-member-id="'.(int)$row['member_id'].'" data-id="'.(int)$row['task_id'].'"';
                                     ?>
                                     <tr>
@@ -42,15 +45,11 @@
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?php if ($done): ?>
-                                                <span class="afcdc-status afcdc-status--good"><i class="bx bx-check-circle"></i> Delivered</span>
-                                            <?php else: ?>
-                                                <span class="afcdc-status afcdc-status--idle"><i class="bx bx-time-five"></i> Not delivered</span>
-                                            <?php endif; ?>
+                                            <?= delivery_status_chip($status); ?>
                                         </td>
                                         <td class="text-end">
                                             <a href="#" class="open-task-modal btn btn-sm <?= $done ? 'btn-light border' : 'btn-primary'; ?>" <?= $attrs; ?>>
-                                                <i class="bx bx-edit"></i> <?= $done ? 'Change' : 'Record delivery'; ?>
+                                                <i class="bx bx-edit"></i> <?= $done ? 'Change' : ($status === 'in_progress' ? 'Update' : 'Record delivery'); ?>
                                             </a>
                                         </td>
                                     </tr>

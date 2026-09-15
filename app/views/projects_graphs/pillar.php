@@ -18,7 +18,7 @@
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=(float)$data['pillar']['progress']?>" role="img" aria-label="<?= display($data['pillar']['name']); ?>: <?= pct($data['pillar']['progress']); ?> percent complete"></canvas>
             <label class="gaugeBasicTextfield"><?=pct($data['pillar']['progress']);?>%</label>
         </div>
-        <?php $t = (int)($data['pillar']['totals'] ?? 0); $c = (int)($data['pillar']['completed'] ?? 0); if ($t > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= $c; ?> of <?= $t; ?> activities delivered</p><?php endif; ?>
+        <?php $t = (int)($data['pillar']['totals'] ?? 0); $c = (int)($data['pillar']['completed'] ?? 0); if ($t > 0): ?><p class="afcdc-deliverable__meta mb-3"><?= $c; ?> of <?= $t; ?> activities completed</p><?php endif; ?>
         <div>
             <p><strong>Description:</strong><br><?=nl2br(display($data['pillar']['description']))?></p>
         </div>
@@ -28,7 +28,11 @@
             <h3 class="pb-4">Included objectives</h3>
         </div>  
         <?php
-        foreach ($data['pillar']['objectives'] as $objective){
+        // Completed first, then In progress, then Not started; WBS order within each.
+        $roll = delivery_rollup($this->DB);
+        $objStatusOf = function ($o) use ($roll) { return delivery_rollup_status($roll['objective_all'][(int)$o['id']] ?? null); };
+        foreach (sort_by_delivery_status((array)$data['pillar']['objectives'], $objStatusOf) as $objective){
+            $oStatus = $objStatusOf($objective);
             ?>
                 <div class="row afcdc-drill">
                     <div class="col col-7">
@@ -36,21 +40,17 @@
                         <a class="stretched-link" href="<?=$this->L("projects_graphs/objective/".(int)$objective['id']);?>"><?= display($objective['name']); ?></a>
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
-                            <div class="progress-bar" role="progressbar" aria-valuenow="<?=(float)$objective['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$objective['progress'];?>%;">
+                            <div class="progress-bar<?= delivery_status_bar($oStatus); ?>" role="progressbar" aria-valuenow="<?=(float)$objective['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$objective['progress'];?>%;">
                                 <?php if ((float)$objective['progress'] >= 12): ?><?= pct($objective['progress']); ?>%<?php endif; ?>
                             </div>
                         </div>
                         <?php
                         $oAll = (int)($objective['totals'] ?? 0); $oDone = (int)($objective['completed'] ?? 0); $oPct = (float)$objective['progress'];
-                        if ($oAll === 0)      { $st = 'idle';   $stIcon = 'bx-minus-circle'; $stText = 'Nothing to measure yet'; }
-                        elseif ($oPct >= 100) { $st = 'good';   $stIcon = 'bx-check-circle'; $stText = 'Delivered'; }
-                        elseif ($oPct <= 0)   { $st = 'idle';   $stIcon = 'bx-time-five';    $stText = 'Not started'; }
-                        else                  { $st = 'active'; $stIcon = 'bx-adjust';       $stText = 'In progress'; }
                         ?>
                         <span class="afcdc-progress-zero">
                             <?php if ($oPct < 12): ?><?= pct($oPct); ?>%<?php endif; ?>
-                            <?php if ($oAll > 0): ?> · <?= $oDone; ?> of <?= $oAll; ?> activities delivered<?php endif; ?>
-                            <?php if ($st === 'active' || $st === 'good'): ?> <span class="afcdc-status afcdc-status--<?= $st; ?>"><i class="bx <?= $stIcon; ?>" aria-hidden="true"></i> <?= $stText; ?></span><?php endif; ?>
+                            <?php if ($oAll > 0): ?> · <?= $oDone; ?> of <?= $oAll; ?> activities completed<?php endif; ?>
+                            <?php if ($oAll > 0): ?> <?= delivery_status_chip($oStatus); ?><?php endif; ?>
                         </span>
                     </div>
                     <hr>
