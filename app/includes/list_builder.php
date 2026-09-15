@@ -105,17 +105,18 @@ function filter_DropDown($name, $field, $data = []) {
     $disabled = isset($field['disabled']) ? "disabled" : "";
 
     // The same filter vocabulary as the overview page: a small label above
-    // the control, in one wrapping row, lit green while it is narrowing.
-    // A filter may name a parent filter ("narrow_by") and the column on ITS
-    // linked table that carries the parent id ("parent_field"): the options
-    // then carry data-parent and custom.js hides the ones that do not belong
-    // to the chosen parent, and clears this box when the parent changes.
+    // the control, lit green while it is narrowing. On the lists it sits in
+    // the panel under the search box (list_toolbar), where a pick waits for
+    // Apply. A filter may name a parent filter ("narrow_by") and the column
+    // on ITS linked table that carries the parent id ("parent_field"): the
+    // options then carry data-parent and custom.js keeps only the ones under
+    // the chosen parent, clearing this box when the parent changes.
     $is_active = !is_array($data) && (string)$data !== '' && (string)$data !== '%';
     $parent_of = (string)($field['narrow_by'] ?? '');
     $parent_col = (string)($field['parent_field'] ?? '');
     $parent_via = (isset($field['parent_via']) && is_array($field['parent_via'])) ? $field['parent_via'] : null;
     $html = '<label class="afcdc-filter' . ($is_active ? ' is-active' : '') . '"><span>' . display($field['title'] ?? ucfirst($name)) . '</span>';
-    $select_attrs = ' data-afcdc-autosubmit="1"' . ($parent_of !== '' ? ' data-afcdc-narrow-by="' . display($parent_of) . '"' : '');
+    $select_attrs = ($parent_of !== '' ? ' data-afcdc-narrow-by="' . display($parent_of) . '"' : '');
     if($field['values_from']=="db"){
         $link_to_table = $field['link_to_table'];
         $link_to_field = $field['link_to_field'];
@@ -267,7 +268,7 @@ function filter_DropDown($name, $field, $data = []) {
             $data = json_from_db($data);
         }
 
-        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.' data-afcdc-autosubmit="1">';
+        $html .= '<select class="form-control select-style-1 filter-by" name="'.$name.'" id="'.$name.'" '.$disabled.'>';
         if(isset($field['add_zero_value'])) {
             $html .= "<option value='0'";
             $html .= ($data==0) ? ' selected ' : '';
@@ -313,23 +314,94 @@ function list_cell_attrs($field, array $properties, $cell) {
 }
 
 /**
- * The search box, in the same shape as the filters beside it: a small label
- * above a control of the same height. It sits inside the filter row, so on
- * a narrow screen it wraps under the first filter instead of being pushed
- * alone to the far right in a differently styled pill.
+ * The list toolbar. Only the search box shows; pressing it, or the filter
+ * button on it, opens a small panel under it holding every filter, Apply and
+ * Clear (custom.js), and what the search would find appears in the same
+ * panel as you type. Each filter in force stands beside the box as a chip
+ * whose x lifts it - and the filters narrowed by it (goal -> objective ->
+ * programme), which could not stay - so the filters are out of the way
+ * until wanted and never out of sight while they act. With a model named,
+ * custom.js shows matches as you type (projects/search_suggest); a pick
+ * opens "<open>/<id>" or sets a filter. $extra is anything else the toolbar
+ * carries (an "Accept all" control).
  */
-function list_search_box($value, $model = '', $open = '') {
-    $value = (string)$value;
-    $html  = '<label class="afcdc-filter afcdc-filter--search' . ($value !== '' ? ' is-active' : '') . '"><span>Search</span>';
-    $html .= '<div class="input-group input-group-sm afcdc-search">';
-    // With a model named, custom.js shows matches under the box as you type
-    // (projects/search_suggest); a pick opens "<open>/<id>" or sets a filter.
-    $html .= '<input type="search" class="search-term form-control form-control-sm" name="search-term" id="search-term"'
-           . ' placeholder="Name, code or programme" value="' . display($value) . '" autocomplete="off"'
+function list_toolbar(array $filters, array $filter_data, $search, $clear_href, $model = '', $open = '', $extra = '') {
+    $search = (string)$search;
+    $active = [];
+    foreach ($filters as $f) {
+        $k = (string)($f['key'] ?? ''); $v = $filter_data[$k] ?? '';
+        if ($k !== '' && !is_array($v) && (string)$v !== '' && (string)$v !== '%') { $active[$k] = (string)$v; }
+    }
+    $narrowing = $active || $search !== '';
+    $html  = '<div class="afcdc-toolbar">';
+    $html .= '<div class="afcdc-search-wrap"' . ($filters ? ' data-afcdc-filterbox="1"' : '') . '>';
+    $html .= '<div class="input-group input-group-sm afcdc-search' . ($search !== '' ? ' is-active' : '') . '">';
+    $html .= '<input type="search" class="search-term form-control form-control-sm" name="search-term" id="search-term" aria-label="Search"'
+           . ' placeholder="' . ($filters ? 'Search or filter' : 'Search') . '" value="' . display($search) . '" autocomplete="off"'
            . ($model !== '' ? ' data-afcdc-suggest="' . display($model) . '" data-afcdc-open="' . display($open) . '" role="combobox" aria-autocomplete="list" aria-expanded="false"' : '') . '>';
+    if ($filters) {
+        $html .= '<button type="button" class="btn btn-light border afcdc-search__filters' . ($active ? ' is-active' : '') . '" aria-expanded="false" aria-controls="afcdc-filterbox" title="Filters">'
+               . '<i class="bx bx-filter-alt" aria-hidden="true"></i><span class="visually-hidden">Filters</span>'
+               . ($active ? '<span class="afcdc-search__count" aria-label="' . count($active) . ' in force">' . count($active) . '</span>' : '') . '</button>';
+    }
     $html .= '<button class="btn btn-light border" type="submit" aria-label="Search"><i class="bx bx-search" aria-hidden="true"></i></button>';
-    $html .= '</div></label>';
+    $html .= '</div>';
+    if ($filters) {
+        $html .= '<div class="afcdc-filterbox" id="afcdc-filterbox" role="group" aria-label="Filters" hidden>';
+        $html .= '<div class="afcdc-filterbox__found"></div><div class="afcdc-filterbox__grid">';
+        foreach ($filters as $f) { $html .= filter_DropDown($f['key'], $f, $filter_data[$f['key']] ?? ''); }
+        $html .= '</div><div class="afcdc-filterbox__foot"><button type="submit" class="btn btn-sm btn-primary">Apply</button>'
+               . ($narrowing ? '<a class="btn btn-sm btn-light border" href="' . $clear_href . '">Clear</a>' : '')
+               . '<span class="afcdc-filterbox__hint">Esc closes</span></div></div>';
+    }
+    $html .= '</div>';
+    if ($active) {
+        $byKey = []; $below = [];
+        foreach ($filters as $f) {
+            $byKey[(string)$f['key']] = $f;
+            if (!empty($f['narrow_by'])) { $below[(string)$f['narrow_by']][] = (string)$f['key']; }
+        }
+        $dependents = function ($key) use ($below, &$dependents) {
+            $out = [];
+            foreach ($below[$key] ?? [] as $k) { $out[] = $k; foreach ($dependents($k) as $d) { $out[] = $d; } }
+            return $out;
+        };
+        $html .= '<div class="afcdc-chips" role="group" aria-label="Filters in force">';
+        foreach ($active as $key => $value) {
+            $keep = $active;
+            unset($keep[$key]);
+            foreach ($dependents($key) as $d) { unset($keep[$d]); }
+            if ($search !== '') { $keep = ['search-term' => $search] + $keep; }
+            $title = (string)($byKey[$key]['title'] ?? ucfirst($key));
+            $label = list_filter_value_label($byKey[$key], $value);
+            $html .= '<a class="afcdc-chip" href="' . display($clear_href . ($keep ? '?' . http_build_query($keep) : '')) . '"'
+                   . ' aria-label="' . display($title . ': ' . $label . '. Remove') . '" title="Remove"><span>' . display($title) . '</span>' . display($label) . '<b aria-hidden="true">&times;</b></a>';
+        }
+        $html .= '</div>';
+    }
+    if ($narrowing) { $html .= list_clear_link($clear_href, $filter_data, $search); }
+    $html .= $extra . '</div>';
     return $html;
+}
+
+/** What a filter's value reads as on a chip: the linked row's name, or the list's own label. */
+function list_filter_value_label(array $field, $value) {
+    global $registry;
+    $value = (string)$value;
+    if (($field['values_from'] ?? '') === 'values_list') { return (string)((array)($field['values_list'] ?? []))[$value] ?? $value; }
+    if (($field['values_from'] ?? '') !== 'db') { return $value; }
+    // Names come from the model settings, never from the request, but they
+    // are checked as identifiers all the same before they go into a query.
+    $ident = '/^[A-Za-z0-9_]{1,64}$/';
+    $table = (string)($field['link_to_table'] ?? ''); $from = (string)($field['link_from_field'] ?? 'id');
+    $cols = array_values(array_filter(array_map('trim', explode(',', (string)($field['link_to_field'] ?? ''))), 'strlen'));
+    if (!$cols || !preg_match($ident, $table) || !preg_match($ident, $from)) { return $value; }
+    foreach ($cols as $c) { if (!preg_match($ident, $c)) { return $value; } }
+    $row = $registry->db_master->MQ("select `" . implode('`, `', $cols) . "` from `" . $table . "` where `" . $from . "` = ?", "one", [$value]);
+    if (!is_set($row)) { return $value; }
+    $parts = [];
+    foreach ($cols as $c) { $t = trim((string)($row[$c] ?? '')); if ($t !== '') { $parts[] = $t; } }
+    return $parts ? implode(' ', $parts) : $value;
 }
 
 /** "Clear", shown only while a filter or a search is narrowing the list. */

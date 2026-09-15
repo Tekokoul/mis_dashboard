@@ -34,25 +34,16 @@ $page_link_suffix = (count($suffix_terms) > 0)
                     <div class="datatable-header afcdc-sticky">
                         <form method="get" action="<?=$this->L($page_link_prefix);?>">
 
-                            <div class="row align-items-start mb-3">
+                            <div class="row align-items-center mb-3">
                                 <div class="col-12 col-lg-auto mb-3 mb-lg-0 afcdc-add-col">
                                     <a href="<?=$this->L("users/add");?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a>
                                 </div>
                                 <?php
-                                $html = "";
-
-                                if((isset($data['meta_filters']))&&(count($data['meta_filters'])>0)){
-                                    foreach ($data['meta_filters'] as $filter){
-                                        $filter_value =
-                                        $html .= filter_DropDown($filter['key'], $filter, $data['filter_data'][$filter['key']]);
-                                    }
-                                }
-                                // One row for everything that narrows the list: the filters, the search, and Clear.
-                                print '<div class="col-12 col-lg mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">'
-                                    . $html . list_search_box($data['search'] ?? '', 'core_users', 'users/edit')
-                                    . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
-                                    . '</div></div>';
-
+                                // The search box, with every filter in a panel under it (list_builder.php list_toolbar).
+                                print '<div class="col-12 col-lg mb-3 mb-lg-0">'
+                                    . list_toolbar((array)($data['meta_filters'] ?? []), (array)($data['filter_data'] ?? []), $data['search'] ?? '', $this->L($page_link_prefix), 'core_users', 'users/edit',
+                                        '')
+                                    . '</div>';
                                 ?>
                                 
                         </form>

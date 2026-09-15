@@ -3,7 +3,7 @@
  * scripts only from this origin or with the page's nonce, so it lives here,
  * on every page (template.php loads this file last). */
 $(function () {
-    // List filters submit their form as soon as a value is picked.
+    // A control that asks to submit its form as soon as a value is picked.
     $(document).on('change', '[data-afcdc-autosubmit]', function () {
         if (this.form) { this.form.submit(); }
     });
@@ -277,10 +277,11 @@ $(function () {
  * already chosen.
  *
  * LIST FILTERS: a filter may name the filter above it (data-afcdc-narrow-by).
- * Its options carry data-parent too, so with a goal chosen the programme box
- * lists only that goal's programmes - and when the goal changes, the
- * programme choice is cleared before the form submits, or the page would
- * show nothing at all. */
+ * Its options carry data-parent too, so with a goal chosen the objective box
+ * lists only that goal's objectives, and the programme box that objective's
+ * programmes (or, with none chosen, the goal's). They sit in the panel under
+ * the search box and nothing submits until Apply, so when a goal changes the
+ * boxes under it are cleared and narrowed afresh right there. */
 $(function () {
     $('select[data-afcdc-cascade-parent]').each(function () {
         var $parent = $(this);
@@ -349,25 +350,70 @@ $(function () {
                    .map(function () { return String(this.value); }).get();
     }
 
+    // In page order, so a box is narrowed after the box it narrows by
+    // (Goal, Objective, Programme is how the settings list them).
     $('select[data-afcdc-narrow-by]').each(function () {
         var $child  = $(this);
         var $parent = $('select[name="' + $child.attr('data-afcdc-narrow-by') + '"]');
         if (!$parent.length) { return; }
-        var keep = narrowedTo($parent);
-        if (keep) {
-            $child.find('option[data-parent]').each(function () {
-                // The option in force stays even if it disagrees with the
-                // parent (a stale link), so the box always shows what the
+        var all = $child.children('option').toArray();   // the original elements, kept for the life of the page
+        function renarrow(atLoad) {
+            var keep = narrowedTo($parent), was = String($child.val() || '%');
+            $child.empty();
+            all.forEach(function (o) {
+                var p = o.getAttribute('data-parent');
+                // The "All" choice (no parent) always; what the parent allows;
+                // and, at load, the choice in force even if it disagrees with
+                // the parent (a stale link), so the box always shows what the
                 // list is actually filtered by.
-                if (!this.selected && keep.indexOf(String($(this).attr('data-parent'))) === -1) { $(this).remove(); }
+                if (!keep || p === null || keep.indexOf(String(p)) !== -1 || (atLoad && was !== '%' && String(o.value) === was)) { $child.append(o); }
             });
+            $child.val($child.find('option[value="' + was + '"]').length ? was : '%');
         }
-        // Bound directly, so it runs before the document-level autosubmit.
-        // A cleared box clears the boxes narrowed by it in turn (goal ->
-        // objective -> programme); triggerHandler does not bubble, so the
-        // form still submits once.
-        $parent.on('change afcdc:clear', function () { $child.val('%').triggerHandler('afcdc:clear'); });
+        renarrow(true);
+        // A changed parent clears this box and narrows it afresh, then the
+        // boxes under it in turn (goal -> objective -> programme).
+        // triggerHandler does not bubble.
+        $parent.on('change afcdc:clear', function () { $child.val('%'); renarrow(false); $child.triggerHandler('afcdc:clear'); });
     });
+});
+
+/* The list toolbar: the filters live in a small panel under the search box,
+ * opened by pressing the box or the filter button on it. Apply submits; Esc
+ * and a click elsewhere close it. Picking a filter no longer submits on its
+ * own: several can be set, then applied at once. */
+$(function () {
+    var wrap = document.querySelector('.afcdc-search-wrap[data-afcdc-filterbox]');
+    if (!wrap) { return; }
+    var box = wrap.querySelector('.afcdc-filterbox'), input = wrap.querySelector('input[name="search-term"]'), btn = wrap.querySelector('.afcdc-search__filters');
+    if (!box || !input) { return; }
+    var quiet = false;   // while this code puts focus back in the box, which must not reopen the panel
+    function open(focusFirst) {
+        if (box.hidden) {
+            box.hidden = false;
+            if (btn) { btn.setAttribute('aria-expanded', 'true'); }
+            // Under the box's left edge, unless that runs off the window: then under its right edge.
+            box.classList.remove('is-right');
+            var r = box.getBoundingClientRect();
+            if (r.right > window.innerWidth - 8 && wrap.getBoundingClientRect().right - r.width >= 8) { box.classList.add('is-right'); }
+        }
+        if (focusFirst) { var first = box.querySelector('select, button'); if (first) { first.focus(); } }
+    }
+    function close(refocus) {
+        if (box.hidden) { return; }
+        box.hidden = true;
+        if (btn) { btn.setAttribute('aria-expanded', 'false'); }
+        if (refocus) { quiet = true; input.focus(); quiet = false; }
+    }
+    input.addEventListener('focus', function () { if (!quiet) { open(false); } });
+    input.addEventListener('click', function () { open(false); });
+    if (btn) { btn.addEventListener('click', function () { if (box.hidden) { open(true); } else { close(true); } }); }
+    // Esc closes the panel and goes no further: the page's own Esc (a step
+    // back, below) must not fire on the same press.
+    wrap.addEventListener('keydown', function (e) { if (e.key === 'Escape' && !box.hidden) { e.preventDefault(); e.stopPropagation(); close(true); } });
+    document.addEventListener('click', function (e) { if (!wrap.contains(e.target)) { close(false); } });
+    // The search suggestions render inside the panel and ask for it to be open.
+    $(wrap).on('afcdc:open', function () { open(false); });
 });
 
 /* The sticky list toolbar needs to know how tall the fixed page chrome is,
@@ -701,7 +747,7 @@ $(function () {
     $(document).on('keydown', function (e) {
         if (!afcdcIsBackKey(e)) { return; }
         if ($('a[data-afcdc-back]').length || $('form.ecommerce-form a.cancel-button').length) { return; }   // a form: handled above, with its unsaved check
-        if ($('.select2-container--open, .afcdc-jump__box').length) { return; }
+        if ($('.select2-container--open, .afcdc-jump__box, .afcdc-filterbox:not([hidden])').length) { return; }
         if (window.jQuery && $.magnificPopup && $.magnificPopup.instance && $.magnificPopup.instance.isOpen) { return; }
         var tag = (document.activeElement && document.activeElement.tagName) || '';
         if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') { return; }
@@ -845,7 +891,9 @@ $(function () {
     var model = $in.attr('data-afcdc-suggest'), open = $in.attr('data-afcdc-open') || '';
     var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
     var $form = $in.closest('form'), $wrap = $in.closest('.afcdc-search');
-    var $box = $('<div class="afcdc-typeahead" role="listbox" hidden></div>').appendTo($wrap);
+    // Inside the filter panel when the list has one, under the box otherwise.
+    var $slot = $in.closest('.afcdc-search-wrap').find('.afcdc-filterbox__found');
+    var $box = $('<div class="afcdc-typeahead" role="listbox" hidden></div>').appendTo($slot.length ? $slot : $wrap);
     var timer = null, seq = 0, items = [], active = -1;
     function close() { $box.attr('hidden', true).empty(); items = []; active = -1; $in.attr('aria-expanded', 'false'); }
     function go(item) {
@@ -894,6 +942,7 @@ $(function () {
         var $all = $('<div class="afcdc-typeahead__item afcdc-typeahead__all" role="option"></div>').text('Search for "' + q + '"').data('item', { search: true });
         $box.append($all); items.push($all);
         $box.removeAttr('hidden'); $in.attr('aria-expanded', 'true');
+        if ($slot.length) { $slot.closest('.afcdc-search-wrap').triggerHandler('afcdc:open'); }
     }
     function ask() {
         var q = $.trim($in.val());
@@ -925,5 +974,5 @@ $(function () {
         if (n !== active) { highlight(n); }
     });
     $in.on('blur', function () { window.setTimeout(close, 150); });
-    $(document).on('click', function (e) { if (!$(e.target).closest('.afcdc-search').length) { close(); } });
+    $(document).on('click', function (e) { if (!$(e.target).closest('.afcdc-search-wrap, .afcdc-search').length) { close(); } });
 });

@@ -35,26 +35,16 @@ $page_link_suffix = (count($suffix_terms) > 0)
                     <div class="datatable-header afcdc-sticky">
                         <form method="get" action="<?=$this->L($page_link_prefix);?>">
 
-                        <div class="row align-items-start mb-3">
+                        <div class="row align-items-center mb-3">
                             <div class="col-12 col-lg-auto mb-3 mb-lg-0 afcdc-add-col">
                                 <a href="<?=$this->L("core/db_add/".display($data['model_name']));?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a>
                             </div>
                             <?php
-                            $html = "";
-
-                            if((isset($data['meta_filters']))&&(count($data['meta_filters'])>0)){
-                                foreach ($data['meta_filters'] as $filter){
-                                    $filter_value =
-                                    $html .= filter_DropDown($filter['key'], $filter, $data['filter_data'][$filter['key']]);
-                                }
-                            }
-                            // One row for everything that narrows the list: the filters, the search, and Clear.
-                            print '<div class="col-12 col-lg mb-3 mb-lg-0"><div class="afcdc-filters afcdc-filters--inline" role="group" aria-label="Filter the list">'
-                                . $html . list_search_box($data['search'] ?? '', (string)$data['model_name'], 'core/db_edit/' . display($data['model_name']))
-                                . list_clear_link($this->L($page_link_prefix), (array)($data['filter_data'] ?? []), $data['search'] ?? '')
-                                . (!empty($data['unit_pending']) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-unit-review="accept_all">Accept all proposed units</a>' : '')
-                                . '</div></div>';
-
+                            // The search box, with every filter in a panel under it (list_builder.php list_toolbar).
+                            print '<div class="col-12 col-lg mb-3 mb-lg-0">'
+                                . list_toolbar((array)($data['meta_filters'] ?? []), (array)($data['filter_data'] ?? []), $data['search'] ?? '', $this->L($page_link_prefix), '' . display($data['model_name']) . '', 'core/db_edit/' . display($data['model_name']) . '',
+                                    !empty($data['unit_pending']) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-unit-review="accept_all">Accept all proposed units</a>' : '')
+                                . '</div>';
                             ?>
                             
                         </form>

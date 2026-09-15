@@ -239,6 +239,15 @@ has the same Objective box under Goal; so does the Objectives list, where it
 picks one objective (`AND id = ?`). The key is `objective_id` everywhere, the
 one the search dropdown's objective suggestions set.
 
+**Where the filters are.** On every list only the search box shows.
+Pressing it, or the filter button on it, opens a small panel under it with
+every filter, Apply and Clear (`list_toolbar()` in list_builder.php; the
+panel, the narrowing and Esc are in custom.js), and what the search would
+find appears at the top of the same panel as you type. Picking a filter no
+longer submits on its own: set several, then Apply. A filter in force stands
+beside the box as a chip whose x lifts it, and the filters narrowed by it.
+Under 768px the panel spans the screen and its boxes stack.
+
 **A "narrow by" box on a form** is a `cascade` key on a dropdown field:
 
 ```
@@ -456,10 +465,9 @@ completed work only. On the overview, the goal and objective pages, a
 programme's page, an activity's page and the task table, lists are ordered
 Completed first, then In progress, then Not started, in code order within
 each. The Projects / Interventions and Progress lists have a Status box that narrows the
-list to one of the three, beside Goal, Objective and Programme, with the search, the
-page links and Clear; it is added in code (`addDeliveryFilter`) because it
-is worked out rather than read from a column. On a narrow window the boxes
-shrink before the row wraps; under 768px they stack.
+list to one of the three, with Goal, Objective and Programme; it is added in
+code (`addDeliveryFilter`) because it is worked out rather than read from a
+column.
 
 **Adding the level below.** A goal's form offers "Add an objective", an
 objective's "Add a programme", a programme's "Add an activity"; on a form
