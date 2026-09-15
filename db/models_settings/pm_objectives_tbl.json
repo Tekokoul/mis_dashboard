@@ -26,6 +26,21 @@
         "where_clause": "",
         "add_zero_value": true,
         "all_label": "All units"
+      },
+      {
+        "title": "Objective",
+        "key": "objective_id",
+        "type": "dropdown",
+        "values_from": "db",
+        "link_to_table": "pm_objectives_tbl",
+        "link_to_field": "abbr,name",
+        "order_by": "CAST(SUBSTRING_INDEX(`abbr`,'.',1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',2),'.',-1) AS UNSIGNED) asc, CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(CONCAT(`abbr`,'.0.0'),'.',3),'.',-1) AS UNSIGNED) asc, `abbr` asc",
+        "where_clause": "",
+        "add_zero_value": true,
+        "all_label": "All objectives",
+        "narrow_by": "pillar_id",
+        "parent_field": "pillar_id",
+        "sql": "AND `id` = ?"
       }
     ],
     "child": {

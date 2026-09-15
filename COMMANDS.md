@@ -227,7 +227,12 @@ when that id lives one table further up (a programme's goal is its
 objective's goal). The options then carry the parent id, the box lists only
 the options under the chosen parent, and it clears itself when the parent
 changes - otherwise the page would show nothing. `all_label` is the wording
-of the "All" option.
+of the "All" option. A filter may bring its own `sql` when its value is not a
+column of the list: the Programmes list's Objective box narrows by the Goal
+box (`parent_field: pillar_id`) and filters on `objective_id`, and the
+Objectives list has the same box, where it picks one objective (`AND id = ?`).
+The key is `objective_id` on both, the one the search dropdown's objective
+suggestions set.
 
 **A "narrow by" box on a form** is a `cascade` key on a dropdown field:
 
