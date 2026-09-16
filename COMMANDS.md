@@ -890,6 +890,30 @@ volume; the old files are inside `backups/appdata_<stamp>.tar.gz` under
 tar -xzf backups/appdata_<stamp>.tar.gz && docker compose cp appdata_<stamp>/users_settings/. app:/var/www/html/db/users_settings/ && docker compose exec -T app chown -R www-data:www-data /var/www/html/db/users_settings && rm -r appdata_<stamp>
 ```
 
+### Disk: the build cache grows with every deploy
+
+Each `deploy` builds an image and keeps the layers it built from. They are
+never reused once the next deploy changes the same step, but they are kept:
+after a fortnight of deploys the cache reached 23GB on a 48GB disk and a
+build failed at the last moment with `no space left on device` (the site
+stayed up - the old container serves until a build finishes). Check it:
+
+```bash
+df -h /; docker system df
+```
+
+Clear the cache and any image no container uses. Neither touches volumes, so
+the database is not at risk:
+
+```bash
+docker image prune -f && docker builder prune -f
+```
+
+**Never add `--volumes` or `-a` to a system prune on the server**
+(`docker system prune --volumes` deletes the database volume). The next
+deploy after a cache prune is slow again - around 15 minutes, most of it the
+`apt-get` step - because every layer is built afresh.
+
 ### Rolling back
 
 Code: check out the previous commit and deploy it again. Everything added by
