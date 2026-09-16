@@ -805,11 +805,12 @@ html button.afcdc-chip--off:hover, html button.afcdc-chip--off:focus-visible { b
 /* The Tasks column on the Projects list: how many, and a square in the status colour. */
 html .afcdc-col-tasks { white-space: nowrap; font-variant-numeric: tabular-nums; }
 html .afcdc-tasks-n { display: inline-block; min-width: 1.1rem; text-align: right; font-weight: 600; color: var(--afcdc-ink); }
-html .afcdc-square { display: inline-block; width: 0.8rem; height: 0.8rem; margin-left: 0.5rem; border-radius: 3px; vertical-align: -0.05em; background: var(--afcdc-ink-soft); }
+html .afcdc-square { display: inline-flex; align-items: center; justify-content: center; width: 1.05rem; height: 1.05rem; margin-left: 0.5rem; border-radius: 3px; vertical-align: -0.25em; background: var(--afcdc-ink-soft); color: #FFF; }
+html .afcdc-square .bx { font-size: 0.8rem; line-height: 1; }
 html .afcdc-square--completed   { background: var(--afcdc-completed); }
 html .afcdc-square--in-progress { background: var(--afcdc-in-progress); }
 html .afcdc-square--not-started { background: var(--afcdc-not-started); }
-html .afcdc-square--idle        { background: transparent; border: 2px solid var(--afcdc-idle); }
+html .afcdc-square--idle        { background: transparent; border: 1px solid var(--afcdc-idle); color: var(--afcdc-idle); }
 @media (max-width: 767.98px) {
     html .afcdc-search-wrap { flex: 1 1 100%; }
     html .afcdc-filterbox, html .afcdc-filterbox.is-right { width: auto; left: 0; right: 0; }

@@ -407,6 +407,9 @@ column after the name: how many tasks the activity is delivered through,
 and a small square in its status colour - green completed, orange in
 progress, red not started, an outline when there is nothing to measure -
 counted as the graphs count it (`delivery_status_square()`, `delivery_rollup()`).
+The square carries an icon as well as a colour, and the Status box narrows to
+exactly one of the three: an activity with no task at all ("Nothing to measure
+yet") is in none of them.
 
 **Units are off unless switched on.** `UNITS_ENABLED=true` in `.env`, then
 recreate the app container (`docker compose up -d app` locally; the deploy on

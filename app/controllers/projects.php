@@ -67,7 +67,9 @@ class projectsController extends coreController{
         if(is_set($data['meta_filters'])){
             foreach ($data['meta_filters'] as $filter){
                 if(array_key_exists($filter['key'], $this->query)) {
-                    if ($this->query[$filter['key']] != '%') {
+                    // An empty value ("?pillar_id=" from a trimmed link) is no filter:
+                    // bound as = '' it emptied the list with nothing to say why.
+                    if (!is_array($this->query[$filter['key']]) && (string)$this->query[$filter['key']] !== '' && $this->query[$filter['key']] != '%') {
                         // Key is a model-defined column; the VALUE is raw
                         // request input, so it travels as a bound value.
                         $filters[] = ['sql' => $filter['sql'] ?? "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
@@ -775,7 +777,9 @@ class projectsController extends coreController{
         if(is_set($data['meta_filters'])){
             foreach ($data['meta_filters'] as $filter){
                 if(array_key_exists($filter['key'], $this->query)) {
-                    if ($this->query[$filter['key']] != '%') {
+                    // An empty value ("?pillar_id=" from a trimmed link) is no filter:
+                    // bound as = '' it emptied the list with nothing to say why.
+                    if (!is_array($this->query[$filter['key']]) && (string)$this->query[$filter['key']] !== '' && $this->query[$filter['key']] != '%') {
                         // Key is a model-defined column; the VALUE is raw
                         // request input, so it travels as a bound value.
                         $filters[] = ['sql' => $filter['sql'] ?? "AND `".$filter['key']."` = ?", 'value' => $this->query[$filter['key']] ?? ""];
@@ -1636,7 +1640,7 @@ class projectsController extends coreController{
     private function addDeliveryFilter(array &$data) {
         $g = activity_delivery_groups($this->DB);
         $list = function (array $ids) { return $ids ? implode(',', $ids) : '0'; };   // no activity has id 0: IN (0) is nothing
-        $done = $list($g['delivered']); $some = $list($g['partly']);
+        $done = $list($g['delivered']); $some = $list($g['partly']); $nope = $list($g['none']);
         $data['meta_filters'][] = [
             'title'       => 'Status',
             'key'         => 'delivered',
@@ -1644,8 +1648,11 @@ class projectsController extends coreController{
             'values_from' => 'values_list',
             'values_list' => ['0' => 'Not started', '2' => 'In progress', '1' => 'Completed'],
             'all_label'   => 'Any status',
+            // Each arm is a list of its own: "Not started" used to be everything
+            // else, which swept in the activities whose own row reads "Nothing to
+            // measure yet" (no task to report on).
             'sql'         => "AND (CASE ? WHEN '1' THEN `id` IN (" . $done . ") WHEN '2' THEN `id` IN (" . $some . ")"
-                           . " ELSE `id` NOT IN (" . $done . ") AND `id` NOT IN (" . $some . ") END)",
+                           . " ELSE `id` IN (" . $nope . ") END)",
         ];
     }
 

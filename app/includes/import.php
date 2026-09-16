@@ -303,6 +303,10 @@ function import_catalogue($db) {
     foreach ((array)$db->MQ("SELECT id, project_id, name, description FROM pm_projects_tasks_tbl ORDER BY id", "all") as $t) {
         $cat['tasks'][(int)$t['project_id']][(int)$t['id']] = $t;
     }
+    // Which activity owns each task, so a row carrying another activity's
+    // T-number is not read as if it were this one's.
+    $cat['task_owner'] = [];
+    foreach ($cat['tasks'] as $pid => $ts) { foreach ($ts as $tid => $t) { $cat['task_owner'][(int)$tid] = (int)$pid; } }
     // Tasks something has been recorded against: a default task with a record is never replaced.
     $cat['task_progress'] = [];
     foreach ((array)$db->MQ("SELECT task_id, COUNT(*) AS n FROM pm_progress_tasks_tbl GROUP BY task_id", "all") as $r) { $cat['task_progress'][(int)$r['task_id']] = (int)$r['n']; }
@@ -411,14 +415,19 @@ function import_changes(array $existing, array $a) {
  * An activity whose only task is the default one ("Task", which the template
  * leaves out) has it replaced by the first task added - 'replaces' => its id -
  * unless something has been recorded against it ($progress: task id => rows).
+ * $owner (task id => activity id) is every task in the catalogue: a row moved
+ * or copied from another activity carries that activity's T-number, which is
+ * not this activity's task - it is added here, and the note says where the
+ * number came from so nobody takes the two for one piece of work.
  */
-function import_task_changes(array $existing, array $rows, array $progress = []) {
+function import_task_changes(array $existing, array $rows, array $progress = [], array $owner = []) {
     $add = []; $edit = []; $seen = []; $byName = [];
     foreach ($existing as $id => $t) { $byName[import_norm($t['name'])] = (int)$id; }
     foreach ($rows as $w) {
         $name = trim((string)($w['name'] ?? '')); $desc = trim((string)($w['description'] ?? ''));
         if ($name === '') { continue; }
         $id = (int)($w['id'] ?? 0);
+        $alien = ($id > 0 && !isset($existing[$id]) && isset($owner[$id])) ? $id : 0;
         if ($id <= 0 || !isset($existing[$id])) { $id = $byName[import_norm($name)] ?? 0; }
         if ($id > 0) {
             if (isset($seen['t' . $id])) { continue; }
@@ -432,7 +441,9 @@ function import_task_changes(array $existing, array $rows, array $progress = [])
         $k = import_norm($name);
         if (isset($seen['n' . $k])) { continue; }
         $seen['n' . $k] = true;
-        $add[] = ['name' => mb_substr($name, 0, 255), 'description' => $desc];
+        $one = ['name' => mb_substr($name, 0, 255), 'description' => $desc];
+        if ($alien > 0) { $one['moved_from'] = (int)($owner[$alien] ?? 0); $one['moved_task'] = $alien; }
+        $add[] = $one;
     }
     if ($add && $existing && !array_filter($existing, function ($t) { return !is_default_task_name($t['name']); })) {
         foreach ($existing as $id => $t) {
@@ -463,7 +474,8 @@ function import_task_changes_html(array $tc) {
     }
     foreach ((array)($tc['add'] ?? []) as $t) {
         $html .= '<li><strong>New task</strong>: <ins>' . $cut($t['name']) . '</ins>' . (trim((string)($t['description'] ?? '')) !== '' ? ' - ' . $cut($t['description']) : '')
-               . (!empty($t['replaces']) ? ' (takes the place of the default task "Task")' : '') . '</li>';
+               . (!empty($t['replaces']) ? ' (takes the place of the default task "Task")' : '')
+               . (!empty($t['moved_task']) ? ' (the workbook gave it T' . (int)$t['moved_task'] . ', which is a task of another activity, so it is added here as a new one)' : '') . '</li>';
     }
     return $html;
 }
@@ -529,7 +541,7 @@ function import_analyse($db, array $a, array $cat) {
     ];
     if ($match > 0 && $how !== 'similar') {
         $changes = import_changes($cat['activities'][$match], $a);
-        $taskChanges = import_task_changes((array)($cat['tasks'][$match] ?? []), (array)($a['tasks'] ?? []), (array)($cat['task_progress'] ?? []));
+        $taskChanges = import_task_changes((array)($cat['tasks'][$match] ?? []), (array)($a['tasks'] ?? []), (array)($cat['task_progress'] ?? []), (array)($cat['task_owner'] ?? []));
         if ($taskChanges) { $changes['tasks'] = $taskChanges; }
         $out['kind'] = $changes ? 'changed' : 'same';
         $out['changes'] = $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null;
@@ -875,19 +887,25 @@ function import_accept($db, array $row, $objectiveId, $programmeId, $userId, $ba
         }
         $names = [];
         foreach ($current as $t) { $names[import_norm($t['name'])] = true; }
+        // The default task to take the place of belongs to the activity, not to
+        // one entry: if the first added task was added by hand meanwhile, the
+        // next one takes its place instead of leaving the placeholder behind.
+        $replaces = 0;
+        foreach ((array)($taskChanges['add'] ?? []) as $t) { if (!empty($t['replaces'])) { $replaces = (int)$t['replaces']; break; } }
         foreach ((array)($taskChanges['add'] ?? []) as $i => $t) {
             // Added by hand since the workbook was read: not added twice.
-            if (isset($names[import_norm($t['name'])])) { continue; }
+            if (isset($names[import_norm($t['name'])])) { unset($taskChanges['add'][$i]['replaces']); continue; }
             // The default task it takes the place of - only while that is still
             // the default task with nothing recorded against it; else it is added.
-            $tid = 0; $was = (int)($t['replaces'] ?? 0);
+            $tid = 0; $was = $replaces;
             if ($was > 0 && isset($current[$was]) && is_default_task_name($current[$was]['name'])) {
                 $used = $db->MQ("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE task_id = ?", "one", [$was]);
                 if ((int)($used['n'] ?? 0) === 0) {
                     $desc = trim((string)($t['description'] ?? ''));
                     $db->MQ("UPDATE pm_projects_tasks_tbl SET name = ?, description = ? WHERE id = ? AND project_id = ?", false,
                         [mb_substr((string)$t['name'], 0, 255), $desc !== '' ? $desc : (string)$current[$was]['description'], $was, $id]);
-                    $tid = $was;
+                    $tid = $was; $replaces = 0;
+                    $taskChanges['add'][$i]['replaces'] = $was;
                 }
             }
             if ($tid === 0) {
@@ -1004,7 +1022,7 @@ function import_settle($db, array $row, $isSame) {
         $a = ['name' => (string)$row['name'], 'description' => (string)$row['description'], 'kpi' => (string)$row['kpi'], 'budget' => $row['budget'] === null ? null : (float)$row['budget']];
         $changes = import_changes($cat['activities'][$id], $a);
         $extra = json_decode((string)$row['extra'], true) ?: [];
-        $taskChanges = import_task_changes((array)($cat['tasks'][$id] ?? []), (array)($extra['tasks'] ?? []), (array)($cat['task_progress'] ?? []));
+        $taskChanges = import_task_changes((array)($cat['tasks'][$id] ?? []), (array)($extra['tasks'] ?? []), (array)($cat['task_progress'] ?? []), (array)($cat['task_owner'] ?? []));
         if ($taskChanges) { $changes['tasks'] = $taskChanges; }
         $db->MQ("UPDATE pm_import_rows_tbl SET kind = ?, match_how = 'person', match_score = 1, changes = ?, status = ? WHERE id = ?", false,
             [$changes ? 'changed' : 'same', $changes ? json_encode($changes, JSON_UNESCAPED_UNICODE) : null, $changes ? 'pending' : 'unchanged', (int)$row['id']]);

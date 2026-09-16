@@ -397,7 +397,8 @@ $(function () {
             var r = box.getBoundingClientRect();
             if (r.right > window.innerWidth - 8 && wrap.getBoundingClientRect().right - r.width >= 8) { box.classList.add('is-right'); }
         }
-        if (focusFirst) { var first = box.querySelector('select, button'); if (first) { first.focus(); } }
+        // A filter, not the head's close button, which comes first in the markup.
+        if (focusFirst) { var first = box.querySelector('.afcdc-filterbox__grid select, .afcdc-filterbox__grid button'); if (first) { first.focus(); } }
     }
     function close(refocus) {
         if (box.hidden) { return; }
@@ -907,7 +908,10 @@ $(function () {
     function go(item) {
         if (item.filter) {
             var $sel = $form.find('select[name="' + item.filter + '"]');
-            if ($sel.length && $sel.find('option[value="' + item.value + '"]').length) { $in.val(''); $sel.val(String(item.value)); $form.submit(); return; }
+            // change, not just val: the narrowing chain clears the boxes under this
+            // one, or a programme left over from before would fight the objective
+            // just picked and the list would come back empty.
+            if ($sel.length && $sel.find('option[value="' + item.value + '"]').length) { $in.val(''); $sel.val(String(item.value)).trigger('change'); $form.submit(); return; }
             $in.val(item.label); $form.submit(); return;
         }
         if (item.id !== undefined && open) {

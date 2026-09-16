@@ -1905,8 +1905,12 @@ function delivery_status_chip($status, $tone = 'colour') {
 /** The status as a small square in its colour, the word for the screen reader and on hover (the Tasks column of the Projects list). */
 function delivery_status_square($status) {
     $class = ['completed' => 'completed', 'in_progress' => 'in-progress', 'not_started' => 'not-started'][(string)$status] ?? 'idle';
+    // The chip's own icon inside the square: red and orange are a hair apart
+    // for anyone who does not see colour, so the shape carries it too.
+    $icon = ['completed' => 'bx-check', 'in_progress' => 'bx-dots-horizontal-rounded', 'not_started' => 'bx-time-five'][(string)$status] ?? 'bx-minus';
     $label = delivery_status_label($status);
-    return '<span class="afcdc-square afcdc-square--' . $class . '" title="' . display($label) . '"><span class="visually-hidden">' . display($label) . '</span></span>';
+    return '<span class="afcdc-square afcdc-square--' . $class . '" title="' . display($label) . '"><i class="bx ' . $icon . '" aria-hidden="true"></i>'
+         . '<span class="visually-hidden">' . display($label) . '</span></span>';
 }
 
 /** The class that colours a progress bar by its status ("" leaves the bar as it was). */
@@ -1968,13 +1972,20 @@ function sort_by_delivery_status(array $rows, callable $statusOf) {
     return $rows;
 }
 
-/** Activity ids by status, for the Status box on the Projects list: 'delivered' = completed, 'partly' = in progress. */
+/**
+ * Activity ids by status, for the Status box on the Projects and Progress
+ * lists: 'delivered' = completed, 'partly' = in progress, 'none' = not
+ * started. All three are positive lists, so an activity with nothing to
+ * measure (no task at all) is in none of them and the box never offers it
+ * under a status its own row denies.
+ */
 function activity_delivery_groups($db) {
-    $out = ['delivered' => [], 'partly' => []];
+    $out = ['delivered' => [], 'partly' => [], 'none' => []];
     foreach (delivery_rollup($db)['activity'] as $pid => $c) {
         $st = delivery_rollup_status($c);
         if ($st === 'completed') { $out['delivered'][] = (int)$pid; }
         elseif ($st === 'in_progress') { $out['partly'][] = (int)$pid; }
+        elseif ($st === 'not_started') { $out['none'][] = (int)$pid; }
     }
     return $out;
 }

@@ -398,7 +398,9 @@ function list_toolbar(array $filters, array $filter_data, $search, $clear_href, 
 function list_filter_value_label(array $field, $value) {
     global $registry;
     $value = (string)$value;
-    if (($field['values_from'] ?? '') === 'values_list') { return (string)((array)($field['values_list'] ?? []))[$value] ?? $value; }
+    // The ?? guards the lookup, not the cast: (string)null is "" and would never
+    // fall back, and the bare subscript warned on a value the list does not hold.
+    if (($field['values_from'] ?? '') === 'values_list') { return (string)(((array)($field['values_list'] ?? []))[$value] ?? $value); }
     if (($field['values_from'] ?? '') !== 'db') { return $value; }
     // Names come from the model settings, never from the request, but they
     // are checked as identifiers all the same before they go into a query.

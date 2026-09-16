@@ -94,7 +94,9 @@ class coreController extends protectedController{
         if(is_set($data['meta_filters'])){
             foreach ($data['meta_filters'] as $filter){
                 if(array_key_exists($filter['key'], $this->query)) {
-                    if ($this->query[$filter['key']] != '%') {
+                    // An empty value ("?pillar_id=" from a trimmed link) is no filter:
+                    // bound as = '' it emptied the list with nothing to say why.
+                    if (!is_array($this->query[$filter['key']]) && (string)$this->query[$filter['key']] !== '' && $this->query[$filter['key']] != '%') {
                         // Key is a model-defined column; the VALUE is raw
                         // request input, so it travels as a bound value.
                         // A filter may bring its own clause (Programmes filter by goal
