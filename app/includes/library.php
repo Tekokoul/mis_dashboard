@@ -1881,6 +1881,36 @@ function delivery_status_rank($status) {
     return ['completed' => 0, 'in_progress' => 1, 'not_started' => 2][(string)$status] ?? 3;
 }
 
+/**
+ * What a reporting entity says about a task: its status, and - from the
+ * Progress page - the date, spend and comment behind it. One row per entity,
+ * activity and task. A detail left out of $more keeps what the row already
+ * had, so the activity form can set the status alone without wiping a
+ * comment written on Progress; when no date is given, the date moves to now
+ * only if the status changed. Whether the task belongs to the activity is
+ * the caller's to check. Returns false when the write failed.
+ */
+function task_result_save($db, $memberId, $projectId, $taskId, $result, array $more = []) {
+    $result = in_array((int)$result, [0, 1, 2], true) ? (int)$result : 0;
+    $keys = [(int)$memberId, (int)$projectId, (int)$taskId];
+    $row = $db->MQ("SELECT * FROM `pm_progress_tasks_tbl` WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?", "one", $keys);
+    $had = is_set($row);
+    $same = $had && (int)$row['result'] === $result;
+    $date    = array_key_exists('progress_date', $more) ? $more['progress_date'] : ($same ? $row['progress_date'] : date('Y-m-d H:i:s'));
+    $comment = array_key_exists('comment', $more)       ? $more['comment']       : ($had ? $row['comment'] : '');
+    $budget  = array_key_exists('actual_budget', $more) ? $more['actual_budget'] : ($had ? $row['actual_budget'] : null);
+    if ($had) {
+        return (bool)$db->MQ("UPDATE `pm_progress_tasks_tbl`
+                                 SET `result` = ?, `progress_date` = ?, `actual_budget` = ?, `comment` = ?
+                               WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?", false,
+            array_merge([$result, $date, $budget, $comment], $keys));
+    }
+    return (bool)$db->MQ("INSERT INTO `pm_progress_tasks_tbl`
+                            (`member_id`, `project_id`, `result`, `task_id`, `progress_date`, `comment`, `actual_budget`)
+                          VALUES (?, ?, ?, ?, ?, ?, ?)", false,
+        [$keys[0], $keys[1], $result, $keys[2], $date, $comment, $budget]);
+}
+
 function delivery_status_label($status) {
     return ['completed' => 'Completed', 'in_progress' => 'In progress', 'not_started' => 'Not started'][(string)$status] ?? 'Nothing to measure yet';
 }

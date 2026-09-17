@@ -225,6 +225,7 @@ class projectsController extends coreController{
         $data['review'] = allocation_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
         $data['gaps'] = is_array($data['data']) ? activity_gaps($this->DB, $data['data']) : [];
         $data['tasks'] = $this->activityTasks((int)$validated['id']);
+        $data['may_record'] = $this->mayRecordHere();
         $data['merges'] = merge_history($this->DB, (int)$validated['id'], (int)($this->query['merged'] ?? 0));
         $data['back'] = $this->backTo('projects/list');
         $this->AddJS("/js/pm_projects.js");
@@ -246,13 +247,55 @@ class projectsController extends coreController{
     private function activityTasks($projectId) {
         $projectId = (int)$projectId;
         if ($projectId <= 0) { return []; }
+        // my_result is what this person's own reporting entity has recorded
+        // against the task (NULL while nothing has), for the form's Status column.
         return (array)$this->DB->MQ(
             "SELECT t.id, t.name, t.description,
                     (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id) AS reports,
-                    (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.result = 1) AS deliveries
+                    (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.result = 1) AS deliveries,
+                    (SELECT d.result FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1) AS my_result
                FROM pm_projects_tasks_tbl t
               WHERE t.project_id = ?
-              ORDER BY t.id", "all", [$projectId]);
+              ORDER BY t.id", "all", [$this->member_id, $projectId]);
+    }
+
+    /**
+     * Whether the activity form gets its Status column: the person may
+     * record delivery and is linked to a reporting entity to record it for.
+     */
+    private function mayRecordHere() {
+        return can_record() && $this->member_id > 0;
+    }
+
+    /**
+     * The Status column of the activity form, saved with the rest of it.
+     *
+     * Each posted status is this person's entity's word on the task, as on
+     * the Progress page - the date is set to the day it changed; spend and
+     * comment stay for Progress. Only a status that differs from the record
+     * is written, so opening and saving the form moves nobody's date. A
+     * blank ("Not recorded") writes nothing; a row marked for removal is
+     * skipped; a status only ever lands on a task of this activity, whatever
+     * was posted. Someone without the column posts nothing here, and a
+     * value smuggled in is ignored all the same.
+     */
+    private function applyTaskResults($projectId, array $tasks) {
+        $projectId = (int)$projectId;
+        if ($projectId <= 0 || !$this->mayRecordHere()) { return; }
+        foreach ($tasks as $id => $t) {
+            $id = (int)$id;
+            if ($id <= 0 || !is_array($t) || (string)($t['remove'] ?? '0') === '1') { continue; }
+            $result = (string)($t['result'] ?? '');
+            if (!in_array($result, ['0', '1', '2'], true)) { continue; }
+            $now = $this->DB->MQ(
+                "SELECT t.id, (SELECT d.result FROM pm_progress_tasks_tbl d
+                                WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1) AS my_result
+                   FROM pm_projects_tasks_tbl t WHERE t.id = ? AND t.project_id = ?", "one", [$this->member_id, $id, $projectId]);
+            if (!is_set($now) || ($now['my_result'] !== null && (int)$now['my_result'] === (int)$result)) { continue; }
+            if (!task_result_save($this->DB, $this->member_id, $projectId, $id, (int)$result)) {
+                $this->setAnswer(500, "Problem recording the status of a task.");
+            }
+        }
     }
 
     /**
@@ -363,6 +406,7 @@ class projectsController extends coreController{
                 // with none, and ensureDefaultTask then gives it "Task"
                 // back rather than letting it fall off Progress entirely.
                 $this->applyTaskEdits((int)$validated['id'], $postedTasks, $postedNewTasks);
+                $this->applyTaskResults((int)$validated['id'], $postedTasks);
                 $this->ensureDefaultTask((int)$validated['id']);
                 // Moving an activity is the clearest correction there is: the
                 // place it sat in was wrong for this wording, whoever chose it.
@@ -593,11 +637,13 @@ class projectsController extends coreController{
             // The task rows come back as they were typed, marks included, so a
             // refused save costs nothing that was entered.
             $data['tasks'] = $this->activityTasks($id);
+            $data['may_record'] = $this->mayRecordHere();
             foreach ($data['tasks'] as &$t) {
                 $p = $posted['tasks'][(int)$t['id']] ?? null;
                 if (!is_array($p)) { continue; }
                 if (array_key_exists('name', $p)) { $t['name'] = (string)$p['name']; }
                 if (array_key_exists('description', $p)) { $t['description'] = (string)$p['description']; }
+                if (array_key_exists('result', $p)) { $t['my_result'] = ((string)$p['result'] === '') ? null : (string)$p['result']; }
                 $t['remove'] = (string)($p['remove'] ?? '0') === '1';
             }
             unset($t);
@@ -1236,30 +1282,14 @@ class projectsController extends coreController{
         $actual_budget = ($spend !== '') ? (float)$spend : null;
 
         // progress_date and comment are FILTER_UNSAFE_RAW, i.e. raw request
-        // input, and db_esc() is only addslashes(). Bind everything instead.
-        // $actual_budget is already a float or null from the block above.
-        $keys = [(int)$validated['member_id'], (int)$validated['project_id'], (int)$validated['task_id']];
-
-        $query  = "SELECT * FROM `pm_progress_tasks_tbl` WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?";
-        $result = $this->DB->MQ($query, "one", $keys);
-
-        if(is_set($result)){
-            $query = "UPDATE `pm_progress_tasks_tbl`
-                         SET `result` = ?, `progress_date` = ?, `actual_budget` = ?, `comment` = ?
-                       WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?";
-            $executed = $this->DB->MQ($query, false, array_merge(
-                [(int)$validated['result'], $validated['progress_date'], $actual_budget, $validated['comment']],
-                $keys
-            ));
-        } else {
-            $query = "INSERT INTO `pm_progress_tasks_tbl`
-                        (`member_id`, `project_id`, `result`, `task_id`, `progress_date`, `comment`, `actual_budget`)
-                      VALUES (?, ?, ?, ?, ?, ?, ?)";
-            $executed = $this->DB->MQ($query, false, [
-                (int)$validated['member_id'], (int)$validated['project_id'], (int)$validated['result'],
-                (int)$validated['task_id'], $validated['progress_date'], $validated['comment'], $actual_budget,
-            ]);
-        }
+        // input, and db_esc() is only addslashes(): task_result_save binds
+        // everything. $actual_budget is already a float or null from above.
+        // The same helper serves the Status column on the activity form.
+        $executed = task_result_save($this->DB, (int)$validated['member_id'], (int)$validated['project_id'], (int)$validated['task_id'], (int)$validated['result'], [
+            'progress_date' => $validated['progress_date'],
+            'comment'       => $validated['comment'],
+            'actual_budget' => $actual_budget,
+        ]);
 
         if (!$executed) {
             $this->setAnswer(500, "Problem updating the entry.");

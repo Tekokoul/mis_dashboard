@@ -1036,6 +1036,15 @@ html tr.afcdc-task--removed { opacity: 0.55; }
 html tr.afcdc-task--removed input[type="text"] { text-decoration: line-through; background: var(--afcdc-canvas); }
 html [data-undo-remove-task] { font-size: 0.75rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; }
 html .afcdc-task__kept { color: var(--afcdc-ink-soft); cursor: help; }
+/* The Status box on the activity form: its band on the left is the colour
+   the Projects list's square would show for that status; nothing recorded
+   yet is the same quiet grey as an idle square. */
+html select.afcdc-task__status { min-width: 8.5rem; border-left: 4px solid var(--afcdc-idle); padding-left: 0.5rem; }
+html select.afcdc-task__status[data-afcdc-status="1"] { border-left-color: var(--afcdc-completed); }
+html select.afcdc-task__status[data-afcdc-status="2"] { border-left-color: var(--afcdc-in-progress); }
+html select.afcdc-task__status[data-afcdc-status="0"] { border-left-color: var(--afcdc-not-started); }
+html select.afcdc-task__status:disabled { background-color: var(--afcdc-canvas); opacity: 1; }
+html #afcdc-new-tasks .afcdc-task__status-later { font-size: 0.75rem; color: var(--afcdc-ink-soft); font-style: italic; }
 
 /* Import a work plan: the review page reuses the vetting bands and tags. */
 html .afcdc-import__title { font-size: 1rem; font-weight: 700; margin: 0 0 0.5rem; color: var(--afcdc-ink); }

@@ -21,9 +21,12 @@ $(document).ready(function() {
         $newTasks.on('click', '[data-add-task]', function (e) {
             e.preventDefault();
             var i = $newTasks.find('tr.afcdc-new-task').length;
+            // A task gets its Status box once it exists; until then the cell says so.
+            var withStatus = $newTasks.find('th[data-afcdc-status-col]').length > 0;
             var $row = $('<tr class="afcdc-new-task"><td class="afcdc-new-task__num"></td>'
                 + '<td><input type="text" class="form-control form-control-sm" placeholder="Task name" maxlength="250"></td>'
                 + '<td><input type="text" class="form-control form-control-sm" placeholder="What done looks like (optional)"></td>'
+                + (withStatus ? '<td class="afcdc-task__status-later">after saving</td>' : '')
                 + '<td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td></tr>');
             $row.find('input').eq(0).attr('name', 'new_tasks[' + i + '][name]');
             $row.find('input').eq(1).attr('name', 'new_tasks[' + i + '][description]');
@@ -43,6 +46,8 @@ $(document).ready(function() {
             // A row on its way out must not hold the save up for a blank name.
             $row.find('input[type="text"]').prop('readonly', true).removeAttr('required')
                 .closest('.form-group').removeClass('afcdc-field--missing');
+            // Nor does its status get posted: a status is for a task that stays.
+            $row.find('select.afcdc-task__status').prop('disabled', true);
             $(this).prop('hidden', true);
             $row.find('[data-undo-remove-task]').prop('hidden', false);
         });
@@ -52,8 +57,17 @@ $(document).ready(function() {
             $row.removeClass('afcdc-task--removed');
             $row.find('input[name$="[remove]"]').val('0');
             $row.find('input[type="text"]').prop('readonly', false).eq(0).attr('required', 'required');
+            $row.find('select.afcdc-task__status').prop('disabled', false);
             $(this).prop('hidden', true);
             $row.find('[data-remove-existing-task]').prop('hidden', false);
+        });
+        // The Status box: its colour band follows the choice, and a choice
+        // that differs from what was loaded counts as an unsaved change
+        // (custom.js looks for data-afcdc-touched="1" on selects).
+        $newTasks.on('change', 'select.afcdc-task__status', function () {
+            var was = this.getAttribute('data-afcdc-was');
+            this.setAttribute('data-afcdc-status', this.value);
+            this.setAttribute('data-afcdc-touched', (was !== null && this.value === was) ? '0' : '1');
         });
         // Enter in a row being TYPED adds the next one instead of submitting.
         // Only in those rows: in a saved task's box Enter means "I have fixed

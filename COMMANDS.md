@@ -205,7 +205,18 @@ instead, set one in Manage users.
 ## Recording delivery
 
 In the app: sidebar → **Progress** → open an activity → click the task →
-set **Result** to `Finished` → **Update**. Percentages recompute immediately.
+set **Status** to `Completed` (or `In progress`) → **Save delivery**.
+Percentages recompute immediately.
+
+The same status can be set without leaving the activity: **Projects** →
+edit an activity → the Tasks card has a **Status** box per task for anyone
+who may record delivery (administrators and Power Users). It is saved with
+the form, for that person's reporting entity, dated the day it changed; a
+box left on "Not recorded" writes nothing, and a status that did not change
+is not rewritten (so opening and saving the form moves no dates). The spend
+and comment behind a status are still entered on Progress, and the form
+keeps them when it changes the status. Both paths go through
+`task_result_save()` in `app/includes/library.php`.
 
 Who is allowed to record it — `account` is a comma-separated list of user ids:
 

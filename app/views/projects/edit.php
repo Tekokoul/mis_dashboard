@@ -67,11 +67,16 @@ $col_width = 12/$columns;
             // named rows threw away the very row a refusal is about, leaving
             // "a name for every task" on screen with no row to name.
             $newTasks = array_values(array_filter((array)($data['data']['new_tasks'] ?? []), function ($t) { return is_array($t) && (trim((string)($t['name'] ?? '')) !== '' || trim((string)($t['description'] ?? '')) !== ''); }));
+            // The Status column: for people who may record delivery, what
+            // their own reporting entity says about each task, saved with the
+            // form. The date, spend and comment behind it stay on Progress.
+            $mayRecord = $tasksHere && !empty($data['may_record']);
+            $statuses = [0 => 'Not started', 2 => 'In progress', 1 => 'Completed'];
             ?>
             <?php if ($tasksHere) { ?>
             <div class="card card-modern" id="afcdc-new-tasks">
                 <div class="card-body">
-                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Change them here and press <strong>Save</strong> with everything else. Remove them all and a single task, <strong>Task</strong>, is put back: an activity with no task cannot be reported on at all.</p>
+                    <p class="afcdc-new-tasks__lead">Tasks this activity is delivered through. Change them here<?= $mayRecord ? ', set each one\'s <strong>Status</strong> as the work moves,' : ''; ?> and press <strong>Save</strong> with everything else. Remove them all and a single task, <strong>Task</strong>, is put back: an activity with no task cannot be reported on at all.</p>
                     <div class="table-responsive">
                         <table class="table table-ecommerce-simple table-borderless table-striped mb-0">
                             <thead>
@@ -79,6 +84,7 @@ $col_width = 12/$columns;
                                 <th width="4%">#</th>
                                 <th width="38%">Name</th>
                                 <th>Description</th>
+                                <?php if ($mayRecord) { ?><th width="16%" data-afcdc-status-col>Status</th><?php } ?>
                                 <th width="5%"><a href="#" data-add-task aria-label="Add a task" title="Add a task"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
                             </tr>
                             </thead>
@@ -102,6 +108,18 @@ $col_width = 12/$columns;
                                     <input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][name]" value="<?= display($t['name']); ?>" maxlength="250"<?= $removed ? ' readonly' : ' required'; ?>>
                                 </td>
                                 <td><input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"<?= $removed ? ' readonly' : ''; ?>></td>
+                                <?php if ($mayRecord) {
+                                    // NULL until this person's entity has recorded anything. "Not
+                                    // recorded" is offered only then, so a record is never un-made here.
+                                    $mine = $t['my_result'] ?? null;
+                                    $sel = ($mine === null || $mine === '') ? '' : (string)(int)$mine; ?>
+                                <td>
+                                    <select class="form-select form-select-sm afcdc-task__status" name="tasks[<?= $tid; ?>][result]" data-afcdc-was="<?= $sel; ?>" data-afcdc-status="<?= $sel; ?>" aria-label="Status of this task"<?= $removed ? ' disabled' : ''; ?>>
+                                        <?php if ($sel === '') { ?><option value="" selected>Not recorded</option><?php } ?>
+                                        <?php foreach ($statuses as $v => $label) { ?><option value="<?= $v; ?>"<?= $sel === (string)$v ? ' selected' : ''; ?>><?= $label; ?></option><?php } ?>
+                                    </select>
+                                </td>
+                                <?php } ?>
                                 <td>
                                     <?php if ($reported > 0) { ?>
                                         <span class="afcdc-task__kept" title="<?= $reportedNote; ?>"><i class="bx bx-lock-alt text-3 me-2" aria-hidden="true"></i><span class="sr-only"><?= $reportedNote; ?></span></span>
@@ -118,14 +136,15 @@ $col_width = 12/$columns;
                                 <td class="afcdc-new-task__num"></td>
                                 <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][name]" value="<?= display($t['name']); ?>" placeholder="Task name" maxlength="250"></td>
                                 <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"></td>
+                                <?php if ($mayRecord) { ?><td class="afcdc-task__status-later">after saving</td><?php } ?>
                                 <td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td>
                             </tr>
                             <?php } ?>
-                            <tr class="afcdc-new-tasks__empty"<?= ($tasks || $newTasks) ? ' hidden' : ''; ?>><td colspan="4" class="text-muted py-3">No task yet for this activity. Use the + above to add one.</td></tr>
+                            <tr class="afcdc-new-tasks__empty"<?= ($tasks || $newTasks) ? ' hidden' : ''; ?>><td colspan="<?= $mayRecord ? 5 : 4; ?>" class="text-muted py-3">No task yet for this activity. Use the + above to add one.</td></tr>
                             </tbody>
                         </table>
                     </div>
-                    <p class="afcdc-new-tasks__lead mb-0">A task that has been reported on is locked, so no record of somebody's work is thrown away by accident. Clear its entries on the Progress page first if it really has to go.</p>
+                    <p class="afcdc-new-tasks__lead mb-0"><?= $mayRecord ? 'A status set here is recorded for your reporting entity with today\'s date; the spend and comment behind it are entered on the Progress page. ' : ''; ?>A task that has been reported on is locked, so no record of somebody's work is thrown away by accident. Clear its entries on the Progress page first if it really has to go.</p>
                 </div>
             </div>
             <?php } else { ?>
