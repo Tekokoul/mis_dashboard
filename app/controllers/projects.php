@@ -13,11 +13,12 @@ class projectsController extends coreController{
         $query = "select * from pm_members_tbl where FIND_IN_SET(".(int)$_SESSION['user']['user_id'].", `account`)";
 //        debug($query);
         $_SESSION['user']['member_state'] = $this->DB->MQ($query, "one");
-        // System Administrators report for the one entity this installation
-        // has, whether or not their id is on its account list: every new admin
-        // account used to land on a "not linked" page until someone edited
-        // Division Users. With more than one active entity the list still rules.
-        if (!is_set($_SESSION['user']['member_state']) && (int)($_SESSION['user']['group']['id'] ?? 0) === 1) {
+        // Anyone who may record delivery reports for the one entity this
+        // installation has, whether or not their id is on its account list:
+        // every new administrator - and now every new Power User - used to
+        // land on a "not linked" page until someone edited Division Users.
+        // With more than one active entity the list still rules.
+        if (!is_set($_SESSION['user']['member_state']) && can_record()) {
             $entities = $this->DB->MQ("select * from pm_members_tbl where active = 1", "all");
             if (is_array($entities) && count($entities) === 1) {
                 $_SESSION['user']['member_state'] = $entities[0];
@@ -535,7 +536,7 @@ class projectsController extends coreController{
             $bind = [];
             $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_pillars_tbl WHERE " . $like(['name', 'abbr', 'description']) . " ORDER BY position LIMIT 6", "all", $bind);
             $groups[] = ['label' => 'Goals', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['name'])]; }, $rows)];
-        } elseif ($model === 'core_users' && in_array($group, [1, 2], true)) {
+        } elseif ($model === 'core_users' && can_admin()) {
             $bind = [];
             $rows = (array)$this->DB->MQ("SELECT id, username, givenname, sn FROM core_users_tbl WHERE " . $like(['username', 'givenname', 'sn']) . " ORDER BY sn, givenname LIMIT 6", "all", $bind);
             $groups[] = ['label' => 'Users', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['givenname'] . ' ' . (string)$r['sn']) ?: (string)$r['username'], 'hint' => (string)$r['username']]; }, $rows)];

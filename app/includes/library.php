@@ -2016,8 +2016,47 @@ function child_add_href(array $child, $parentId) {
  * the note, so the note shows for them without the action links - they used
  * to be offered a button that answered 403.
  */
-function can_vet() {
-    return in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2], true);
+/**
+ * Who may do what. Four levels (core_groups_tbl): 1 System Administrators
+ * run the platform; 2 Executive Users oversee and decide; 3 Power Users keep
+ * the plan current and record delivery; 4 Custom Users view. Every route
+ * (protectedController), menu entry and button reads these, so a right is
+ * changed in one place. Executives decide, Power Users do: an Executive
+ * accepts what the AI proposes and merges activities, a Power User edits
+ * activities, tasks and programmes, records delivery and imports the work
+ * plan. Only an administrator changes the structure above programmes
+ * (goals, objectives, units), deletes anything, or manages accounts.
+ */
+function access_group() { return (int)($_SESSION['user']['group']['id'] ?? 0); }
+function access_is(array $groups) { return in_array(access_group(), $groups, true); }
+function can_browse()    { return access_is([1, 2, 3]); }   // the lists and the import page
+function can_edit()      { return access_is([1, 3]); }      // activities, tasks, programmes; the work plan import
+function can_record()    { return access_is([1, 3]); }      // delivery
+function can_vet()       { return access_is([1, 2]); }      // AI proposals, merging
+function can_structure() { return access_is([1]); }         // goals, objectives, units
+function can_delete()    { return access_is([1]); }
+function can_admin()     { return access_is([1]); }
+
+/**
+ * The generic screens (core/db_*) and the forms that name a table decide by
+ * the model named: read, write or delete it. A model nothing here knows is
+ * the administrator's.
+ */
+function model_may($model, $op) {
+    $model = strtolower(trim((string)$model));
+    if ($model === '' || $model === 'core_users') { return can_admin(); }
+    if ($op === 'delete') { return can_delete(); }
+    if ($op === 'read') { return can_browse(); }
+    if (in_array($model, ['pm_pillars', 'pm_objectives', 'pm_units'], true)) { return can_structure(); }
+    if (in_array($model, ['pm_programmes', 'pm_projects', 'pm_projects_tasks', 'pm_projects_dates', 'pm_projects_milestones', 'pm_projects_percentages',
+                          'pm_progress_tasks', 'pm_progress_dates', 'pm_progress_milestones', 'pm_progress_percentages'], true)) { return can_edit(); }
+    return can_admin();
+}
+
+/** Where a row on a list opens for someone who may read it but not edit it: its page on the dashboard, or nowhere. */
+function model_view_route($model, $id) {
+    $to = ['pm_pillars' => 'projects_graphs/pillar/', 'pm_objectives' => 'projects_graphs/objective/', 'pm_programmes' => 'projects_graphs/programme/', 'pm_projects' => 'projects_graphs/project/'][strtolower((string)$model)] ?? '';
+    return $to !== '' ? $to . (int)$id : '';
 }
 
 /** Whether a review row still has something to show on a list row (band + note). */

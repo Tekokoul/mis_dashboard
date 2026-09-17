@@ -14,6 +14,8 @@
                 <p class="afcdc-import__lead">Upload the work plan as an .xlsx file. Its activities are compared with the catalogue and listed for you to look at: which are new, which already exist and differ, and where each new one belongs. Nothing is written until you accept a row.</p>
                 <?php if (!empty($data['error'])) { print '<div class="afcdc-form-errors" role="alert"><strong>Not read.</strong> ' . display($data['error']) . '</div>'; } ?>
                 <?php if (!empty($data['notice'])) { print '<div class="afcdc-review-panel afcdc-review--accepted">' . display($data['notice']) . '</div>'; } ?>
+                <?php // Uploading is keeping the plan current (Power Users); an Executive comes here for the template. ?>
+                <?php if (can_edit()): ?>
                 <form class="afcdc-import__form" action="<?= $this->L("imports/upload"); ?>" method="post" enctype="multipart/form-data">
                     <div class="form-group mb-3">
                         <label for="workbook" class="control-label">Workbook (.xlsx)</label>
@@ -25,6 +27,7 @@
                     </div>
                     <button type="submit" class="btn btn-primary"><i class="bx bx-import" aria-hidden="true"></i> Read the workbook</button>
                 </form>
+                <?php endif; ?>
                 <div class="afcdc-import__template">
                     <h4 class="afcdc-import__title">Download a template</h4>
                     <p class="afcdc-import__lead">The work plan as it stands, or an empty one, laid out the way this page reads it. Change what needs changing, add rows under the right objective, save it and upload it above: only what you changed comes back to review.</p>

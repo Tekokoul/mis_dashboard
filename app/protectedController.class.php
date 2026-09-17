@@ -14,6 +14,10 @@ class protectedController extends vanillaController {
     // menu items: until this table existed the sole gate was "logged in", and
     // a Member State account could open /users/list, /admin/configuration or
     // POST group=1 to its own record.
+    // Who may reach which route. 1 administrators, 2 executives, 3 power
+    // users, 4 viewers (library.php: can_*). A route not listed is the
+    // administrator's. The generic screens and the forms that name a table
+    // are narrowed again by the model named (authorize, model_may).
     protected static $access = [
         'system/info'                   => [1],
         'system/*'                      => [1, 2, 3, 4],
@@ -25,18 +29,57 @@ class protectedController extends vanillaController {
         'users/logout'                  => [1, 2, 3, 4],
         'users/sso_login'               => [1, 2, 3, 4],
         'users/sso_callback'            => [1, 2, 3, 4],
+        // Reading the plan
+        'projects/list'                 => [1, 2, 3],
+        'projects/search_suggest'       => [1, 2, 3],   // the users it suggests only for administrators (checked inside)
+        'projects/programme_context'    => [1, 2, 3],
+        'projects/get_details'          => [1, 2, 3],
+        'projects/get_objectives'       => [1, 2, 3],
+        'projects/get_programmes'       => [1, 2, 3],
+        'core/db_list'                  => [1, 2, 3],
+        'core/db_view'                  => [1, 2, 3],
+        'imports/list'                  => [1, 2, 3],   // the controller also answers 404 unless IMPORT_ENABLED
+        'imports/template'              => [1, 2, 3],
+        'imports/review'                => [1, 2, 3],
+        // Keeping the plan current: activities and their tasks, programmes
+        // (core/db_* narrowed by model: goals, objectives and units stay the
+        // administrator's), the work plan import
+        'projects/add'                  => [1, 3],
+        'projects/add_update'           => [1, 3],
+        'projects/edit'                 => [1, 3],
+        'projects/edit_update'          => [1, 3],
+        'projects/task'                 => [1, 3],
+        'projects/task_update'          => [1, 3],
+        'projects/task_delete'          => [1, 3],
+        'core/db_add'                   => [1, 3],
+        'core/db_add_update'            => [1, 3],
+        'core/db_edit'                  => [1, 3],
+        'core/db_edit_update'           => [1, 3],
+        'core/next_code'                => [1, 3],
+        'core/suggest_parent'           => [1, 3],
+        'imports/*'                     => [1, 3],
         // Recording delivery
-        'projects/progress_list'        => [1, 2, 3],
-        'projects/progress_edit'        => [1, 2, 3],
-        'projects/progress_edit_update' => [1, 2, 3],
-        'projects/task_progress_update' => [1, 2, 3],
-        'projects/get_task_details'     => [1, 2, 3],
-        'projects/get_tasks_details'    => [1, 2, 3],
-        'projects/search_suggest'       => [1, 2, 3],   // the search dropdown on the lists (users only for 1, 2 - checked inside)
-        // Content editing
-        'projects/*'                    => [1, 2],
-        'core/*'                        => [1, 2],
-        'imports/*'                     => [1, 2],   // workbook import; the controller also answers 404 unless IMPORT_ENABLED
+        'projects/progress_list'        => [1, 3],
+        'projects/progress_edit'        => [1, 3],
+        'projects/progress_edit_update' => [1, 3],
+        'projects/task_progress_update' => [1, 3],
+        'projects/get_task_details'     => [1, 3],
+        'projects/get_tasks_details'    => [1, 3],
+        // Deciding: what the AI proposes, and merging
+        'projects/allocation_accept'    => [1, 2],
+        'projects/allocation_revert'    => [1, 2],
+        'projects/allocation_accept_all'=> [1, 2],
+        'projects/allocation_move'      => [1, 2],
+        'projects/merge'                => [1, 2],
+        'projects/merge_update'         => [1, 2],
+        'projects/merge_undo'           => [1, 2],
+        'core/unit_accept'              => [1, 2],
+        'core/unit_dismiss'             => [1, 2],
+        'core/unit_accept_all'          => [1, 2],
+        // Deleting, accounts, the json screens: the administrator's (the default)
+        'core/db_delete'                => [1],
+        'projects/*'                    => [1],
+        'core/*'                        => [1],
     ];
 
     public function __construct(Registry $registry) {
@@ -73,20 +116,29 @@ class protectedController extends vanillaController {
                 ?? static::$access[$controller.'/*']
                 ?? [1];
 
-        // The generic CRUD screens (core/db_*) serve content AND accounts.
-        // Anything that names the core_users model is account administration,
-        // whichever group may use those screens for content.
-        if ($controller === 'core') {
-            $parts = array_values((array)($this->R->url['parts'] ?? []));
-            $query = (array)($this->R->url['query'] ?? []);
-            $named = [$parts[0] ?? '', $query['tablename'] ?? '', $query['model'] ?? ''];
-            if (in_array('core_users', $named, true)) {
-                $allowed = [1];
-            }
-        }
-
         if (!in_array($group, $allowed, true)) {
             $this->setAnswer(403, "Your account does not have access to this page.");
+        }
+
+        // The generic screens (core/db_*) serve goals, objectives, units,
+        // programmes AND accounts, and the activity forms name the table they
+        // save to. Every model a request names must be one this group may
+        // read, write or delete (library.php model_may) - whichever group may
+        // use the screen. This is what stops an activity save from reaching
+        // core_users_tbl, or a Power User from filing an objective through the
+        // form meant for programmes.
+        $parts = array_values((array)($this->R->url['parts'] ?? []));
+        $query = (array)($this->R->url['query'] ?? []);
+        $named = [];
+        if ($controller === 'core' || ($controller === 'projects' && $action === 'get_details')) { $named[] = (string)($parts[0] ?? ''); }
+        foreach (['tablename', 'model'] as $k) { if (isset($query[$k]) && is_string($query[$k])) { $named[] = $query[$k]; } }
+        foreach (array_keys((array)($query['additional_tables'] ?? [])) as $k) { $named[] = (string)$k; }
+        $named = array_values(array_filter(array_unique($named), 'strlen'));
+        if ($named) {
+            $op = in_array($action, ['db_list', 'db_view', 'get_details'], true) ? 'read' : ($action === 'db_delete' ? 'delete' : 'write');
+            foreach ($named as $m) {
+                if (!model_may($m, $op)) { $this->setAnswer(403, "Your account does not have access to this page."); }
+            }
         }
     }
 }

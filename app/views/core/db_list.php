@@ -37,7 +37,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
 
                         <div class="row align-items-center mb-3">
                             <div class="col-12 col-lg-auto mb-3 mb-lg-0 afcdc-add-col">
-                                <a href="<?=$this->L("core/db_add/".display($data['model_name']));?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a>
+                                <?php if (model_may($data['model_name'], 'write')): ?><a href="<?=$this->L("core/db_add/".display($data['model_name']));?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a><?php endif; ?>
                             </div>
                             <?php
                             // The search box, with every filter in a panel under it (list_builder.php list_toolbar).
@@ -76,7 +76,9 @@ $page_link_suffix = (count($suffix_terms) > 0)
 								<?php
 								$aa = (($data['page']-1)*$data['items'])+1;
 								foreach ($data['data'] as $row) {
-									$link = "core/db_edit/".display($data['model_name'])."/".$row['id'];
+									// A person who may edit opens the form; anyone else, the row's page on the dashboard, if it has one.
+									$mayWrite = model_may($data['model_name'], 'write');
+									$link = $mayWrite ? "core/db_edit/".display($data['model_name'])."/".$row['id'] : model_view_route($data['model_name'], $row['id']);
 									?>
                                     <?php
                                     // An objective whose unit waits for a person wears the vetting band, and the note sits under its name.
@@ -124,8 +126,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 }
                                             }
 											?>
-                                            <a href="<?=$this->L($link);?>" aria-label="Edit"><i class='bx bxs-edit bx-sm' aria-hidden="true"></i></a>
-                                            <a class="modal-basic" data-id="<?=$row['id'];?>" href="#deleteModal" aria-label="Delete"><i class='bx bx-trash bx-sm' aria-hidden="true"></i></a>
+                                            <?php if ($mayWrite): ?><a href="<?=$this->L($link);?>" aria-label="Edit"><i class='bx bxs-edit bx-sm' aria-hidden="true"></i></a><?php endif; ?>
+                                            <?php if (model_may($data['model_name'], 'delete')): ?><a class="modal-basic" data-id="<?=$row['id'];?>" href="#deleteModal" aria-label="Delete"><i class='bx bx-trash bx-sm' aria-hidden="true"></i></a><?php endif; ?>
                                         </td>
                                     </tr>
 									<?php

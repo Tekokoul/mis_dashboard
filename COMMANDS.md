@@ -54,6 +54,28 @@ Groups: `1` System Administrators · `2` Executive · `3` Power · `4` Custom.
 rights as Custom Users, was removed in September 2026: any account still in
 it is moved to Custom Users by the SQL that removes the group.)
 
+**Who may do what.** Executives decide, Power Users do, administrators run
+the platform, Custom Users view:
+
+| | Custom | Power | Executive | Admin |
+|---|:-:|:-:|:-:|:-:|
+| Dashboards, graphs, every list, search | ✓ | ✓ | ✓ | ✓ |
+| Download the work plan template | – | ✓ | ✓ | ✓ |
+| Record delivery | – | ✓ | – | ✓ |
+| Add and edit activities, tasks, programmes | – | ✓ | – | ✓ |
+| Upload a work plan and accept its rows | – | ✓ | – | ✓ |
+| Accept or dismiss AI proposals (units, moved activities) | – | – | ✓ | ✓ |
+| Merge activities, undo a merge | – | – | ✓ | ✓ |
+| Goals, objectives, units | – | – | – | ✓ |
+| Delete anything, manage accounts, settings | – | – | – | ✓ |
+
+The rights live in one place each: the routes in `protectedController::$access`,
+the model rule (which tables a screen or a form may touch) in `model_may()`,
+and the `can_*()` helpers in library.php that the menu, the buttons and the
+controllers read. A form that names a table it may not write - an activity
+save aimed at `core_users`, an objective through the programme form - is
+refused whatever the route said.
+
 Remove the throwaway test account when you no longer need it:
 
 ```bash
@@ -379,8 +401,8 @@ through, each with what has been recorded against it and its own **Record
 delivery** button, the same one the programme page puts beside every
 activity. The Projects / Interventions list carries the same action on every
 row, beside Edit and Delete, so delivery can be recorded without going
-through Progress first. All three are shown to administrators, executives
-and Power Users.
+through Progress first. All three are shown to those who record delivery:
+administrators and Power Users.
 
 **Needs input.** Every unfinished activity carries a red flag beside its
 code, on both lists and on the objective, programme and per-project pages;
@@ -392,7 +414,7 @@ pick opens one) and the parents the list can be filtered by (a pick sets
 that filter), then "Search for …" which submits as before. Arrow keys move,
 Enter picks, Esc closes. Names, codes and the matching passage of a
 description travel, nothing else; the users list answers only for
-administrators and executives.
+administrators.
 
 **Descriptions count.** The list search and the dropdown look inside
 descriptions as well as names, codes and programmes. A row that is there

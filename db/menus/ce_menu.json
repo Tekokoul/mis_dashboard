@@ -35,14 +35,14 @@
     "type": "link",
     "link": "core/db_list/pm_pillars",
     "icon": "bx-columns",
-    "active_for": "1,2"
+    "active_for": "1,2,3"
   },
   {
     "title": "Units",
     "type": "link",
     "link": "core/db_list/pm_units",
     "icon": "bx-sitemap",
-    "active_for": "1,2",
+    "active_for": "1,2,3",
     "requires": "units"
   },
   {
@@ -50,35 +50,35 @@
     "type": "link",
     "link": "core/db_list/pm_objectives",
     "icon": "bx-category",
-    "active_for": "1,2"
+    "active_for": "1,2,3"
   },
   {
     "title": "Programmes",
     "type": "link",
     "link": "core/db_list/pm_programmes",
     "icon": "bxs-category",
-    "active_for": "1,2"
+    "active_for": "1,2,3"
   },
   {
     "title": "Projects / Interventions",
     "type": "link",
     "link": "projects/list",
     "icon": "bx-cube",
-    "active_for": "1,2"
+    "active_for": "1,2,3"
   },
   {
     "title": "Progress",
     "type": "link",
     "link": "projects/progress_list",
     "icon": "bx-bar-chart",
-    "active_for": "1,2,3"
+    "active_for": "1,3"
   },
   {
     "title": "Import a work plan",
     "type": "link",
     "link": "imports/list",
     "icon": "bx-import",
-    "active_for": "1,2",
+    "active_for": "1,2,3",
     "requires": "import"
   },
   {

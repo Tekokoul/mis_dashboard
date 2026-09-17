@@ -21,7 +21,7 @@ foreach ($members as $member){
     <div class="col-lg-5 col-md-12">
     <div>
             <h2><?=display($data['project']['name'])?></h2>
-            <?php if (in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true)): ?>
+            <?php if (can_record()): ?>
                 <a href="<?=$this->L("projects/progress_edit/".(int)$data['project']['id']);?>" class="btn btn-primary btn-sm mb-3"><i class="bx bx-edit"></i> Record delivery</a>
             <?php endif; ?>
         </div>
@@ -64,7 +64,7 @@ foreach ($members as $member){
             // recorded against it and a way to record the rest - the same
             // button the programme page puts beside every activity.
             $tasks = $data['project']['tasks'] ?? [];
-            $mayRecord = in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true);
+            $mayRecord = can_record();
             if (!$tasks) {
                 print '<p class="text-muted">No task on this activity yet, so there is nothing to deliver against it.</p>';
             }

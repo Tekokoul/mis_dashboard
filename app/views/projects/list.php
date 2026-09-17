@@ -34,7 +34,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
 
                         <div class="row align-items-center mb-3">
                             <div class="col-12 col-lg-auto mb-3 mb-lg-0 afcdc-add-col">
-                                <a href="<?=$this->L("projects/add");?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a>
+                                <?php if (can_edit()): ?><a href="<?=$this->L("projects/add");?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a><?php endif; ?>
                                 <?php // Appears once two or more rows are ticked (custom.js); opens the merge page with them. ?>
                                 <?php if (can_vet() && merge_available($this->DB)): ?><a href="#" class="btn btn-light border btn-md btn-py-2 px-3 afcdc-merge" data-afcdc-merge="<?= $this->L('projects/merge'); ?>" hidden>Merge selected</a><?php endif; ?>
                             </div>
@@ -88,7 +88,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                     }
                                 }
                                 foreach ($data['data'] as $row) {
-                                    $link = "projects/edit/".$row['id'];
+                                    // A person who may edit opens the form; anyone else, the activity's page.
+                                    $link = can_edit() ? "projects/edit/".$row['id'] : "projects_graphs/project/".$row['id'];
                                     ?>
                                     <?php $review = $data['reviews'][(int)$row['id']] ?? null; $gaps = $data['gaps'][(int)$row['id']] ?? []; $trClass = trim(((isset($row['active']) && (string)$row['active'] === '0') ? 'afcdc-row--inactive ' : '') . ($gaps ? 'afcdc-gap ' : '') . (allocation_review_visible($review) ? 'afcdc-review afcdc-review--' . display($review['status']) . ' afcdc-review--' . display($review['confidence']) : '')); ?>
                                     <tr<?= $trClass !== '' ? ' class="' . $trClass . '"' : ''; ?>>
@@ -139,11 +140,11 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 }
                                             }
                                             ?>
-                                            <?php if (in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true)): ?>
+                                            <?php if (can_record()): ?>
                                             <a href="<?=$this->L("projects/progress_edit/".(int)$row['id']);?>" aria-label="Record delivery" title="Record delivery"><i class='bx bx-list-check bx-sm' aria-hidden="true"></i></a>
                                             <?php endif; ?>
-                                            <a href="<?=$this->L($link);?>" aria-label="Edit"><i class='bx bxs-edit bx-sm' aria-hidden="true"></i></a>
-                                            <a class="modal-basic" data-id="<?=$row['id'];?>" href="#deleteModal" aria-label="Delete"><i class='bx bx-trash bx-sm' aria-hidden="true"></i></a>
+                                            <?php if (can_edit()): ?><a href="<?=$this->L($link);?>" aria-label="Edit"><i class='bx bxs-edit bx-sm' aria-hidden="true"></i></a><?php endif; ?>
+                                            <?php if (can_delete()): ?><a class="modal-basic" data-id="<?=$row['id'];?>" href="#deleteModal" aria-label="Delete"><i class='bx bx-trash bx-sm' aria-hidden="true"></i></a><?php endif; ?>
                                         </td>
                                     </tr>
                                     <?php

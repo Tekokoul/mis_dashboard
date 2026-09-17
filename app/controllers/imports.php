@@ -233,7 +233,7 @@ class importsController extends protectedController {
             'objectives' => $objectives,
             'programmes' => $byObjective,
             // Nothing may be acted on until the whole workbook is in.
-            'can_act'    => can_vet() && empty($counts['incomplete']),
+            'can_act'    => can_edit() && empty($counts['incomplete']),
         ]);
     }
 

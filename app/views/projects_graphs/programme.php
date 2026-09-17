@@ -40,7 +40,7 @@ $val_all = ($data['programme']['totals']>0) ? round(($data['programme']['progres
             ?>
                 <div class="row afcdc-drill">
                     <div class="col col-7"><?= activity_flag($data['gaps'][(int)$project['id']] ?? []); ?><a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$project['id']);?>"><?=display($project['name']);?></a> <?= delivery_status_chip($pStatus); ?>
-                        <?php if (in_array((int)($_SESSION['user']['group']['id'] ?? 0), [1, 2, 3], true)): ?>
+                        <?php if (can_record()): ?>
                             <a href="<?=$this->L("projects/progress_edit/".(int)$project['id']);?>" class="btn btn-xs btn-light border ms-2 afcdc-record-link"><i class="bx bx-edit"></i> Record delivery</a>
                         <?php endif; ?>
                     </div>
