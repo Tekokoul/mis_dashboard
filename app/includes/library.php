@@ -2162,6 +2162,123 @@ function activity_gap_note(array $gaps) {
     return '<div class="afcdc-gap__note"><span class="afcdc-gap__tag">Unfinished</span> missing: ' . display(implode(', ', $gaps)) . '</div>';
 }
 
+/** The words of a search box, at most $max: a sentence is not a search. */
+function search_terms($search, $max = 6) {
+    return array_slice(preg_split('/\s+/u', trim((string)$search), -1, PREG_SPLIT_NO_EMPTY) ?: [], 0, $max);
+}
+
+/**
+ * A word as a LIKE pattern, bound. A typed % or _ is a character, not a
+ * wildcard: "100%" used to match "100 days", and "_" alone every row.
+ * MariaDB's LIKE escape is the backslash (no ESCAPE clause needed).
+ */
+function search_like($term) {
+    return '%' . addcslashes((string)$term, '\\%_') . '%';
+}
+
+/**
+ * Ranking a search of several words. A row used to need EVERY word, so
+ * "Theo CPHIA" found nothing when one word was nowhere. Now a row is kept
+ * when ANY word is found, and the rows holding ALL of them come first.
+ *
+ * The caller builds one clause per word from column names it controls
+ * (never request input), with the bound values for it, in order. Back come
+ * the pieces of a query:
+ *   'select' / 'select_bind'  one 0/1 column per word (afcdc_hit_1 ...) and
+ *                             their sum, afcdc_hits - put after the columns,
+ *                             then "HAVING afcdc_hits > 0" and
+ *                             "ORDER BY afcdc_hits DESC" ahead of the usual order
+ *   'where'  / 'where_bind'   "(word OR word ...)" for a plain count
+ * The per-word columns let a list say which words a row was found by.
+ */
+function search_rank(array $clauses, array $binds) {
+    $clauses = array_values($clauses); $binds = array_values($binds);
+    $hit = function ($c) { return "(CASE WHEN " . $c . " THEN 1 ELSE 0 END)"; };
+    $select = []; $select_bind = [];
+    foreach ($clauses as $i => $c) { $select[] = $hit($c) . " AS afcdc_hit_" . ($i + 1); $select_bind = array_merge($select_bind, $binds[$i]); }
+    $select[] = "(" . implode(" + ", array_map($hit, $clauses)) . ") AS afcdc_hits";
+    foreach ($binds as $b) { $select_bind = array_merge($select_bind, $b); }
+    return [
+        'select'      => implode(", ", $select),
+        'select_bind' => $select_bind,
+        'where'       => "(" . implode(" OR ", array_map(function ($c) { return "(" . $c . ")"; }, $clauses)) . ")",
+        'where_bind'  => $binds ? array_merge(...$binds) : [],
+        'words'       => count($clauses),
+    ];
+}
+
+/**
+ * For a row of a ranked search (search_rank's columns present): which words
+ * it holds and which it does not, or null when it holds them all - or the
+ * search was a single word, where there is nothing to explain.
+ */
+function search_hits_words(array $row, $search) {
+    $terms = search_terms($search);
+    if (count($terms) < 2 || !array_key_exists('afcdc_hits', $row)) { return null; }
+    $found = []; $missed = [];
+    foreach ($terms as $i => $t) {
+        if ((int)($row['afcdc_hit_' . ($i + 1)] ?? 0) > 0) { $found[] = $t; } else { $missed[] = $t; }
+    }
+    return ($missed && $found) ? ['found' => $found, 'missed' => $missed] : null;
+}
+
+/** Under the name of a row found by some of the words only: which ones, so its place further down the list makes sense. */
+function search_hits_note(array $row, $search) {
+    $w = search_hits_words($row, $search);
+    if ($w === null) { return ''; }
+    $mark = function ($t) { return '<mark>' . display($t) . '</mark>'; };
+    $gone = function ($t) { return '<s>' . display($t) . '</s>'; };
+    return '<div class="afcdc-match afcdc-match--partial"><span class="afcdc-match__tag">Partial match</span> '
+        . implode(', ', array_map($mark, $w['found'])) . " \u{00B7} not " . implode(', ', array_map($gone, $w['missed'])) . '</div>';
+}
+
+/**
+ * Everything that hangs off an activity, deleted with it: its tasks and
+ * what was recorded against them, its dates, milestones and percentages
+ * with their records, and any filing proposal still waiting on it. The
+ * list's delete used to remove the activity alone and leave all of this
+ * pointing at nothing (four such tasks were found). Called inside the
+ * caller's transaction, before the activity row itself goes. Returns what
+ * went, for the confirmation.
+ */
+function activity_children_delete($db, $projectId) {
+    $projectId = (int)$projectId;
+    $gone = activity_children_count($db, $projectId);
+    // Every row goes into the audit log before it goes, as
+    // coreModel::delete_data does for the activity itself: a delivery record
+    // says who reported what and when, and the log must not claim that one
+    // row went when a dozen did.
+    $user = (string)($_SESSION['user']['username'] ?? '');
+    $remove = function ($table, $where, array $p) use ($db, $user) {
+        foreach ((array)$db->MQ("SELECT * FROM `" . $table . "` WHERE " . $where, "all", $p) as $row) {
+            $db->MQ("INSERT INTO `core_table_logs_tbl` (`tablename`, `record`, `log_date`, `user`) VALUES (?, ?, ?, ?)", false,
+                [$table, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), date("Y-m-d H:i:s"), $user]);
+        }
+        $db->MQ("DELETE FROM `" . $table . "` WHERE " . $where, false, $p);
+    };
+    $remove('pm_progress_tasks_tbl', "project_id = ? OR task_id IN (SELECT id FROM pm_projects_tasks_tbl WHERE project_id = ?)", [$projectId, $projectId]);
+    foreach (['pm_progress_dates_tbl', 'pm_progress_milestones_tbl', 'pm_progress_percentages_tbl',
+              'pm_projects_tasks_tbl', 'pm_projects_dates_tbl', 'pm_projects_milestones_tbl', 'pm_projects_percentages_tbl',
+              'pm_allocation_review_tbl'] as $t) {
+        $remove($t, "project_id = ?", [$projectId]);
+    }
+    return $gone;
+}
+
+/**
+ * What activity_children_delete would remove: the tasks, and the delivery
+ * records filed on the activity or on any of its tasks - the same
+ * predicate as the delete, so the confirm on the form counts what goes.
+ */
+function activity_children_count($db, $projectId) {
+    $projectId = (int)$projectId;
+    $n = function ($sql, array $p) use ($db) { return (int)($db->MQ($sql, "one", $p)['n'] ?? 0); };
+    return [
+        'tasks'      => $n("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE project_id = ?", [$projectId]),
+        'deliveries' => $n("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE project_id = ? OR task_id IN (SELECT id FROM pm_projects_tasks_tbl WHERE project_id = ?)", [$projectId, $projectId]),
+    ];
+}
+
 /**
  * When a list is being searched and a row is there because of its
  * description rather than its name or code, say so under the name: the

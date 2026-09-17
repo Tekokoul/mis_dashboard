@@ -74,6 +74,42 @@ $(document).ready(function() {
         // this, save it", and adding a blank row there is never what was meant.
         $newTasks.on('keydown', 'tr.afcdc-new-task input', function (e) { if (e.key === 'Enter') { e.preventDefault(); $newTasks.find('[data-add-task]').trigger('click'); } });
     }
+    // Delete, on the form (administrators): the list's confirm, but the list
+    // is where to go afterwards - reloading a form whose activity is gone
+    // would only say "not found". The code rides along so the list can say
+    // what went.
+    $('.afcdc-delete-activity').magnificPopup({
+        type: 'inline', preloader: false, modal: true,
+        callbacks: { open: function () {
+            var t = $($.magnificPopup.instance.currItem.el[0]), content = $(this.content);
+            content.off('click.afcdc').on('click.afcdc', '.modal-dismiss', function (e) { e.preventDefault(); $.magnificPopup.close(); });
+            content.on('click.afcdc', '.modal-confirm', function (e) {
+                e.preventDefault();
+                var $btn = $(this).prop('disabled', true);
+                $.ajax({
+                    method: 'POST', url: lang_prefix + '/core/db_delete/pm_projects/' + t.data('id'),
+                    data: { csrf: window.CSRF_TOKEN || '' }, dataType: 'json', cache: false,
+                    success: function (r) {
+                        // The list is where the notice lives, so that is where to
+                        // go - with its search and filters when the form was
+                        // opened from it; from anywhere else (a graph, Progress)
+                        // the plain list. What went comes from the server's answer.
+                        var after = String(t.data('afcdc-after') || '');
+                        if (!/\/projects\/list(\?|$)/.test(after)) { after = lang_prefix + '/projects/list'; }
+                        var gone = (r && r.data) || {};
+                        window.location.href = after + (after.indexOf('?') >= 0 ? '&' : '?') + 'deleted=' + encodeURIComponent(t.data('code') || '')
+                            + '&tasks=' + encodeURIComponent(gone.tasks || 0) + '&deliveries=' + encodeURIComponent(gone.deliveries || 0);
+                    },
+                    error: function (xhr) {
+                        $btn.prop('disabled', false); $.magnificPopup.close();
+                        alert(xhr.status === 403
+                            ? 'The page had been open too long for the deletion to be accepted. Reload and try again.'
+                            : 'The activity could not be deleted (' + xhr.status + '). Nothing was removed.');
+                    }
+                });
+            });
+        } }
+    });
     // Nothing saved yet means no details panel to load, and an activity
     // reported through tasks has no panel at all any more - they are edited in
     // the form. The cascade below is wired up either way.

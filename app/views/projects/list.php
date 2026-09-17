@@ -24,6 +24,11 @@ $page_link_suffix = (count($suffix_terms) > 0)
         </ol>
     </div>
 </header>
+<?php // Back from the form after its Delete: say what went, once. ?>
+<?php if (is_string($_GET['deleted'] ?? null) && $_GET['deleted'] !== '') {
+    $goneT = (int)($_GET['tasks'] ?? 0); $goneD = (int)($_GET['deliveries'] ?? 0); ?>
+<div class="afcdc-review-panel afcdc-merge-panel" role="status"><div class="afcdc-review__note"><span class="afcdc-review__tag">Deleted</span> Activity <strong><?= display($_GET['deleted']); ?></strong> is gone, with its <?= $goneT; ?> task<?= $goneT === 1 ? '' : 's'; ?> and <?= $goneD; ?> delivery record<?= $goneD === 1 ? '' : 's'; ?>.</div></div>
+<?php } ?>
 <div class="row">
     <div class="col">
         <div class="card card-modern">
@@ -111,7 +116,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 if ($field === 'name' && $gaps) { $inner .= activity_gap_note($gaps); }
                                                 if ($field === 'abbr' && $gaps) { $inner = activity_flag($gaps) . ' ' . $inner; }
                                                 // Found through its description? Show the passage, so the row explains itself.
-                                                if ($field === 'name' && ($data['search'] ?? '') !== '') { $inner .= search_match_note($row, $data['search']); }
+                                                if ($field === 'name' && ($data['search'] ?? '') !== '') { $inner .= search_match_note($row, $data['search']) . search_hits_note($row, $data['search']); }
                                                 print ($first)
                                                     ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
                                                     : '<td' . $attrs . '>' . $inner . '</td>';
@@ -222,7 +227,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                     <i class="fas fa-question-circle"></i>
                 </div>
                 <div class="modal-text">
-                    <p class="mb-0">Are you sure that you want to delete this entry?</p>
+                    <p class="mb-0">This activity will be deleted with its tasks and its delivery records. This cannot be undone.</p>
                 </div>
             </div>
         </div>

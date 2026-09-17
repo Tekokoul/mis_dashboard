@@ -226,6 +226,8 @@ class projectsController extends coreController{
         $data['gaps'] = is_array($data['data']) ? activity_gaps($this->DB, $data['data']) : [];
         $data['tasks'] = $this->activityTasks((int)$validated['id']);
         $data['may_record'] = $this->mayRecordHere();
+        // For the Delete confirm: counted with the delete's own predicate.
+        $data['gone'] = can_delete() ? activity_children_count($this->DB, (int)$validated['id']) : [];
         $data['merges'] = merge_history($this->DB, (int)$validated['id'], (int)($this->query['merged'] ?? 0));
         $data['back'] = $this->backTo('projects/list');
         $this->AddJS("/js/pm_projects.js");
@@ -525,64 +527,69 @@ class projectsController extends coreController{
      * GET projects/search_suggest/<model>?q=: what the list search would find,
      * as you type. Two groups: rows of the list itself (a pick opens one) and
      * the parents a row can be filtered by (a pick sets that filter). Words
-     * are ANDed the way the list search does; six rows and three parents at
-     * most, in code order. Names and codes leave here, plus the passage of
-     * the description for a row found through it.
+     * are ranked the way the list search is (search_rank: any word keeps a
+     * row, all the words put it first); six rows and three parents at most,
+     * then in code order. Names and codes leave here, plus the passage of
+     * the description for a row found through it and, for a row holding
+     * some of the words only, which ones.
      */
     public function search_suggest() {
         $this->checkMethod("GET");
         $this->mapRoute("model");
         $model = (string)($this->parts['model'] ?? '');
         $q = trim((string)($this->query['q'] ?? ''));
-        $terms = array_slice(preg_split('/\s+/u', $q, -1, PREG_SPLIT_NO_EMPTY), 0, 4);
+        $terms = search_terms($q);   // the same words the list searches on Enter
         if ($terms === [] || mb_strlen($q) < 2) { $this->setAnswer(200, "OK", ['groups' => []], "json"); }
         $group = (int)($_SESSION['user']['group']['id'] ?? 0);
-        $like = function (array $cols) use ($terms, &$bind) {
-            $parts = [];
+        // One clause per word over the columns given; search_rank turns them
+        // into the score columns, the HAVING and the order used below.
+        $ranked = function (array $cols) use ($terms) {
+            $clauses = []; $binds = [];
             foreach ($terms as $t) {
-                $one = [];
-                foreach ($cols as $c) { $one[] = "$c LIKE ?"; $bind[] = '%' . $t . '%'; }
-                $parts[] = '(' . implode(' OR ', $one) . ')';
+                $one = []; $b = [];
+                foreach ($cols as $c) { $one[] = "$c LIKE ?"; $b[] = search_like($t); }
+                $clauses[] = implode(' OR ', $one); $binds[] = $b;
             }
-            return implode(' AND ', $parts);
+            return search_rank($clauses, $binds);
         };
         $groups = [];
         $order = coreModel::natural_order_sql('abbr');
         if ($model === 'pm_projects') {
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT p.id, p.abbr, p.name, p.description, g.abbr AS prg FROM pm_projects_tbl p LEFT JOIN pm_programmes_tbl g ON g.id = p.programme_id WHERE " . $like(['p.name', 'p.abbr', 'p.description']) . " ORDER BY " . coreModel::natural_order_sql('p.abbr') . " LIMIT 6", "all", $bind);
+            // The programme's name too, as the list searches it: "CPHIA" finds "Email reminders" under CPHIA Registrations in both places.
+            $rk = $ranked(['p.name', 'p.abbr', 'p.description', 'g.abbr', 'g.name']);
+            $rows = (array)$this->DB->MQ("SELECT p.id, p.abbr, p.name, p.description, g.abbr AS prg, " . $rk['select'] . " FROM pm_projects_tbl p LEFT JOIN pm_programmes_tbl g ON g.id = p.programme_id HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, " . coreModel::natural_order_sql('p.abbr') . " LIMIT 6", "all", $rk['select_bind']);
             $groups[] = ['label' => 'Activities', 'items' => array_map(function ($r) use ($q) {
                 // Found through the description alone? Say so, with the passage.
                 $why = search_match_snippet($r, $q);
-                return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'hint' => $why !== '' ? '' : (string)($r['prg'] ?? ''), 'why' => $why];
+                return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'hint' => $why !== '' ? '' : (string)($r['prg'] ?? ''), 'why' => $why, 'partial' => search_hits_words($r, $q)];
             }, $rows)];
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_objectives_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY $order LIMIT 3", "all", $bind);
+            $rk = $ranked(['name', 'abbr']);
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, " . $rk['select'] . " FROM pm_objectives_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, $order LIMIT 3", "all", $rk['select_bind']);
             $groups[] = ['label' => 'Objectives', 'items' => array_map(function ($r) { return ['label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'filter' => 'objective_id', 'value' => (int)$r['id']]; }, $rows)];
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_programmes_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY $order LIMIT 3", "all", $bind);
+            $rk = $ranked(['name', 'abbr']);
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, " . $rk['select'] . " FROM pm_programmes_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, $order LIMIT 3", "all", $rk['select_bind']);
             $groups[] = ['label' => 'Programmes', 'items' => array_map(function ($r) { return ['label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'filter' => 'programme_id', 'value' => (int)$r['id']]; }, $rows)];
         } elseif ($model === 'pm_programmes') {
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, description FROM pm_programmes_tbl WHERE " . $like(['name', 'abbr', 'description']) . " ORDER BY $order LIMIT 6", "all", $bind);
-            $groups[] = ['label' => 'Programmes', 'items' => array_map(function ($r) use ($q) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'why' => search_match_snippet($r, $q)]; }, $rows)];
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_objectives_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY $order LIMIT 3", "all", $bind);
+            $rk = $ranked(['name', 'abbr', 'description']);
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, description, " . $rk['select'] . " FROM pm_programmes_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, $order LIMIT 6", "all", $rk['select_bind']);
+            $groups[] = ['label' => 'Programmes', 'items' => array_map(function ($r) use ($q) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'why' => search_match_snippet($r, $q), 'partial' => search_hits_words($r, $q)]; }, $rows)];
+            $rk = $ranked(['name', 'abbr']);
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, " . $rk['select'] . " FROM pm_objectives_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, $order LIMIT 3", "all", $rk['select_bind']);
             $groups[] = ['label' => 'Objectives', 'items' => array_map(function ($r) { return ['label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'filter' => 'objective_id', 'value' => (int)$r['id']]; }, $rows)];
         } elseif ($model === 'pm_objectives') {
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, description FROM pm_objectives_tbl WHERE " . $like(['name', 'abbr', 'description']) . " ORDER BY $order LIMIT 6", "all", $bind);
-            $groups[] = ['label' => 'Objectives', 'items' => array_map(function ($r) use ($q) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'why' => search_match_snippet($r, $q)]; }, $rows)];
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, name FROM pm_pillars_tbl WHERE " . $like(['name', 'abbr']) . " ORDER BY position LIMIT 3", "all", $bind);
+            $rk = $ranked(['name', 'abbr', 'description']);
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, description, " . $rk['select'] . " FROM pm_objectives_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, $order LIMIT 6", "all", $rk['select_bind']);
+            $groups[] = ['label' => 'Objectives', 'items' => array_map(function ($r) use ($q) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['abbr'] . ' ' . (string)$r['name']), 'why' => search_match_snippet($r, $q), 'partial' => search_hits_words($r, $q)]; }, $rows)];
+            $rk = $ranked(['name', 'abbr']);
+            $rows = (array)$this->DB->MQ("SELECT id, name, " . $rk['select'] . " FROM pm_pillars_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, position LIMIT 3", "all", $rk['select_bind']);
             $groups[] = ['label' => 'Goals', 'items' => array_map(function ($r) { return ['label' => (string)$r['name'], 'filter' => 'pillar_id', 'value' => (int)$r['id']]; }, $rows)];
         } elseif ($model === 'pm_pillars') {
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, abbr, name FROM pm_pillars_tbl WHERE " . $like(['name', 'abbr', 'description']) . " ORDER BY position LIMIT 6", "all", $bind);
+            $rk = $ranked(['name', 'abbr', 'description']);
+            $rows = (array)$this->DB->MQ("SELECT id, abbr, name, " . $rk['select'] . " FROM pm_pillars_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, position LIMIT 6", "all", $rk['select_bind']);
             $groups[] = ['label' => 'Goals', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['name'])]; }, $rows)];
         } elseif ($model === 'core_users' && can_admin()) {
-            $bind = [];
-            $rows = (array)$this->DB->MQ("SELECT id, username, givenname, sn FROM core_users_tbl WHERE " . $like(['username', 'givenname', 'sn']) . " ORDER BY sn, givenname LIMIT 6", "all", $bind);
+            $rk = $ranked(['username', 'givenname', 'sn']);
+            $rows = (array)$this->DB->MQ("SELECT id, username, givenname, sn, " . $rk['select'] . " FROM core_users_tbl HAVING afcdc_hits > 0 ORDER BY afcdc_hits DESC, sn, givenname LIMIT 6", "all", $rk['select_bind']);
             $groups[] = ['label' => 'Users', 'items' => array_map(function ($r) { return ['id' => (int)$r['id'], 'label' => trim((string)$r['givenname'] . ' ' . (string)$r['sn']) ?: (string)$r['username'], 'hint' => (string)$r['username']]; }, $rows)];
         } else {
             $this->setAnswer(404, "No such list", [], "json");
@@ -638,6 +645,7 @@ class projectsController extends coreController{
             // refused save costs nothing that was entered.
             $data['tasks'] = $this->activityTasks($id);
             $data['may_record'] = $this->mayRecordHere();
+            $data['gone'] = can_delete() ? activity_children_count($this->DB, $id) : [];
             foreach ($data['tasks'] as &$t) {
                 $p = $posted['tasks'][(int)$t['id']] ?? null;
                 if (!is_array($p)) { continue; }
@@ -861,26 +869,23 @@ class projectsController extends coreController{
 
             // $data['search'] is FILTER_UNSAFE_RAW - raw user input. Bound.
             //
-            // Same two rules as the Projects list (coreModel::get_list_data):
-            // every word must match somewhere, rather than the whole phrase
-            // matching one column, and the programme the activity sits under
-            // is searched too, so "CPHIA" finds "Email reminders". This page
-            // builds its own query because it is scoped to the tasks that
-            // apply to the signed-in entity, so the rules live in both places;
-            // the code column was also missing here, which meant a delivery
-            // could not be found by its number at all.
+            // Same rules as the Projects list (coreModel::get_list_data): each
+            // word is looked for anywhere in the row, the programme the
+            // activity sits under included, so "CPHIA" finds "Email
+            // reminders"; a row holding any word is kept and the rows holding
+            // all of them come first (search_rank). This page builds its own
+            // query because it is scoped to the tasks that apply to the
+            // signed-in entity, so the rules live in both places.
+            $rank = null;
             if(trim((string)$data['search']) !== ""){
-                $terms = preg_split('/\s+/u', trim((string)$data['search']), -1, PREG_SPLIT_NO_EMPTY);
-                foreach (array_slice($terms, 0, 6) as $term) {
-                    $where .= "AND ((name like ?) OR (abbr like ?) OR (description like ?)"
-                            . " OR (programme_id in (select `id` from `pm_programmes_tbl`"
-                            . " where `abbr` like ? or `name` like ?))) ";
-                    $params[] = "%".$term."%";
-                    $params[] = "%".$term."%";
-                    $params[] = "%".$term."%";
-                    $params[] = "%".$term."%";
-                    $params[] = "%".$term."%";
+                $clauses = []; $binds = [];
+                foreach (search_terms($data['search']) as $term) {
+                    $clauses[] = "(name like ?) OR (abbr like ?) OR (description like ?)"
+                               . " OR (programme_id in (select `id` from `pm_programmes_tbl`"
+                               . " where `abbr` like ? or `name` like ?))";
+                    $binds[] = array_fill(0, 5, search_like($term));
                 }
+                $rank = search_rank($clauses, $binds);
             }
             // Each $filters entry already begins with "AND", so the old
             // implode(" OR ", ...) produced "AND a=? OR AND b=?" - a syntax
@@ -890,14 +895,19 @@ class projectsController extends coreController{
                 foreach($filters as $f){ $params[] = $f['value']; }
             }
 
-            $count_query = "select count(*) as total from ".$this->model->get_table_name($model['model_name']).$where;
-            $data['count'] = $this->DB->MQ($count_query, "one", $params)['total'];
+            // The count keeps rows holding any word (its clause comes after the
+            // filters, so its values are bound after theirs); the page ranks
+            // them through the score columns, whose values are bound first.
+            $count_query = "select count(*) as total from ".$this->model->get_table_name($model['model_name']).$where
+                         . ($rank ? "AND " . $rank['where'] . " " : "");
+            $data['count'] = $this->DB->MQ($count_query, "one", array_merge($params, $rank ? $rank['where_bind'] : []))['total'];
 
-            $query = "select * from ".$this->model->get_table_name($model['model_name']).$where
-                   . " order by " . coreModel::natural_order_sql('abbr')
+            $query = "select *" . ($rank ? ", " . $rank['select'] : "") . " from ".$this->model->get_table_name($model['model_name']).$where
+                   . ($rank ? " having afcdc_hits > 0" : "")
+                   . " order by " . ($rank ? "afcdc_hits desc, " : "") . coreModel::natural_order_sql('abbr')
                    . " limit " . (int)$items_per_page . " offset " . (((int)$page - 1) * (int)$items_per_page);
 
-            $data['data'] = $this->DB->MQ($query, "all", $params);
+            $data['data'] = $this->DB->MQ($query, "all", array_merge($rank ? $rank['select_bind'] : [], $params));
 
             $data['items'] = $items_per_page;
             $data['page'] = $page;

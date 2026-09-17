@@ -184,8 +184,9 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         if (trim((string)$search) !== "" && isset($model['model']['common']['description']) && !isset($fields['description'])) {
             $fields['description'] = ["hidden" => true];
         }
-        // start building query
-        $query = "select `" . implode("`,`", array_keys($fields)) . "` from " . $this->get_table_name($model['model_name']);
+        // start building query. The SELECT itself is assembled after the
+        // search, which may add its ranking columns to it.
+        $select_cols = "`" . implode("`,`", array_keys($fields)) . "`";
         $count_query = "select count(*) as total from " . $this->get_table_name($model['model_name']);
         $query_clauses = "";
         $where_string = [];
@@ -196,23 +197,25 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             $where_string[] = "AND language_id = " . $this->lang_id;
         }
 
-        // Bound values for this query, in placeholder order: the search term
-        // first (it appears earlier in the WHERE), then any filter values.
+        // Bound filter values, in placeholder order. The search binds its own
+        // (see the end of this function): they sit in different places of
+        // the count and of the page query.
         $params = [];
+        $rank = null;
         // The search term is raw user input (FILTER_UNSAFE_RAW in every caller),
         // so it is bound, never interpolated. The field NAMES come from the
         // model settings, not from the request, so they stay as identifiers.
         if (trim((string)$search) !== "") {
             $all_fields = array_merge($model['model']['common'] ?? [], $model['model']['languages'][$this->lang] ?? []);
             $search_fields = $this->array_with_value("search_field", $all_fields);
-            // Every word has to match somewhere in the row, instead of the
-            // whole phrase having to appear in one column. Nobody types a
-            // single word, and the old behaviour failed silently: "member
-            // states training" returned nothing, while the three words
-            // separately are in three activities.
-            $terms = preg_split('/\s+/u', trim((string)$search), -1, PREG_SPLIT_NO_EMPTY);
-            $terms = array_slice($terms, 0, 6);   // a sentence is not a search
-            foreach ($terms as $term) {
+            // One clause per word, each word looked for anywhere in the row
+            // rather than the whole phrase in one column. A row holding ANY
+            // word is kept and the rows holding ALL of them come first
+            // (search_rank in library.php): "member states training" used to
+            // return nothing because no activity had all three words, and
+            // "Theo CPHIA" nothing because nothing had "Theo".
+            $term_clauses = []; $term_binds = [];
+            foreach (search_terms($search) as $term) {
                 $clause = [];
                 $bind   = [];
                 foreach ($search_fields as $search_field => $properties) {
@@ -243,7 +246,7 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                             // should skip the column rather than break SQL.
                             if (!preg_match('/^[A-Za-z0-9_]{1,64}$/', $col)) { continue; }
                             $inner[] = "`" . $col . "` like ?";
-                            $inner_bind[] = "%" . $term . "%";
+                            $inner_bind[] = search_like($term);
                         }
                         if (count($inner) > 0) {
                             $clause[] = "`" . $search_field . "` in (select `" . $link_key . "` from `"
@@ -252,17 +255,17 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
                         }
                     } else {
                         $clause[] = "`" . $search_field . "` like ?";
-                        $bind[]   = "%" . $term . "%";
+                        $bind[]   = search_like($term);
                     }
                 }
                 if (count($clause) > 0) {
-                    $where_string[] = "AND (" . implode(" OR ", $clause) . ")";
-                    // Bound in the order the placeholders appear, which is the
-                    // order the clauses were built above.
-                    foreach ($bind as $value) { $params[] = $value; }
+                    $term_clauses[] = implode(" OR ", $clause);
+                    $term_binds[]   = $bind;   // in the order the placeholders appear above
                 }
             }
+            if ($term_clauses) { $rank = search_rank($term_clauses, $term_binds); }
         }
+        $query = "select " . $select_cols . ($rank ? ", " . $rank['select'] : "") . " from " . $this->get_table_name($model['model_name']);
 
         // A filter is either a bound pair ['sql' => "... = ?", 'value' => x] or,
         // for callers not yet converted, a literal SQL string. The pair form is
@@ -280,9 +283,12 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             }
         }
 
-        if (count($where_string) > 0) {
-            $query_clauses .= " where 1 " . implode(" ", $where_string);
-        }
+        // The count keeps the rows holding any of the words; the page gets
+        // the same rows through HAVING on the score, so the words are looked
+        // for once per row, best matches first.
+        $joins = $query_clauses;
+        $count_sql = $count_query . $joins . " where 1 " . ($rank ? "AND " . $rank['where'] . " " : "") . implode(" ", $where_string);
+        $query_clauses .= " where 1 " . implode(" ", $where_string) . ($rank ? " having afcdc_hits > 0" : "");
 
         // include the ordering query. The model settings name the sort column
         // (db/models_settings/*.json, "order_field"); the content lists sort by
@@ -291,7 +297,7 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         // InnoDB returns physical order, which changes after any rewrite.
         $order_fields = $this->array_with_value("order_field", $fields);
         if (count($order_fields)>0) {
-            $query_clauses .= " order by ";
+            $query_clauses .= " order by " . ($rank ? "afcdc_hits desc, " : "");
             $order_string = [];
             foreach ($order_fields as $order_field => $properties) {
                 $dir = (strtolower($properties['order_field']) == "desc") ? "desc" : "asc";
@@ -306,16 +312,18 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             }
             $query_clauses .= implode(",", $order_string);
         } else {
-            $query_clauses .= " order by `id` asc";
+            $query_clauses .= " order by " . ($rank ? "afcdc_hits desc, " : "") . "`id` asc";
         }
-        $result['count'] = $this->DB->MQ($count_query.$query_clauses, "one", $params)['total'];
+        // Each query binds its own values in placeholder order: the search's
+        // (in the WHERE of the count, in the SELECT of the page), then the filters'.
+        $result['count'] = $this->DB->MQ($count_sql, "one", array_merge($rank ? $rank['where_bind'] : [], $params))['total'];
 
         // include the limits. Cast rather than bind: MySQL will not accept a
         // placeholder in LIMIT/OFFSET while emulation is off, and both values
         // are integers we control.
         $query_limits = " limit " . (int)$items_per_page . " offset " . (((int)$page - 1) * (int)$items_per_page);
 
-        $result['data'] = $this->DB->MQ($query.$query_clauses.$query_limits, "all", $params);
+        $result['data'] = $this->DB->MQ($query.$query_clauses.$query_limits, "all", array_merge($rank ? $rank['select_bind'] : [], $params));
         $result['page'] = $page;
         $result['items'] = $items_per_page;
         return $result;

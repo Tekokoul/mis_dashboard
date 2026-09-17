@@ -390,6 +390,24 @@ class coreController extends protectedController{
         ];
         $validated = $this->sanitize($this->parts, $rules);
         $this->refuseSwitchedOff($validated['model'], true);
+        if ($validated['model'] === 'pm_projects') {
+            // An activity takes its tasks, delivery records, dates, milestones,
+            // percentages and pending filing proposals with it (library.php,
+            // activity_children_delete): deleting the row alone left them
+            // behind. One transaction: a failure part-way leaves everything.
+            if (!is_set($this->DB->MQ("SELECT id FROM pm_projects_tbl WHERE id = ?", "one", [(int)$validated['id']]))) {
+                $this->setAnswer(404, "No such activity - it may have been deleted already.", [], "json");
+            }
+            $this->DB->txBegin();
+            $gone = activity_children_delete($this->DB, (int)$validated['id']);
+            $executed = $this->model->delete_data($validated['model'], $validated['id']);
+            if (in_array('false', $executed, true) || !$executed) {
+                $this->DB->txRollBack();
+                $this->setAnswer(500, "Problem deleting the activity - nothing was removed.", [], "json");
+            }
+            $this->DB->txCommit();
+            $this->setAnswer(200, "Deleted activity <b>" . (int)$validated['id'] . "</b> with " . $gone['tasks'] . " task(s) and " . $gone['deliveries'] . " delivery record(s).", $gone, "json");
+        }
         $executed = $this->model->delete_data($validated['model'], $validated['id']);
         if(in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem deleting entry", [], "json");

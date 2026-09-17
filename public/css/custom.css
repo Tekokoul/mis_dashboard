@@ -1036,6 +1036,14 @@ html tr.afcdc-task--removed { opacity: 0.55; }
 html tr.afcdc-task--removed input[type="text"] { text-decoration: line-through; background: var(--afcdc-canvas); }
 html [data-undo-remove-task] { font-size: 0.75rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; }
 html .afcdc-task__kept { color: var(--afcdc-ink-soft); cursor: help; }
+/* Delete on the activity form: a default button that reads as the one to
+   think about, not a red block beside Save. */
+html .afcdc-btn-danger { color: var(--afcdc-not-started); }
+html .afcdc-btn-danger:hover, html .afcdc-btn-danger:focus-visible { color: #FFF; background: var(--afcdc-not-started); border-color: var(--afcdc-not-started); }
+/* A row found by some of the words of a search only: the found words
+   marked as in a description passage, the missing ones struck. */
+html .afcdc-match--partial s, html .afcdc-typeahead__why--partial s { color: var(--afcdc-ink-soft); text-decoration-color: var(--afcdc-not-started); }
+html .afcdc-match--partial .afcdc-match__tag, html .afcdc-typeahead__why--partial b { color: var(--afcdc-in-progress); }
 /* The Status box on the activity form: its band on the left is the colour
    the Projects list's square would show for that status; nothing recorded
    yet is the same quiet grey as an idle square. */

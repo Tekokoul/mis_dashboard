@@ -94,7 +94,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 if ($field === 'name' && $gaps) { $inner .= activity_gap_note($gaps); }
                                                 if ($field === 'abbr' && $gaps) { $inner = activity_flag($gaps) . ' ' . $inner; }
                                                 // Found through its description? Show the passage, so the row explains itself.
-                                                if ($field === 'name' && ($data['search'] ?? '') !== '') { $inner .= search_match_note($row, $data['search']); }
+                                                if ($field === 'name' && ($data['search'] ?? '') !== '') { $inner .= search_match_note($row, $data['search']) . search_hits_note($row, $data['search']); }
                                                 print ($first)
                                                     ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
                                                     : '<td' . $attrs . '>' . $inner . '</td>';

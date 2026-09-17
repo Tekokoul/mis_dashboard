@@ -183,6 +183,12 @@ $col_width = 12/$columns;
                 <i class="bx bx-plus-medical text-4 me-2"></i> Add another under this programme
             </a>
             <?php endif; ?>
+            <?php // Administrators only (can_delete): the same confirm as the list's, but it leads back to the list afterwards. ?>
+            <?php if (can_delete() && (int)($data['data']['id'] ?? 0) > 0): ?>
+            <a href="#afcdc-delete-activity" class="afcdc-delete-activity btn btn-default btn-px-4 py-3 line-height-1 me-2 afcdc-btn-danger" data-id="<?= (int)$data['data']['id']; ?>" data-code="<?= display($data['data']['abbr'] ?? ''); ?>" data-afcdc-after="<?= display($data['back'] ?? $this->L('projects/list')); ?>" title="Delete this activity, its tasks and its delivery records">
+                <i class="bx bx-trash text-4 me-2"></i> Delete
+            </a>
+            <?php endif; ?>
         </div>
 
         <div class="col-12 col-md-auto ms-md-auto mt-3 mt-md-0 ms-auto">
@@ -195,6 +201,32 @@ $col_width = 12/$columns;
         </div>
     </div>
 </form>
+<?php if (can_delete() && (int)($data['data']['id'] ?? 0) > 0) {
+    // Outside the form: the modal's buttons would otherwise submit it. What
+    // goes with the activity is counted here so nobody confirms blind.
+    $goneTasks = (int)($data['gone']['tasks'] ?? 0);
+    $goneReports = (int)($data['gone']['deliveries'] ?? 0); ?>
+<div id="afcdc-delete-activity" class="modal-block modal-block-primary mfp-hide">
+    <section class="card">
+        <header class="card-header"><h2 class="card-title">Delete this activity?</h2></header>
+        <div class="card-body">
+            <div class="modal-wrapper">
+                <div class="modal-icon"><i class="fas fa-question-circle"></i></div>
+                <div class="modal-text">
+                    <p class="mb-2"><strong><?= display(trim((string)($data['data']['abbr'] ?? '') . ' ' . (string)($data['data']['name'] ?? ''))); ?></strong></p>
+                    <p class="mb-0">Its <?= $goneTasks; ?> task<?= $goneTasks === 1 ? '' : 's'; ?> and <?= $goneReports; ?> delivery record<?= $goneReports === 1 ? '' : 's'; ?> go with it. This cannot be undone.</p>
+                </div>
+            </div>
+        </div>
+        <footer class="card-footer">
+            <div class="row"><div class="col-md-12 text-end">
+                <button type="button" class="btn btn-danger modal-confirm">Delete</button>
+                <button type="button" class="btn btn-default modal-dismiss">Cancel</button>
+            </div></div>
+        </footer>
+    </section>
+</div>
+<?php } ?>
 
 <script nonce="<?= csp_nonce(); ?>">
     var project_id = <?= (int)($data['data']['id'] ?? 0); ?>;

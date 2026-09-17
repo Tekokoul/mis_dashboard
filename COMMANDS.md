@@ -244,6 +244,36 @@ Clear all recorded progress and start again — **local development database onl
 
 ---
 
+## Deleting an activity
+
+Administrators only, from the list (bin icon) or from the activity's own
+edit form (**Delete**, bottom left, with a confirm that counts what goes).
+Both go through `core/db_delete/pm_projects/<id>`, which since the
+September 2026 release removes the activity's tasks, delivery records,
+dates, milestones, percentages and any pending filing proposal with it,
+in one transaction (`activity_children_delete()` in
+`app/includes/library.php`), every removed row written to
+`core_table_logs_tbl` first, as the activity's own row always was. Earlier
+deletes left those rows behind; the four orphan tasks on the local copy
+(ids 70, 71, 135, 186) date from then.
+
+---
+
+## Searching a list
+
+Every word of the box is looked for on its own - in the name, code and
+description, and in the name of the programme the row sits under. A row
+holding **any** of the words is listed; rows holding **all** of them come
+first, then the rest in code order. A typed `%` or `_` is a character, not
+a wildcard. A row found by some of the words only
+says which under its name ("Partial match: CPHIA · not Theo"); a row found
+through its description shows the passage. The search-as-you-type
+dropdown ranks the same way. The pieces live in `search_rank()`
+(`app/includes/library.php`), used by `coreModel::get_list_data()`, the
+Progress list and `projects/search_suggest`.
+
+---
+
 ## List filters and cascading dropdowns
 
 Both are driven from `db/models_settings/<model>.json`, no code.

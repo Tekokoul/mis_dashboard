@@ -948,6 +948,14 @@ $(function () {
                     rest.split(re).forEach(function (part, k) { if (!part) { return; } $why.append(k % 2 ? $('<mark></mark>').text(part) : document.createTextNode(part)); });
                     $row.append($why);
                 }
+                if (it.partial) {
+                    // Some of the words only: name them, so the row's place under the full matches makes sense.
+                    var $p = $('<div class="afcdc-typeahead__why afcdc-typeahead__why--partial"></div>').append($('<b></b>').text('Partial match')).append(document.createTextNode(' '));
+                    $.each(it.partial.found, function (k, w) { if (k) { $p.append(document.createTextNode(', ')); } $p.append($('<mark></mark>').text(w)); });
+                    $p.append(document.createTextNode(' \u00b7 not '));
+                    $.each(it.partial.missed, function (k, w) { if (k) { $p.append(document.createTextNode(', ')); } $p.append($('<s></s>').text(w)); });
+                    $row.append($p);
+                }
                 $row.data('item', it); $box.append($row); items.push($row);
             });
         });
