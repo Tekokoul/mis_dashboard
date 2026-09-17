@@ -4,26 +4,26 @@
     "type": "link",
     "link": "dashboard",
     "icon": "bxs-dashboard",
-    "active_for": "1,2,3,4,5"
+    "active_for": "1,2,3,4"
   },
   {
     "title": "Graphs",
     "type": "label",
-    "active_for": "1,2,3,4,5"
+    "active_for": "1,2,3,4"
   },
   {
     "title": "Overview",
     "type": "link",
     "link": "projects_graphs/overview",
     "icon": "bx-line-chart",
-    "active_for": "1,2,3,4,5"
+    "active_for": "1,2,3,4"
   },
   {
     "title": "Per Project",
     "type": "link",
     "link": "projects_graphs/projects",
     "icon": "bx-columns",
-    "active_for": "1,2,3,4,5"
+    "active_for": "1,2,3,4"
   },
   {
     "title": "Content",

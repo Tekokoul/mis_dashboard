@@ -266,6 +266,5 @@ INSERT INTO `core_groups_tbl` (`id`, `name`) VALUES
     (1, 'System Administrators'),
     (2, 'Executive Users'),
     (3, 'Power Users'),
-    (4, 'Custom Users'),
-    (5, 'Member State Users')
+    (4, 'Custom Users')
 ON DUPLICATE KEY UPDATE `name` = VALUES(`name`);

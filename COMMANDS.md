@@ -49,8 +49,10 @@ List accounts and whether each has a usable password:
 /opt/homebrew/bin/mariadb afcdc_dhis -e "SELECT id, username, givenname, sn, \`group\`, active, CASE WHEN password LIKE '\$argon2id\$%' THEN 'set' WHEN password REGEXP '^[0-9a-f]{32}$' THEN 'set (legacy hash, upgrades at next sign-in)' ELSE 'LOCKED' END AS password FROM core_users_tbl ORDER BY id;"
 ```
 
-Groups: `1` System Administrators · `2` Executive · `3` Power · `4` Custom ·
-`5` Member State.
+Groups: `1` System Administrators · `2` Executive · `3` Power · `4` Custom.
+(`5` Member State Users, a leftover of the multi-tenant origin with the same
+rights as Custom Users, was removed in September 2026: any account still in
+it is moved to Custom Users by the SQL that removes the group.)
 
 Remove the throwaway test account when you no longer need it:
 
