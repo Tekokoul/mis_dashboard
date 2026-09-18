@@ -29,6 +29,12 @@ $page_link_suffix = (count($suffix_terms) > 0)
     $goneT = (int)($_GET['tasks'] ?? 0); $goneD = (int)($_GET['deliveries'] ?? 0); ?>
 <div class="afcdc-review-panel afcdc-merge-panel" role="status"><div class="afcdc-review__note"><span class="afcdc-review__tag">Deleted</span> Activity <strong><?= display($_GET['deleted']); ?></strong> is gone, with its <?= $goneT; ?> task<?= $goneT === 1 ? '' : 's'; ?> and <?= $goneD; ?> delivery record<?= $goneD === 1 ? '' : 's'; ?>.</div></div>
 <?php } ?>
+<?php // Back from Move to unit: say what happened, once. ?>
+<?php if (is_string($_GET['moved'] ?? null) && ctype_digit($_GET['moved'])) { $movedN = (int)$_GET['moved']; $movedTo = is_string($_GET['to'] ?? null) ? trim($_GET['to']) : ''; ?>
+<div class="afcdc-review-panel afcdc-merge-panel" role="status"><div class="afcdc-review__note"><span class="afcdc-review__tag">Moved</span>
+    <?= $movedN === 0 ? 'Nothing changed: the ticked projects were already there.' : ($movedN . ' project' . ($movedN === 1 ? '' : 's') . ($movedTo !== '' ? ' now count' . ($movedN === 1 ? 's' : '') . ' under <strong>' . display($movedTo) . '</strong>.' : ' went back to the unit of ' . ($movedN === 1 ? 'its' : 'their') . ' objective.')); ?>
+</div></div>
+<?php } ?>
 <div class="row">
     <div class="col">
         <div class="card card-modern">
@@ -42,6 +48,8 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                 <?php if (can_edit()): ?><a href="<?=$this->L("projects/add");?>" class="btn btn-primary afcdc-add btn-md font-weight-semibold btn-py-2 px-4">+ Add</a><?php endif; ?>
                                 <?php // Appears once two or more rows are ticked (custom.js); opens the merge page with them. ?>
                                 <?php if (can_vet() && merge_available($this->DB)): ?><a href="#" class="btn btn-light border btn-md btn-py-2 px-3 afcdc-merge" data-afcdc-merge="<?= $this->L('projects/merge'); ?>" hidden>Merge selected</a><?php endif; ?>
+                                <?php // Appears once a row is ticked: the ticked projects go to another unit (projects/unit_move). ?>
+                                <?php if (!empty($data['units'])): ?><a href="#afcdc-move-unit" class="btn btn-light border btn-md btn-py-2 px-3 afcdc-move" data-afcdc-move="<?= $this->L('projects/unit_move'); ?>" hidden>Move to unit</a><?php endif; ?>
                             </div>
                             <?php
                             // The search box, with every filter in a panel under it (list_builder.php list_toolbar).
@@ -73,7 +81,14 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                             <th width="<?=$properties['list_width'];?>%" class="afcdc-col-<?= preg_replace('/[^a-z0-9_]/i', '', $field); ?>"><?=ucfirst($title)?></th>
                                             <?php
                                             // Beside the name: how many tasks, and a square in the status colour.
-                                            if ($field === 'name') { ?><th width="7%" class="afcdc-col-tasks" title="How many tasks the activity is delivered through, and its status: green completed, orange in progress, red not started">Tasks</th><?php }
+                                            // The header sorts by that status: completed first, and pressed again, not started first (projectsController::statusOrderSql).
+                                            if ($field === 'name') {
+                                                $sortNow = (string)($data['filter_data']['sort'] ?? '');
+                                                $sortHref = $this->L($page_link_prefix) . '?' . http_build_query(array_merge($suffix_terms, ['sort' => ($sortNow === 'done' ? 'todo' : 'done')]));
+                                                $sortSays = $sortNow === 'done' ? 'Completed first, then in progress, then not started. Press for the other way round.'
+                                                          : ($sortNow === 'todo' ? 'Not started first, then in progress, then completed. Press for the other way round.'
+                                                          : 'Press to put completed activities first; press again for not started first.'); ?>
+                                                <th width="7%" class="afcdc-col-tasks" aria-sort="<?= $sortNow === 'done' ? 'descending' : ($sortNow === 'todo' ? 'ascending' : 'none'); ?>"><a href="<?= display($sortHref); ?>" class="afcdc-sort<?= $sortNow !== '' ? ' is-active' : ''; ?>" title="How many tasks the activity is delivered through, and its status: green completed, orange in progress, red not started. <?= $sortSays; ?>">Tasks <i class="bx <?= $sortNow === 'done' ? 'bx-sort-down' : ($sortNow === 'todo' ? 'bx-sort-up' : 'bx-sort-alt-2'); ?>" aria-hidden="true"></i></a></th><?php }
                                         }
                                     }
                                     ?>
@@ -117,6 +132,12 @@ $page_link_suffix = (count($suffix_terms) > 0)
                                                 if ($field === 'abbr' && $gaps) { $inner = activity_flag($gaps) . ' ' . $inner; }
                                                 // Found through its description? Show the passage, so the row explains itself.
                                                 if ($field === 'name' && ($data['search'] ?? '') !== '') { $inner .= search_match_note($row, $data['search']) . search_hits_note($row, $data['search']); }
+                                                // Run by another unit than its objective's (Move to unit): say which.
+                                                if ($field === 'name' && !empty($data['unit_overrides'][(int)$row['id']]['unit'])) {
+                                                    $uo = $data['unit_overrides'][(int)$row['id']];
+                                                    $inner .= '<div class="afcdc-match afcdc-unit-tag"><span class="afcdc-match__tag">Unit</span> ' . display($uo['unit'])
+                                                            . ($uo['from'] !== '' ? ' <span class="afcdc-unit-tag__from">its objective is under ' . display($uo['from']) . '</span>' : '') . '</div>';
+                                                }
                                                 print ($first)
                                                     ? '<td' . $attrs . '><a href="' . $this->L($link) . '"><strong>' . $inner . '</strong></a></td>'
                                                     : '<td' . $attrs . '>' . $inner . '</td>';
@@ -216,6 +237,28 @@ $page_link_suffix = (count($suffix_terms) > 0)
         </div>
     </div>
 </div>
+<?php if (!empty($data['units'])) { ?>
+<div id="afcdc-move-unit" class="modal-block modal-block-primary mfp-hide">
+    <section class="card">
+        <header class="card-header"><h2 class="card-title">Move to a unit</h2></header>
+        <div class="card-body">
+            <p class="mb-2"><strong data-afcdc-move-count>0 projects</strong> will count under the unit you choose. They keep their goal, objective, programme and code.</p>
+            <label class="form-label" for="afcdc-move-unit-select">Unit</label>
+            <select class="form-select" id="afcdc-move-unit-select">
+                <option value="" selected disabled>Choose a unit&hellip;</option>
+                <?php foreach ($data['units'] as $u) { ?><option value="<?= (int)$u['id']; ?>"><?= display($u['name']); ?></option><?php } ?>
+                <option value="0">Back to the unit of their objective</option>
+            </select>
+        </div>
+        <footer class="card-footer">
+            <div class="row"><div class="col-md-12 text-end">
+                <button type="button" class="btn btn-primary modal-confirm" disabled>Move</button>
+                <button type="button" class="btn btn-default modal-dismiss">Cancel</button>
+            </div></div>
+        </footer>
+    </section>
+</div>
+<?php } ?>
 <div id="deleteModal" class="modal-block modal-block-primary mfp-hide" data-tablename="<?=display($data['model_name'])?>">
     <section class="card">
         <header class="card-header">

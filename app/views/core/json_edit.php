@@ -15,11 +15,11 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
 </header>
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("core/json_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
-<div class="row">
+<div class="row afcdc-split" data-cols="<?= (int)$columns; ?>">
     <?php
         if(isset($data['model']['common'])){
     ?>
-    <div class="col col-lg-<?=$col_width;?> col-md-12">
+    <div class="col-12 afcdc-split__col">
         <section class="card card-modern mb-5">
             <div class="card-body">
                 <div class="row">
@@ -41,7 +41,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
     }
     if(isset($data['model']['languages'])){
         ?>
-    <div class="col col-lg-<?=$col_width;?> col-md-12">
+    <div class="col-12 afcdc-split__col">
         <div class="tabs">
             <ul class="nav nav-tabs nav-justified">
                 <?php

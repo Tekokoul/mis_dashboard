@@ -14,8 +14,8 @@ $col_width = 12/$columns;
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("projects/edit_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
     <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
-    <div class="row mb-4">
-            <div class="col col-lg-<?=$col_width;?> col-md-12">
+    <div class="row mb-4 afcdc-split" data-cols="<?= (int)$columns; ?>">
+            <div class="col-12 afcdc-split__col">
                 <section class="card card-modern mb-5">
                     <div class="card-body">
                         <div class="row">
@@ -52,7 +52,7 @@ $col_width = 12/$columns;
                     </div>
                 </section>
             </div>
-            <div class="col col-lg-<?=$col_width;?> col-md-12">
+            <div class="col-12 afcdc-split__col">
             <?php
             // An activity is reported through its tasks, so they are edited
             // HERE, in the form, and saved with everything else. They used to

@@ -162,7 +162,9 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
              . ", " . $c . " " . $dir;
     }
 
-    function get_list_data($model, $page, $items_per_page = 50, $search = "", $filterby=[]) {
+    // $order_first: a trusted ORDER BY expression the caller built itself (never
+    // request input), put ahead of the search ranking and the usual order.
+    function get_list_data($model, $page, $items_per_page = 50, $search = "", $filterby=[], $order_first = "") {
 //        $this->check_DRM($model['model_name']);
         $fields = $this->get_list_fields($model);
         $fields = ["id" => ["hidden" => true]] + $fields;
@@ -297,7 +299,7 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
         // InnoDB returns physical order, which changes after any rewrite.
         $order_fields = $this->array_with_value("order_field", $fields);
         if (count($order_fields)>0) {
-            $query_clauses .= " order by " . ($rank ? "afcdc_hits desc, " : "");
+            $query_clauses .= " order by " . ($order_first !== "" ? $order_first . ", " : "") . ($rank ? "afcdc_hits desc, " : "");
             $order_string = [];
             foreach ($order_fields as $order_field => $properties) {
                 $dir = (strtolower($properties['order_field']) == "desc") ? "desc" : "asc";
@@ -312,7 +314,7 @@ and (table_name='" . $this->get_table_name($table_name, "L") . "')
             }
             $query_clauses .= implode(",", $order_string);
         } else {
-            $query_clauses .= " order by " . ($rank ? "afcdc_hits desc, " : "") . "`id` asc";
+            $query_clauses .= " order by " . ($order_first !== "" ? $order_first . ", " : "") . ($rank ? "afcdc_hits desc, " : "") . "`id` asc";
         }
         // Each query binds its own values in placeholder order: the search's
         // (in the WHERE of the count, in the SELECT of the page), then the filters'.

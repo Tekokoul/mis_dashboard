@@ -19,8 +19,8 @@ $col_width = 12/$columns;
     <?php // "Save and add another" landed here: what was saved, and what this form already knows. ?>
     <div id="afcdc-saved" class="alert alert-success py-2 mb-3" role="status">Saved <strong><?= display($data['saved']['abbr']); ?></strong> <?= display($data['saved']['name']); ?> (<a href="<?= $this->L('projects/edit/' . (int)$data['saved']['id']); ?>?back=<?= rawurlencode((string)($data['back'] ?? '')); ?>">open it</a>). <span data-afcdc-prefill>Goal, objective, programme and the next code are filled in from it; change them if this one belongs elsewhere.</span></div>
     <?php endif; ?>
-    <div class="row mb-4">
-        <div class="col col-lg-<?=$col_width;?> col-md-12">
+    <div class="row mb-4 afcdc-split" data-cols="<?= (int)$columns; ?>">
+        <div class="col-12 afcdc-split__col">
             <section class="card card-modern mb-5">
                 <div class="card-body">
                     <div class="row">
@@ -42,7 +42,7 @@ $col_width = 12/$columns;
                 </div>
             </section>
         </div>
-        <div class="col col-lg-<?=$col_width;?> col-md-12">
+        <div class="col-12 afcdc-split__col">
             <?php
             // Tasks can be typed before the activity exists: they are created
             // with it (projectsController::add_update). With none, a single

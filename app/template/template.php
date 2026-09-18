@@ -2,6 +2,7 @@
 <html lang="en" class="modern fixed has-top-menu has-left-sidebar-half">
 <head>
     <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow, noarchive">
     <title><?=_PROJECT_NAME;?></title>
     <meta name="author" content="<?=_AUTHOR;?>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

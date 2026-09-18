@@ -489,6 +489,17 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
                   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
                 || die "could not create pm_unit_review_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
         fi
+        # A project's own unit, for when it is run by another unit than its
+        # objective's (projects/unit_move). NULL = it follows its objective,
+        # which is every project until somebody moves one. Additive.
+        if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_projects_tbl' AND COLUMN_NAME='unit_id'") || [ -z "$have" ]; then
+            die "could not read pm_projects_tbl columns from information_schema - refusing to guess whether the migration is needed"
+        fi
+        if [ "$have" = "0" ]; then
+            log "adding pm_projects_tbl.unit_id (a project's own unit)"
+            qddl "ALTER TABLE pm_projects_tbl ADD COLUMN unit_id INT(11) DEFAULT NULL, ADD INDEX idx_projects_unit (unit_id)" \
+                || die "could not add pm_projects_tbl.unit_id (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
+        fi
     fi
 
     # 9. Merging activities: what each merge changed - the rows removed, the

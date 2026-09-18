@@ -523,6 +523,43 @@ $(function () {
         });
         refresh();   // a page restored from the browser's cache keeps its ticks
     }
+    // Move to unit: one ticked project is enough. The dialog names how many
+    // and asks for the unit; the server decides who may and what exists.
+    var $move = $('[data-afcdc-move]');
+    if ($move.length && $table.length) {
+        var moveBoxes = 'tbody input[name="checkboxRow1"]';
+        var movePicked = function () { return $table.find(moveBoxes + ':checked').map(function () { return this.value; }).get().filter(function (v) { return /^\d+$/.test(v); }); };
+        var moveRefresh = function () { var n = movePicked().length; $move.prop('hidden', n < 1).text('Move ' + n + ' to unit'); };
+        // After the Merge block's own handlers (it is they that tick the rows for "select all").
+        $table.on('change', moveBoxes + ', input.select-all', function () { window.setTimeout(moveRefresh, 0); });
+        if (!$btn.length) { $table.on('change', 'input.select-all', function () { $table.find(moveBoxes).prop('checked', this.checked); }); }
+        $move.on('click', function (e) {
+            e.preventDefault();
+            var ids = movePicked(); if (!ids.length) { return; }
+            var $dlg = $('#afcdc-move-unit'), $sel = $dlg.find('select'), $ok = $dlg.find('.modal-confirm');
+            $dlg.find('[data-afcdc-move-count]').text(ids.length + (ids.length === 1 ? ' project' : ' projects'));
+            $sel.val(''); $ok.prop('disabled', true);
+            $sel.off('change.afcdc').on('change.afcdc', function () { $ok.prop('disabled', $sel.val() === null || $sel.val() === ''); });
+            $dlg.off('click.afcdc').on('click.afcdc', '.modal-dismiss', function (ev) { ev.preventDefault(); $.magnificPopup.close(); });
+            $dlg.on('click.afcdc', '.modal-confirm', function (ev) {
+                ev.preventDefault(); $ok.prop('disabled', true);
+                $.ajax({ url: $move.attr('data-afcdc-move'), method: 'POST', dataType: 'json', data: { csrf: window.CSRF_TOKEN || '', ids: ids.join(','), unit_id: $sel.val() } })
+                    .done(function (r) {
+                        var u = new URL(window.location.href), d = (r && r.data) || {};
+                        ['deleted', 'tasks', 'deliveries', 'moved', 'to'].forEach(function (k) { u.searchParams.delete(k); });
+                        u.searchParams.set('moved', d.moved || 0); if (d.unit) { u.searchParams.set('to', d.unit); }
+                        window.location.href = u.toString();
+                    })
+                    .fail(function (xhr) {
+                        $.magnificPopup.close();
+                        var msg = (xhr.responseJSON && xhr.responseJSON.message) || '';
+                        window.alert(xhr.status === 403 ? 'The page had been open too long, or your level may not move projects. Reload and try again.' : ('The projects could not be moved (' + xhr.status + '). ' + msg + ' Nothing was changed.'));
+                    });
+            });
+            $.magnificPopup.open({ items: { src: '#afcdc-move-unit', type: 'inline' }, preloader: false, modal: true });
+        });
+        moveRefresh();
+    }
     $(document).on('submit', 'form.afcdc-merge-form', function (e) {
         var $f = $(this);
         var keep = $.trim($f.find('input[name="keep"]:checked').closest('tr').find('.afcdc-merge__code').text());

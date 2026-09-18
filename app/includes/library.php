@@ -1782,6 +1782,74 @@ function unit_review_available($db) {
     return $ok;
 }
 
+/** Whether a project can carry a unit of its own (pm_projects_tbl.unit_id, added at start-up while units are on). */
+function unit_moves_available($db) {
+    static $ok = null;
+    if ($ok === null) { $ok = units_available($db) && is_set($db->MQ("SHOW COLUMNS FROM pm_projects_tbl LIKE 'unit_id'", "one")); }
+    return $ok;
+}
+
+/**
+ * The unit a project counts under: its own once it has been moved
+ * (projects/unit_move), its objective's otherwise. $p is the name or alias
+ * of pm_projects_tbl in the query - written by the caller, never request
+ * input. Used by the Unit filter of the lists and by the template of a unit.
+ */
+function activity_unit_sql($p = '`pm_projects_tbl`') {
+    return "COALESCE(NULLIF(" . $p . ".`unit_id`, 0), (SELECT uo.`unit_id` FROM `pm_objectives_tbl` uo WHERE uo.`id` = " . $p . ".`objective_id`))";
+}
+
+/** [project id => ['unit' => name, 'from' => its objective's unit name]] for the projects among $ids that carry a unit of their own. */
+function activity_unit_overrides($db, array $ids) {
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), function ($v) { return $v > 0; })));
+    if (!$ids || !unit_moves_available($db)) { return []; }
+    $names = unit_names($db); $out = [];
+    foreach ((array)$db->MQ("SELECT p.id, p.unit_id, IFNULL(o.unit_id, 0) AS objective_unit FROM pm_projects_tbl p LEFT JOIN pm_objectives_tbl o ON o.id = p.objective_id
+                              WHERE p.unit_id IS NOT NULL AND p.unit_id > 0 AND p.id IN (" . implode(',', $ids) . ")", "all") as $r) {
+        $out[(int)$r['id']] = ['unit' => $names[(int)$r['unit_id']] ?? '', 'from' => $names[(int)$r['objective_unit']] ?? ''];
+    }
+    return $out;
+}
+
+/**
+ * The ticked projects go to another unit ($unitId), or back to their
+ * objective's ($unitId = 0). A project keeps its goal, objective, programme
+ * and code: only the unit it counts under changes. Moving a project to the
+ * unit its objective is already under stores nothing - it simply follows
+ * its objective again. One audit row per project that changed. Returns
+ * ['moved' => n, 'unit' => name] or ['error' => message, 'code' => http].
+ */
+function activities_move_to_unit($db, array $ids, $unitId) {
+    $unitId = (int)$unitId;
+    foreach ($ids as $one) { if (!is_int($one) && !(is_string($one) && ctype_digit($one))) { return ['error' => 'That is not a list of projects.', 'code' => 422]; } }
+    $ids = array_values(array_unique(array_filter(array_map('intval', $ids), function ($v) { return $v > 0; })));
+    if (!unit_moves_available($db)) { return ['error' => 'Units are not switched on here.', 'code' => 404]; }
+    if (!$ids) { return ['error' => 'Tick at least one project first.', 'code' => 422]; }
+    if (count($ids) > 500) { return ['error' => 'Move up to 500 projects at a time.', 'code' => 422]; }
+    $unit = null;
+    if ($unitId > 0) {
+        $unit = $db->MQ("SELECT id, name FROM pm_units_tbl WHERE id = ? AND active = 1", "one", [$unitId]);
+        if (!is_set($unit)) { return ['error' => 'There is no such unit.', 'code' => 404]; }
+    } elseif ($unitId < 0) {
+        return ['error' => 'Choose a unit.', 'code' => 422];
+    }
+    $user = (string)($_SESSION['user']['username'] ?? ''); $moved = 0;
+    $db->txBegin();
+    $rows = (array)$db->MQ("SELECT p.id, p.unit_id, IFNULL(o.unit_id, 0) AS objective_unit FROM pm_projects_tbl p LEFT JOIN pm_objectives_tbl o ON o.id = p.objective_id
+                             WHERE p.id IN (" . implode(',', $ids) . ") FOR UPDATE", "all");
+    foreach ($rows as $r) {
+        $was = (int)($r['unit_id'] ?? 0);
+        $now = ($unitId > 0 && $unitId !== (int)$r['objective_unit']) ? $unitId : 0;
+        if ($was === $now) { continue; }
+        if (!$db->MQ("UPDATE pm_projects_tbl SET unit_id = ? WHERE id = ?", false, [$now > 0 ? $now : null, (int)$r['id']])) { $db->txRollBack(); return ['error' => 'Problem moving the projects - nothing was changed.', 'code' => 500]; }
+        $db->MQ("INSERT INTO `core_table_logs_tbl` (`tablename`, `record`, `log_date`, `user`) VALUES (?, ?, ?, ?)", false,
+            ['pm_projects_tbl', json_encode(['action' => 'unit_move', 'id' => (int)$r['id'], 'unit_id_was' => $was ?: null, 'unit_id_now' => $now ?: null, 'objective_unit_id' => (int)$r['objective_unit'] ?: null]), date("Y-m-d H:i:s"), $user]);
+        $moved++;
+    }
+    $db->txCommit();
+    return ['moved' => $moved, 'asked' => count($rows), 'unit' => $unit ? (string)$unit['name'] : ''];
+}
+
 /** [unit id => name], in the units' own order. */
 function unit_names($db) {
     if (!units_available($db)) { return []; }

@@ -69,6 +69,14 @@ class importsController extends protectedController {
             if (!is_set($u)) { $this->setAnswer(404, "There is no such unit."); }
             $where = ' WHERE o.unit_id = ?'; $params[] = (int)$u['id'];
             $what = 'the objectives of the ' . $u['name'] . ' unit'; $slug = $u['name'];
+            // Once projects can carry a unit of their own, a unit's template is
+            // its PROJECTS: those moved in come with their objective's heading,
+            // those moved out are left off.
+            if (unit_moves_available($this->DB)) {
+                $unitScope = (int)$u['id'];
+                $where = ' WHERE (o.unit_id = ? OR o.id IN (SELECT pu.objective_id FROM pm_projects_tbl pu WHERE pu.unit_id = ?))'; $params[] = (int)$u['id'];
+                $what = 'the ' . $u['name'] . ' unit';
+            }
         }
         $objectives = (array)$this->DB->MQ("SELECT o.id, o.abbr, o.name, o.pillar_id, g.name AS pillar_name, g.position AS pillar_position
                                               FROM pm_objectives_tbl o LEFT JOIN pm_pillars_tbl g ON g.id = o.pillar_id" . $where . "
@@ -78,7 +86,8 @@ class importsController extends protectedController {
             $ids = array_map('intval', array_column($objectives, 'id'));
             $acts = (array)$this->DB->MQ("SELECT p.id, p.objective_id, p.abbr, p.name, p.description, p.kpi, p.estimated_budget, g.abbr AS programme_abbr, g.name AS programme_name
                                             FROM pm_projects_tbl p LEFT JOIN pm_programmes_tbl g ON g.id = p.programme_id
-                                           WHERE p.objective_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")", "all", $ids);
+                                           WHERE p.objective_id IN (" . implode(',', array_fill(0, count($ids), '?')) . ")"
+                                          . (!empty($unitScope) ? " AND " . activity_unit_sql('p') . " = ?" : ""), "all", !empty($unitScope) ? array_merge($ids, [$unitScope]) : $ids);
             // Code order as a person reads it (1.2.9 before 1.2.10); this controller has no model to sort in SQL.
             usort($acts, function ($a, $b) { return strnatcmp((string)$a['abbr'], (string)$b['abbr']) ?: ((int)($a['id'] ?? 0) <=> (int)($b['id'] ?? 0)); });
             foreach ($acts as $a) { $byObjective[(int)$a['objective_id']][] = $a; }

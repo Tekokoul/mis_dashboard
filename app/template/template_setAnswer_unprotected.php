@@ -5,6 +5,7 @@ $icon = ($code>=400) ? "fa-exclamation-circle" :"fa-info-circle";
 <html lang="en" class="fixed">
 <head>
     <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow, noarchive">
     <title><?=_PROJECT_NAME;?></title>
     <meta name="author" content="<?=_AUTHOR?>">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />

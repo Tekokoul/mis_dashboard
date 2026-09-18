@@ -259,12 +259,57 @@ deletes left those rows behind; the four orphan tasks on the local copy
 
 ---
 
+## Moving projects to another unit
+
+A unit belongs to an objective, and a project follows its objective's unit
+until somebody moves it: on the Projects list, tick one or more projects,
+press **Move N to unit**, choose the unit. Administrators and executives
+only, like Merge (`projects/unit_move`). The project keeps its goal,
+objective, programme and code; only `pm_projects_tbl.unit_id` is set, and the
+Unit filter, the Progress list and a unit's work-plan template count it under
+that unit from then on (`activity_unit_sql()` in `app/includes/library.php`).
+A moved project says so under its name. "Back to the unit of their objective"
+in the same dialog clears it; moving a project to the unit its objective is
+already under stores nothing. Each change leaves a row in
+`core_table_logs_tbl` (`"action":"unit_move"`). The column is added at
+start-up while `UNITS_ENABLED=true`; nothing existing is changed by it.
+
+What has been moved:
+
+```bash
+docker compose exec -T db sh -c 'mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" "$MARIADB_DATABASE" -e "SELECT p.abbr, LEFT(p.name,50) AS project, u.name AS unit, ou.name AS objective_unit FROM pm_projects_tbl p JOIN pm_units_tbl u ON u.id = p.unit_id LEFT JOIN pm_objectives_tbl o ON o.id = p.objective_id LEFT JOIN pm_units_tbl ou ON ou.id = o.unit_id ORDER BY u.position, p.abbr;"'
+```
+
+---
+
+## Keeping the site out of search engines
+
+Every response carries `X-Robots-Tag: noindex, nofollow, noarchive,
+nosnippet` (`docker/nginx-security-headers.conf`, so redirects, errors and
+static files too) and the pages carry the matching `<meta name="robots">`.
+`public/robots.txt` disallows **nothing**, on purpose: a crawler that may not
+fetch a page never sees the noindex, and can still list the bare address.
+Check it from outside with:
+
+```bash
+curl -sI https://CHANGE-ME.africacdc.org/login | grep -i x-robots-tag
+```
+
+If the address is already listed, it drops out after the next crawl; the
+Removals tool in Google Search Console hides it within a day, for a site
+whose domain you have verified there.
+
+---
+
 ## Searching a list
 
 Every word of the box is looked for on its own - in the name, code and
 description, and in the name of the programme the row sits under. A row
 holding **any** of the words is listed; rows holding **all** of them come
-first, then the rest in code order. A typed `%` or `_` is a character, not
+first, then the rest in code order. On the Projects list the **Tasks**
+header sorts by status - completed, in progress, not started - and pressed
+again the other way round; the choice shows as an "Order" chip whose x
+brings the code order back. A typed `%` or `_` is a character, not
 a wildcard. A row found by some of the words only
 says which under its name ("Partial match: CPHIA · not Theo"); a row found
 through its description shows the passage. The search-as-you-type

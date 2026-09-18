@@ -58,8 +58,10 @@ class projectsController extends coreController{
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['meta_filters'] = $this->model->get_meta_filters("pm_projects");
+        $this->useEffectiveUnit($data['meta_filters']);
         $this->addDeliveryFilter($data);
         $this->addVettingFilter($data);
+        $this->addStatusOrder($data);
         $data['model_name'] = "pm_projects";
         $data['fields'] = $this->model->get_list_fields($model);
 
@@ -67,6 +69,13 @@ class projectsController extends coreController{
         $filters = [];
         if(is_set($data['meta_filters'])){
             foreach ($data['meta_filters'] as $filter){
+                // "Order" rides with the filters (paging, search, chips) but
+                // narrows nothing: it has no WHERE clause of its own.
+                if (!empty($filter['no_where'])) {
+                    $v = $this->query[$filter['key']] ?? "";
+                    $data['filter_data'][$filter['key']] = (is_string($v) && isset($filter['values_list'][$v])) ? $v : "";
+                    continue;
+                }
                 if(array_key_exists($filter['key'], $this->query)) {
                     // An empty value ("?pillar_id=" from a trimmed link) is no filter:
                     // bound as = '' it emptied the list with nothing to say why.
@@ -82,7 +91,8 @@ class projectsController extends coreController{
 
         if(is_set($data['fields'])){
 //            $results = ;
-            $data = array_merge($data, $this->model->get_list_data($model, $page, $items_per_page, $validated['search-term']??"", $filters));
+            $data = array_merge($data, $this->model->get_list_data($model, $page, $items_per_page, $validated['search-term']??"", $filters,
+                $this->statusOrderSql((string)($data['filter_data']['sort'] ?? ''))));
         } else {
             $data['data'] = [];
         }
@@ -90,7 +100,38 @@ class projectsController extends coreController{
         $this->prepare_edit_mode();
         $data['reviews'] = allocation_reviews($this->DB, array_column((array)($data['data'] ?? []), 'id'));
         $data['gaps'] = activity_gaps_for($this->DB, array_column((array)($data['data'] ?? []), 'id'));
+        // Projects run by another unit than their objective's say so on their row; the units feed the Move dialog.
+        $data['unit_overrides'] = activity_unit_overrides($this->DB, array_column((array)($data['data'] ?? []), 'id'));
+        $data['units'] = (can_vet() && unit_moves_available($this->DB)) ? (array)$this->DB->MQ("SELECT id, name FROM pm_units_tbl WHERE active = 1 ORDER BY position, id", "all") : [];
         $this->render($data);
+    }
+
+    /**
+     * POST projects/unit_move (ids=3,7,12  unit_id=2): the ticked projects go
+     * to another unit, or back to their objective's (unit_id=0). Deciding
+     * which unit runs a project is a vetting decision, like merging:
+     * administrators and executives. See activities_move_to_unit().
+     */
+    public function unit_move() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        // Digits only, every one: intval() would read "1;DROP" as project 1 and move it.
+        $ids = is_string($this->query['ids'] ?? null) ? array_filter(explode(',', $this->query['ids']), 'strlen') : [];
+        foreach ($ids as $one) { if (!ctype_digit((string)$one)) { $this->setAnswer(422, "That is not a list of projects.", [], "json"); } }
+        $unit = $this->query['unit_id'] ?? '';
+        if (!is_string($unit) || !ctype_digit($unit)) { $this->setAnswer(422, "Choose a unit.", [], "json"); }
+        $res = activities_move_to_unit($this->DB, $ids, (int)$unit);
+        if (isset($res['error'])) { $this->setAnswer((int)$res['code'], $res['error'], [], "json"); }
+        $this->setAnswer(200, $res['moved'] . " project(s) moved.", $res, "json");
+    }
+
+    /** The Unit filter counts a project under its own unit once it has one (activity_unit_sql), its objective's otherwise. */
+    private function useEffectiveUnit(&$filters) {
+        if (!is_array($filters) || !unit_moves_available($this->DB)) { return; }
+        foreach ($filters as &$f) {
+            if (is_array($f) && (string)($f['key'] ?? '') === 'unit_id') { $f['sql'] = "AND " . activity_unit_sql() . " = ?"; }
+        }
+        unset($f);
     }
 
     public function add(){
@@ -821,6 +862,7 @@ class projectsController extends coreController{
         $data['meta_name'] = "Progress";
         $data['meta_actions'] = $this->model->get_meta_actions("pm_projects");
         $data['meta_filters'] = $this->model->get_meta_filters("pm_projects");
+        $this->useEffectiveUnit($data['meta_filters']);
         // The same Status box as the Projects list, so the two narrow alike.
         $this->addDeliveryFilter($data);
         $this->addVettingFilter($data);
@@ -1695,6 +1737,39 @@ class projectsController extends coreController{
             'sql'         => "AND (CASE ? WHEN '1' THEN `id` IN (" . $done . ") WHEN '2' THEN `id` IN (" . $some . ")"
                            . " ELSE `id` IN (" . $nope . ") END)",
         ];
+    }
+
+    /**
+     * The Tasks header of the Projects list sorts by status: completed, in
+     * progress, not started - and, pressed again, the other way round. The
+     * list is paged, so the order is the query's, not the page's. It is
+     * carried as one more entry of the filter set ("Order"), which is what
+     * keeps it through paging and searching and gives it a chip with an x.
+     */
+    private function addStatusOrder(array &$data) {
+        $data['meta_filters'][] = [
+            'title'       => 'Order',
+            'key'         => 'sort',
+            'type'        => 'dropdown',
+            'values_from' => 'values_list',
+            'values_list' => ['done' => 'Completed first', 'todo' => 'Not started first'],
+            'all_label'   => 'By code',
+            'no_where'    => true,
+        ];
+    }
+
+    /**
+     * ORDER BY for that choice, ahead of the usual code order. The ids are
+     * the same lists the Status filter uses (integers from the database);
+     * an activity with nothing to measure yet comes last either way.
+     */
+    private function statusOrderSql($sort) {
+        if ($sort !== 'done' && $sort !== 'todo') { return ''; }
+        $g = activity_delivery_groups($this->DB);
+        $list = function (array $ids) { return $ids ? implode(',', array_map('intval', $ids)) : '0'; };
+        $rank = ($sort === 'done') ? ['delivered', 'partly', 'none'] : ['none', 'partly', 'delivered'];
+        return "(CASE WHEN `id` IN (" . $list($g[$rank[0]]) . ") THEN 0 WHEN `id` IN (" . $list($g[$rank[1]]) . ") THEN 1"
+             . " WHEN `id` IN (" . $list($g[$rank[2]]) . ") THEN 2 ELSE 3 END)";
     }
 
     private function addVettingFilter(array &$data) {

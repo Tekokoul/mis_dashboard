@@ -20,6 +20,7 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
 <html lang="en" class="fixed">
 <head>
     <meta charset="UTF-8">
+    <meta name="robots" content="noindex, nofollow, noarchive">
     <title><?= _PROJECT_NAME; ?></title>
     <meta name="author" content="<?= _AUTHOR ?>">
     <link rel="icon" href="<?= (defined("_WHITELABEL") && _WHITELABEL) ? _WHITELABEL_LOGO_FAVICON : "/media/logo/africacdc_favicon.png"; ?>">

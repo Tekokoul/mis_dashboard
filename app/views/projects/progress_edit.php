@@ -16,8 +16,8 @@ $col_width = 12/$columns;
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("projects/progress_edit_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
     <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
-    <div class="row mb-4">
-            <div class="col col-lg-<?=$col_width;?> col-md-12">
+    <div class="row mb-4 afcdc-split" data-cols="<?= (int)$columns; ?>">
+            <div class="col-12 afcdc-split__col">
                 <section class="card card-modern mb-5">
                     <div class="card-body">
                         <div class="row">
@@ -37,7 +37,7 @@ $col_width = 12/$columns;
                     </div>
                 </section>
             </div>
-            <div class="col col-lg-<?=$col_width;?> col-md-12">
+            <div class="col-12 afcdc-split__col">
             <?php if (($_GET['saved'] ?? '') === '1'): ?>
             <div id="afcdc-saved" class="alert alert-success py-2 mb-3" role="status" tabindex="-1">
                 <i class="bx bx-check-circle" aria-hidden="true"></i> <strong>Status saved.</strong> Every gauge on the overview now reflects it.

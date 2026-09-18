@@ -1,4 +1,7 @@
+# Nothing on this site is for search engines. Every response carries
+# "X-Robots-Tag: noindex, nofollow", which is what keeps a page out of search
+# results - and a crawler has to be allowed to fetch a page in order to see
+# that, so nothing is disallowed here, on purpose. (A "Disallow: /" would
+# hide the noindex and leave the bare address listable.)
 User-agent: *
-Disallow: /sitemanager/
-Disallow: /ajax/
-Disallow: /db/
+Disallow:

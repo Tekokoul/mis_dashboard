@@ -73,6 +73,7 @@ class protectedController extends vanillaController {
         'projects/merge'                => [1, 2],
         'projects/merge_update'         => [1, 2],
         'projects/merge_undo'           => [1, 2],
+        'projects/unit_move'            => [1, 2],
         'core/unit_accept'              => [1, 2],
         'core/unit_dismiss'             => [1, 2],
         'core/unit_accept_all'          => [1, 2],

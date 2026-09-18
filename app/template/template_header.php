@@ -74,9 +74,12 @@ if(defined("_WHITELABEL")&&(_WHITELABEL)){
                         <li>
                             <a role="menuitem" tabindex="-1" href="<?=$this->L("users/profile");?>"><i class="bx bx-user-circle"></i> Profile</a>
                         </li>
+                        <?php // Administrators only, as the page itself is: everyone else got a 403 from this link. ?>
+                        <?php if (can_admin()): ?>
                         <li>
                             <a role="menuitem" tabindex="-1" href="<?=$this->L("system/info");?>"><i class="bx bx-server"></i> System Information</a>
                         </li>
+                        <?php endif; ?>
                         <?=$about;?>
                         <li>
                             <a role="menuitem" tabindex="-1" href="<?=$this->L("users/logout");?>"><i class="bx bx-power-off"></i> Logout</a>

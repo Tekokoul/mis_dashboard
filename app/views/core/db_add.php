@@ -21,11 +21,11 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
     <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
     <?php if (!empty($data['data'])): ?><input type="hidden" name="filed_from_parent" value="1"><?php endif; ?>
-    <div class="row mb-4">
+    <div class="row mb-4 afcdc-split" data-cols="<?= (int)$columns; ?>">
         <?php
         if(isset($data['model']['common'])){
             ?>
-            <div class="col col-lg-<?=$col_width;?> col-md-12">
+            <div class="col-12 afcdc-split__col">
                 <section class="card card-modern ">
                     <div class="card-body">
                         <div class="row">
@@ -47,7 +47,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
         }
         if(isset($data['model']['languages'])){
             ?>
-            <div class="col col-lg-<?=$col_width;?> col-md-12">
+            <div class="col-12 afcdc-split__col">
                 <div class="tabs">
                     <ul class="nav nav-tabs nav-justified" role="tablist">
                         <?php

@@ -1036,6 +1036,54 @@ html tr.afcdc-task--removed { opacity: 0.55; }
 html tr.afcdc-task--removed input[type="text"] { text-decoration: line-through; background: var(--afcdc-canvas); }
 html [data-undo-remove-task] { font-size: 0.75rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; }
 html .afcdc-task__kept { color: var(--afcdc-ink-soft); cursor: help; }
+/* Two-column forms (activity add/edit, Progress, the generic add/edit forms,
+   users). The columns sit side by side only when the row REALLY has the room
+   - measured on the row itself (a container query), so an open or a collapsed
+   sidebar is accounted for - and otherwise each takes the full width, the
+   second under the first. Bootstrap's viewport breakpoint put them side by
+   side from 992px, where the open sidebar left each one 318px wide and the
+   tasks table unreadable. A browser without container queries keeps them
+   stacked, which is the safe reading. */
+html .afcdc-split { container-type: inline-size; }
+html .afcdc-split > .afcdc-split__col { flex: 0 0 100%; max-width: 100%; }
+@container (min-width: 1040px) {
+    html .afcdc-split[data-cols="2"] > .afcdc-split__col,
+    html .afcdc-split[data-cols="3"] > .afcdc-split__col { flex: 0 0 50%; max-width: 50%; }
+}
+@container (min-width: 1560px) {
+    html .afcdc-split[data-cols="3"] > .afcdc-split__col { flex: 0 0 33.3333%; max-width: 33.3333%; }
+}
+/* The signed-in user's box in the top bar. theme.css makes its menu exactly
+   as wide as the box (.userbox .dropdown-menu: width 100%, min-width 0), and
+   modern.css hides the name and role at 1440px and below - which left the
+   box, and so the menu, the 55px of the avatar: on a 13-inch laptop "System
+   Information" was cut off and "Logout" ran off the screen. The theme's own
+   correction (modern.css, "html.modern:not(.sidebar-left-collapsed)
+   .userbox.show .dropdown-menu") is keyed to .userbox.show, a class
+   Bootstrap 4 put on the parent and Bootstrap 5 does not, so it never
+   applied. This top bar has only the title beside it, so from 992px the name
+   and role stay and the box keeps a width a menu can live in; below that the
+   avatar stands alone and the menu gets a width of its own, held to the right
+   edge so it cannot leave the screen. */
+@media (min-width: 992px) {
+    html.modern .userbox { min-width: 215px; }
+}
+@media (min-width: 992px) and (max-width: 1440px) {
+    html.modern:not(.sidebar-left-collapsed) .userbox .profile-info,
+    html.modern:not(.sidebar-left-collapsed) .userbox .profile-info + i { display: inline-block; }
+}
+@media (min-width: 768px) and (max-width: 991px) {
+    /* !important: Bootstrap's positioning writes an inline "inset" on the menu when it opens. */
+    html.modern .userbox .dropdown-menu { width: 215px; left: auto !important; right: -10px !important; }
+}
+/* A project run by another unit than its objective's says so under its name. */
+html .afcdc-unit-tag .afcdc-match__tag { color: var(--au-green-deep); }
+html .afcdc-unit-tag__from { color: var(--afcdc-ink-soft); }
+/* The Tasks header on the Projects list sorts by status (list.php). */
+html th.afcdc-col-tasks a.afcdc-sort { color: inherit; text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 0.2rem; }
+html th.afcdc-col-tasks a.afcdc-sort .bx { font-size: 1rem; color: var(--afcdc-ink-soft); }
+html th.afcdc-col-tasks a.afcdc-sort:hover, html th.afcdc-col-tasks a.afcdc-sort:focus-visible { color: var(--au-green-deep); text-decoration: underline; }
+html th.afcdc-col-tasks a.afcdc-sort.is-active, html th.afcdc-col-tasks a.afcdc-sort.is-active .bx { color: var(--au-green-deep); }
 /* Delete on the activity form: a default button that reads as the one to
    think about, not a red block beside Save. */
 html .afcdc-btn-danger { color: var(--afcdc-not-started); }
