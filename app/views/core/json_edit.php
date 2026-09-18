@@ -15,7 +15,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
 </header>
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("core/json_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
-<div class="row afcdc-split" data-cols="<?= (int)$columns; ?>">
+<div class="row afcdc-split" data-cols="<?= ((int)$col_width === 12) ? 1 : (int)$columns; ?>">
     <?php
         if(isset($data['model']['common'])){
     ?>

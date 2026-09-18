@@ -21,7 +21,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
     <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
     <?php if (!empty($data['data'])): ?><input type="hidden" name="filed_from_parent" value="1"><?php endif; ?>
-    <div class="row mb-4 afcdc-split" data-cols="<?= (int)$columns; ?>">
+    <div class="row mb-4 afcdc-split" data-cols="<?= ((int)$col_width === 12) ? 1 : (int)$columns; ?>">
         <?php
         if(isset($data['model']['common'])){
             ?>

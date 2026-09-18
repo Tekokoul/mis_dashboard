@@ -5,6 +5,8 @@ $columns += (isset($data['model']['common'])) ? 1 : 0;
 $columns += (isset($data['model']['languages'])) ? 1 : 0;
 $columns = ($columns==0) ? 1 : $columns;
 
+// "Columns on edit forms: One column" (Profile > Settings) makes this 12; the row below then prints
+// data-cols="1", which keeps the columns stacked at every width (custom.css, .afcdc-split).
 if(isset($_SESSION['user']['settings']['editing_columns'])){
     $col_width = ($_SESSION['user']['settings']['editing_columns']==1) ? 12 : 12/$columns;
 } else {
@@ -23,7 +25,7 @@ if(isset($_SESSION['user']['settings']['editing_columns'])){
 <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("core/db_edit_update")?>" method="post">
     <input type="hidden" name="tablename" value="<?= display($data['model_name']); ?>" >
     <input type="hidden" name="back" value="<?= display($data['back'] ?? ''); ?>">
-    <div class="row mb-4 afcdc-split" data-cols="<?= (int)$columns; ?>">
+    <div class="row mb-4 afcdc-split" data-cols="<?= ((int)$col_width === 12) ? 1 : (int)$columns; ?>">
         <?php
         if(isset($data['model']['common'])){
             ?>

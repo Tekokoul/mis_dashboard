@@ -1,8 +1,9 @@
 <header class="page-header page-header-left-inline-breadcrumb">
     <h2 class="font-weight-bold text-6">Profile</h2>
 </header>
-<div class="row">
-    <div class="col col-6">
+<?php // Side by side only when the row has the room; on a narrow screen the second card goes under the first (custom.css, .afcdc-split). ?>
+<div class="row afcdc-split" data-cols="2">
+    <div class="col-12 afcdc-split__col">
         <section class="card card-primary">
             <header class="card-header">
                 <h2 class="card-title">User Information</h2>
@@ -66,7 +67,7 @@
             </div>
         </section>
     </div>
-    <div class="col col-6">
+    <div class="col-12 afcdc-split__col">
         <form class="ecommerce-form action-buttons-fixed" action="<?=$this->L("users/settings_update")?>" method="post">
             <section class="card card-dark ">
                 <header class="card-header">
