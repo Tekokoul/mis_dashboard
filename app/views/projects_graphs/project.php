@@ -24,6 +24,9 @@ foreach ($members as $member){
             <?php if (can_record()): ?>
                 <a href="<?=$this->L("projects/progress_edit/".(int)$data['project']['id']);?>" class="btn btn-primary btn-sm mb-3"><i class="bx bx-edit"></i> Record delivery</a>
             <?php endif; ?>
+            <?php if (can_edit()): ?>
+                <a href="<?=$this->L("projects/edit/".(int)$data['project']['id']);?>" class="btn btn-default btn-sm mb-3 ms-1"><i class="bx bx-pencil"></i> Edit</a>
+            <?php endif; ?>
         </div>
     <div class="gauge-chart">
             <canvas class="gaugeBasic" width="350" height="200" data-value="<?=(float)$data['project']['progress']?>" role="img" aria-label="<?= display($data['project']['name']); ?>: <?= pct($data['project']['progress']); ?> percent complete"></canvas>
@@ -76,9 +79,15 @@ foreach ($members as $member){
                 <div class="row afcdc-drill afcdc-drill--flat">
                     <div class="col col-7">
                         <?= display($task['name']); ?> <?= delivery_status_chip($tStatus); ?>
+                        <span class="afcdc-row-actions">
                         <?php if ($mayRecord): ?>
                             <a href="<?=$this->L("projects/progress_edit/".(int)$data['project']['id']);?>" class="btn btn-xs btn-light border ms-2 afcdc-record-link"><i class="bx bx-edit"></i> Record delivery</a>
                         <?php endif; ?>
+                        <?php // Tasks are edited in the activity's form. ?>
+                        <?php if (can_edit()): ?>
+                            <a href="<?=$this->L("projects/edit/".(int)$data['project']['id']);?>" class="btn btn-xs btn-light border ms-1 afcdc-record-link"><i class="bx bx-pencil"></i> Edit</a>
+                        <?php endif; ?>
+                        </span>
                         <br><span class="afcdc-deliverable__meta"><?= (int)$task['completed']; ?> of <?= (int)$task['assignments']; ?> completed</span>
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">

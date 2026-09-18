@@ -1037,20 +1037,24 @@ html tr.afcdc-task--removed input[type="text"] { text-decoration: line-through; 
 html [data-undo-remove-task] { font-size: 0.75rem; font-weight: 600; color: var(--au-green-deep); text-decoration: underline; }
 html .afcdc-task__kept { color: var(--afcdc-ink-soft); cursor: help; }
 /* Two-column forms (activity add/edit, Progress, the generic add/edit forms,
-   users). The columns sit side by side only when the row REALLY has the room
-   - measured on the row itself (a container query), so an open or a collapsed
-   sidebar is accounted for - and otherwise each takes the full width, the
-   second under the first. Bootstrap's viewport breakpoint put them side by
-   side from 992px, where the open sidebar left each one 318px wide and the
-   tasks table unreadable. A browser without container queries keeps them
-   stacked, which is the safe reading. */
+   users, the profile). Two columns is the normal state: one column is for a
+   SMALL screen only - a tablet, a phone, a narrow window. The test is the
+   room the row really has (a container query on the row), so an open or a
+   collapsed sidebar is accounted for: from 800px of row the columns sit side
+   by side (400px each at the least), below it each takes the full width, the
+   second under the first. With the sidebar open that is a window of about
+   1160px and up, so a 1280px or 1366px laptop keeps its two columns;
+   Bootstrap's own breakpoint kept them side by side down to 992px, where the
+   open sidebar left each one 318px wide and the tasks table unreadable. (A
+   first version asked for 1040px of row and stacked on nearly every laptop.)
+   A browser without container queries keeps them stacked. */
 html .afcdc-split { container-type: inline-size; }
 html .afcdc-split > .afcdc-split__col { flex: 0 0 100%; max-width: 100%; }
-@container (min-width: 1040px) {
+@container (min-width: 800px) {
     html .afcdc-split[data-cols="2"] > .afcdc-split__col,
     html .afcdc-split[data-cols="3"] > .afcdc-split__col { flex: 0 0 50%; max-width: 50%; }
 }
-@container (min-width: 1560px) {
+@container (min-width: 1320px) {
     html .afcdc-split[data-cols="3"] > .afcdc-split__col { flex: 0 0 33.3333%; max-width: 33.3333%; }
 }
 /* The signed-in user's box in the top bar. theme.css makes its menu exactly
@@ -1076,6 +1080,8 @@ html .afcdc-split > .afcdc-split__col { flex: 0 0 100%; max-width: 100%; }
     /* !important: Bootstrap's positioning writes an inline "inset" on the menu when it opens. */
     html.modern .userbox .dropdown-menu { width: 215px; left: auto !important; right: -10px !important; }
 }
+/* Record delivery and Edit on an overview row stay together: a long name must not leave one on each line. */
+html .afcdc-row-actions { display: inline-block; white-space: nowrap; }
 /* A project run by another unit than its objective's says so under its name. */
 html .afcdc-unit-tag .afcdc-match__tag { color: var(--au-green-deep); }
 html .afcdc-unit-tag__from { color: var(--afcdc-ink-soft); }

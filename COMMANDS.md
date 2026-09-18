@@ -204,6 +204,10 @@ instead, set one in Manage users.
 
 ## Recording delivery
 
+On the overview's programme and project pages every activity carries
+**Record delivery** and, for those who may edit it (administrators and Power
+Users), **Edit** - the activity's own form, whose Back returns to that page.
+
 In the app: sidebar → **Progress** → open an activity → click the task →
 set **Status** to `Completed` (or `In progress`) → **Save delivery**.
 Percentages recompute immediately.

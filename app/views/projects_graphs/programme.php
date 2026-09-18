@@ -40,9 +40,15 @@ $val_all = ($data['programme']['totals']>0) ? round(($data['programme']['progres
             ?>
                 <div class="row afcdc-drill">
                     <div class="col col-7"><?= activity_flag($data['gaps'][(int)$project['id']] ?? []); ?><a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$project['id']);?>"><?=display($project['name']);?></a> <?= delivery_status_chip($pStatus); ?>
+                        <span class="afcdc-row-actions">
                         <?php if (can_record()): ?>
                             <a href="<?=$this->L("projects/progress_edit/".(int)$project['id']);?>" class="btn btn-xs btn-light border ms-2 afcdc-record-link"><i class="bx bx-edit"></i> Record delivery</a>
                         <?php endif; ?>
+                        <?php // The activity's own form, for those who may edit it; its Back returns here (the referer). ?>
+                        <?php if (can_edit()): ?>
+                            <a href="<?=$this->L("projects/edit/".(int)$project['id']);?>" class="btn btn-xs btn-light border ms-1 afcdc-record-link"><i class="bx bx-pencil"></i> Edit</a>
+                        <?php endif; ?>
+                        </span>
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
                             <div class="progress-bar<?= delivery_status_bar($pStatus); ?>" role="progressbar" aria-valuenow="<?=(float)$project['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$project['progress'];?>%;">
