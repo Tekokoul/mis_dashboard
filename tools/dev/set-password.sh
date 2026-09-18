@@ -2,7 +2,7 @@
 # Set a user's password without it appearing in shell history, in the process
 # list, or on screen.
 #
-#   ./tools/dev/set-password.sh kouloliast@africacdc.org
+#   ./tools/dev/set-password.sh you@africacdc.org
 #   ./tools/dev/set-password.sh <username> <database>     # default db: afcdc_dhis
 #
 # The password is read with echo off, escaped, and piped to the client on stdin,

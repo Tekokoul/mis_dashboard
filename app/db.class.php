@@ -8,7 +8,6 @@
 #[AllowDynamicProperties]
 class DB extends \PDO {
     protected $DB_SERVER;
-//    protected $REDIS;
 
     function __construct($settings) {
         try {
@@ -44,13 +43,6 @@ class DB extends \PDO {
     // and are unchanged.
     function MQ($query, $fetch = false, $params = []) {
         try {
-//        $query_id = md5($query);
-//        $this->REDIS = new Redis();
-//        $this->REDIS->connect('localhost', 6379);
-//        $this->REDIS->auth('K3rb3r0$!@#');
-//        if(is_set($this->REDIS->get($query_id))){
-//            $result = json_decode($this->REDIS->get($query_id), true);
-//        } else {
             if (_DB_DEBUG_MODE) {
                 debug($query);
             }
@@ -67,8 +59,6 @@ class DB extends \PDO {
                     $result = $this->DB_SERVER->lastInsertId();
                     break;
             }
-//            $this->REDIS->set(md5($query), json_encode($result, JSON_UNESCAPED_UNICODE));
-//        }
             $stmt = null;
             return $result;
         } catch (PDOException $e) {

@@ -23,8 +23,8 @@ not on the default `PATH` in every shell.
 | Server log | `tail -f /tmp/phpserver.log` |
 | Database log | `tail -f /tmp/mariadb.log` |
 
-Sign in with `kouloliast@africacdc.org` once you have set a password (below), or
-the throwaway `afcdc.local` / `afcdc-local`.
+Sign in with `you@africacdc.org` once you have set a password (below), or
+with a throwaway account of your own making (removed again further down).
 
 ---
 
@@ -34,7 +34,7 @@ Set or change a password. Prompts twice with the typing hidden; the value never
 becomes a command-line argument, so it cannot leak through `ps` or shell history:
 
 ```bash
-./tools/dev/set-password.sh kouloliast@africacdc.org
+./tools/dev/set-password.sh you@africacdc.org
 ```
 
 Add another account (locked until a password is set):
@@ -1119,7 +1119,7 @@ One file drives everything — see `setup-production.sh --help`:
 ```
 
 ```bash
-./setup-production.sh admin kouloliast@africacdc.org   # create/re-password an account
+./setup-production.sh admin you@africacdc.org   # create/re-password an account
 ```
 
 ```bash

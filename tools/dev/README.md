@@ -10,7 +10,8 @@ Everything below is already done on this machine. To just run it:
 
     ./tools/dev/start.sh
 
-then open http://127.0.0.1:8791/login  (user `afcdc.local`, password `afcdc-local`).
+then open http://127.0.0.1:8791/login and sign in with the account you gave a password to
+(`./tools/dev/set-password.sh you@africacdc.org`). No password is written down here: this file is public.
 Stop it with `./tools/dev/start.sh stop`.
 
 The rest of this file is the from-scratch setup, for a different machine.
