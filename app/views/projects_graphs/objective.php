@@ -50,11 +50,22 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
                 </div>
                 <?php
         }
-        if (!empty($data['other_projects'])): ?>
+        if (!empty($data['other_projects'])):
+            // Two kinds: activities with no programme yet (moved in to be filed,
+            // each with a recommendation - tools/park-activities.php), and ones
+            // filed under a programme of another objective.
+            $strayGroups = [
+                ['Not yet in a programme', 'They count towards this objective and wait to be filed. Each carries a recommended programme'
+                    . (can_vet() ? ': see them on the <a href="' . display($this->L('projects/list') . '?' . http_build_query(['objective_id' => (int)$data['objective']['id'], 'review' => 'proposed'])) . '">Projects list</a> and press <strong>Move there</strong>, or choose another programme on the activity\'s form.' : '.'),
+                    array_values(array_filter((array)$data['other_projects'], function ($p) { return (string)($p['programme_name'] ?? '') === ''; }))],
+                ['Activities filed under programmes of other objectives', 'They count towards this objective on the overview but sit under a programme that belongs elsewhere. Open one to change its programme.',
+                    array_values(array_filter((array)$data['other_projects'], function ($p) { return (string)($p['programme_name'] ?? '') !== ''; }))],
+            ];
+            foreach ($strayGroups as $sg): if (!$sg[2]) { continue; } ?>
         <div class="afcdc-other mt-4">
-            <h3 class="pb-2">Activities filed under programmes of other objectives</h3>
-            <p class="text-muted mb-3">They count towards this objective on the overview but sit under a programme that belongs elsewhere. Open one to change its programme.</p>
-            <?php foreach (sort_by_delivery_status((array)$data['other_projects'], function ($p) use ($roll) { return delivery_rollup_status($roll['activity'][(int)$p['id']] ?? null); }) as $p): $oStatus = delivery_rollup_status($roll['activity'][(int)$p['id']] ?? null); ?>
+            <h3 class="pb-2"><?= display($sg[0]); ?></h3>
+            <p class="text-muted mb-3"><?= $sg[1]; ?></p>
+            <?php foreach (sort_by_delivery_status($sg[2], function ($p) use ($roll) { return delivery_rollup_status($roll['activity'][(int)$p['id']] ?? null); }) as $p): $oStatus = delivery_rollup_status($roll['activity'][(int)$p['id']] ?? null); ?>
             <div class="row afcdc-drill">
                 <div class="col col-7">
                     <?= activity_flag($data['gaps'][(int)$p['id']] ?? []); ?><a class="stretched-link" href="<?=$this->L("projects_graphs/project/".(int)$p['id']);?>"><?= display(trim($p['abbr'] . ' ' . $p['name'])); ?></a> <?= delivery_status_chip($oStatus); ?><br>
@@ -70,6 +81,7 @@ $val_all = ($data['objective']['totals']>0) ? round(($data['objective']['progres
             </div>
             <?php endforeach; ?>
         </div>
+            <?php endforeach; ?>
         <?php endif; ?>
     </div>
 </div>

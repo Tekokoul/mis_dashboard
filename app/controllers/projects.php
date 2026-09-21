@@ -1839,8 +1839,10 @@ class projectsController extends coreController{
         $this->checkMethod("POST");
         $this->enforceCSRF();
         if (!allocation_review_available($this->DB)) { $this->setAnswer(404, "Nothing to accept.", [], "json"); exit; }
-        $this->DB->MQ("UPDATE pm_allocation_review_tbl SET status = 'accepted', decided_by = ?, decided_at = NOW() WHERE status = 'proposed'", false,
+        // Moves only: a placement check or an unassigned activity's recommendation
+        // is answered one by one (allocation_pending_moves_count).
+        $this->DB->MQ("UPDATE pm_allocation_review_tbl SET status = 'accepted', decided_by = ?, decided_at = NOW() WHERE status = 'proposed' AND confidence <> 'check'", false,
                       [(int)($_SESSION['user']['user_id'] ?? 0)]);
-        $this->setAnswer(200, "All pending moves accepted.", ['pending' => 0], "json");
+        $this->setAnswer(200, "All pending moves accepted.", ['pending' => allocation_pending_count($this->DB)], "json");
     }
 }

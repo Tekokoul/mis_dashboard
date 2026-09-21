@@ -56,7 +56,7 @@ $page_link_suffix = (count($suffix_terms) > 0)
                             print '<div class="col-12 col-lg mb-3 mb-lg-0">'
                                 . list_toolbar((array)($data['meta_filters'] ?? []), (array)($data['filter_data'] ?? []), $data['search'] ?? '', $this->L($page_link_prefix), 'pm_projects', 'projects/edit',
                                     // While moves are pending, one control accepts everything left after the person has looked.
-                        (can_vet() && allocation_pending_count($this->DB) > 0) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-review-action="accept_all">Accept all pending</a>' : '')
+                        (can_vet() && allocation_pending_moves_count($this->DB) > 0) ? '<a href="#" class="btn btn-sm btn-light border afcdc-review__all" data-review-action="accept_all">Accept all pending</a>' : '')
                                 . '</div>';
                             ?>
 

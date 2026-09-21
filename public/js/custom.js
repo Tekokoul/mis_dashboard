@@ -460,7 +460,7 @@ $(function () {
     $(document).on('click', '[data-review-action]', function (e) {
         e.preventDefault();
         var action = $(this).attr('data-review-action'), id = $(this).attr('data-id');
-        if (action === 'accept_all' && !window.confirm('Accept every move still pending?')) { return; }
+        if (action === 'accept_all' && !window.confirm('Accept every move still pending? Recommendations for unassigned activities and placement checks are not affected: each is answered on its own row.')) { return; }
         var prefix = (typeof lang_prefix === 'string') ? lang_prefix : '';
         var url = prefix + '/projects/allocation_' + action + (id ? '/' + id : '');
         $.ajax({ url: url, method: 'POST', data: { csrf: window.CSRF_TOKEN || '' }, dataType: 'json' })

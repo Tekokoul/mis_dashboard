@@ -263,6 +263,39 @@ deletes left those rows behind; the four orphan tasks on the local copy
 
 ---
 
+## Folding one objective into another (activities left unassigned, with a recommendation)
+
+When an objective's work belongs under another objective, move all its
+activities there **without a programme**, each carrying a recommended
+programme that an administrator or executive accepts:
+
+```bash
+docker compose exec -T app php /var/www/html/tools/park-activities.php --from=18.0 --to=7.0 --dry-run
+docker compose exec -T app php /var/www/html/tools/park-activities.php --from=18.0 --to=7.0
+```
+
+The dry run prints every activity with the programme it would be recommended
+and changes nothing. The recommendation is the programme of `--to` its wording
+fits best, from `suggest_parent()` - the same scorer as the activity form's
+suggestion, run on the server; nothing is sent anywhere. When no programme of
+`--to` shares its wording, the closest programme elsewhere is recommended and
+the reason says so. Codes, tasks and recorded deliveries stay as they are.
+
+Each moved activity then reads **Unassigned - recommended: 7.0 / 7.x PRG ...**
+on the Projects list (Filters: Objective = 7.0, Vetting = Pending) and on its
+form, with **Move there** (filed there, with the next free code) and **Leave
+unassigned**. The objective's overview page lists them under "Not yet in a
+programme". "Accept all pending" does not touch them: each is answered on its
+own row.
+
+`--undo` puts back every activity still unassigned whose recommendation nobody
+has answered; the ones people moved or kept stay. One transaction, audited in
+`core_table_logs_tbl`, safe to re-run. Nothing is deleted: the emptied objective
+and its programmes stay until an administrator removes them on the Objectives
+and Programmes lists.
+
+---
+
 ## Moving projects to another unit
 
 A unit belongs to an objective, and a project follows its objective's unit

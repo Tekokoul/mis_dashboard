@@ -1481,9 +1481,13 @@ function allocation_reviews($db, array $ids) {
     $ids = array_values(array_filter(array_map('intval', $ids)));
     if (!$ids || !allocation_review_available($db)) { return []; }
     $marks = implode(',', array_fill(0, count($ids), '?'));
+    // current_programme_id: where the activity sits NOW - a recommendation for
+    // an activity with no programme reads "Unassigned", not "Check placement".
     $rows = (array)$db->MQ("SELECT r.*, g.abbr AS old_programme_abbr, o.abbr AS old_objective_abbr,
-                                     ng.abbr AS new_programme_abbr, ng.name AS new_programme_name, nob.abbr AS new_objective_abbr
+                                     ng.abbr AS new_programme_abbr, ng.name AS new_programme_name, nob.abbr AS new_objective_abbr,
+                                     IFNULL(cp.programme_id, 0) AS current_programme_id
                               FROM pm_allocation_review_tbl r
+                              LEFT JOIN pm_projects_tbl cp ON cp.id = r.project_id
                               LEFT JOIN pm_programmes_tbl g ON g.id = r.old_programme_id
                               LEFT JOIN pm_objectives_tbl o ON o.id = r.old_objective_id
                               LEFT JOIN pm_programmes_tbl ng ON ng.id = r.new_programme_id
@@ -1497,6 +1501,18 @@ function allocation_reviews($db, array $ids) {
         $out[(int)$r['project_id']] = $r;
     }
     return $out;
+}
+
+/**
+ * Pending MOVES only, for "Accept all pending": a placement check or a
+ * recommendation for an unassigned activity needs its own answer. Accepting
+ * one means "leave it where it is", so a blanket Accept would have thrown
+ * every recommendation away and left the activities unassigned.
+ */
+function allocation_pending_moves_count($db) {
+    if (!allocation_review_available($db)) { return 0; }
+    $r = $db->MQ("SELECT COUNT(*) AS n FROM pm_allocation_review_tbl WHERE status = 'proposed' AND confidence <> 'check'", "one");
+    return (int)($r['n'] ?? 0);
 }
 
 /** How many moves still wait for a person, or 0. */
@@ -1515,6 +1531,18 @@ function allocation_review_note(array $review) {
     // A "check placement" row is not a move: the activity sits where a
     // person put it, and the wording points elsewhere.
     if ((string)$review['confidence'] === 'check') {
+        // No programme at all (moved in from another objective to be filed,
+        // tools/park-activities.php): the recommendation is the whole point.
+        if (array_key_exists('current_programme_id', $review) && (int)$review['current_programme_id'] <= 0) {
+            $html  = '<div class="afcdc-review__note"><span class="afcdc-review__tag">Unassigned</span> ';
+            $html .= 'recommended: <strong>' . display($review['new_programme_label']) . '</strong>';
+            if (trim((string)$review['reason']) !== '') { $html .= ' <span class="afcdc-review__why">' . display($review['reason']) . '</span>'; }
+            if (can_vet()) {
+                $html .= ' <a href="#" class="afcdc-review__act" data-review-action="move" data-id="' . (int)$review['project_id'] . '">Move there</a>';
+                $html .= ' <a href="#" class="afcdc-review__act" data-review-action="accept" data-id="' . (int)$review['project_id'] . '">Leave unassigned</a>';
+            }
+            return $html . '</div>';
+        }
         $html  = '<div class="afcdc-review__note"><span class="afcdc-review__tag">Check placement</span> ';
         $html .= 'the wording points to <strong>' . display($review['new_programme_label']) . '</strong>';
         if (trim((string)$review['reason']) !== '') { $html .= ' <span class="afcdc-review__why">' . display($review['reason']) . '</span>'; }
