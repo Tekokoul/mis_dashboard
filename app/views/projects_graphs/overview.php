@@ -130,7 +130,9 @@ $latest = $data['latest_delivery'] ?? null;
 <div class="row">
     <div class="col-md-12">
         <p class="afcdc-note">
-            Progress is the share of delivery records marked <em>Completed</em>. Each activity counts once for every
+            Progress counts a delivery record marked <em>Completed</em> as one, one <em>In progress</em> as the share
+            recorded for it (25, 50 or 75%; nothing when no share is recorded) and <em>Not started</em> as nothing;
+            &ldquo;n of m completed&rdquo; beside it counts finished records only. Each activity counts once for every
             RCC or division user it applies to — today every activity is reported once, centrally, by DHIS HQ, so one
             record per activity. Staff record a delivery under <strong>Progress</strong> in the sidebar, on the
             activity's page, with <strong>Record delivery</strong>; every gauge recalculates on the next load.

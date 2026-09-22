@@ -45,7 +45,7 @@
                                             <?php endif; ?>
                                         </td>
                                         <td>
-                                            <?= delivery_status_chip($status); ?>
+                                            <?= delivery_status_chip($status, 'colour', $row['progress_pct'] ?? null); ?>
                                         </td>
                                         <td class="text-end">
                                             <a href="#" class="open-task-modal btn btn-sm <?= $done ? 'btn-light border' : 'btn-primary'; ?>" <?= $attrs; ?>>

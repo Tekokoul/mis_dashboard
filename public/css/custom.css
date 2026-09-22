@@ -1080,6 +1080,9 @@ html .afcdc-split > .afcdc-split__col { flex: 0 0 100%; max-width: 100%; }
     /* !important: Bootstrap's positioning writes an inline "inset" on the menu when it opens. */
     html.modern .userbox .dropdown-menu { width: 215px; left: auto !important; right: -10px !important; }
 }
+/* The Status box on the activity form, and beside it "how far along" while a task is in progress. */
+html .afcdc-task__status-wrap { display: flex; align-items: center; gap: 0.35rem; }
+html select.afcdc-task__pct { flex: 0 0 auto; width: auto; min-width: 5.5rem; }
 /* Record delivery and Edit on an overview row stay together: a long name must not leave one on each line. */
 html .afcdc-row-actions { display: inline-block; white-space: nowrap; }
 /* A project run by another unit than its objective's says so under its name. */

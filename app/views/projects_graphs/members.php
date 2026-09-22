@@ -56,7 +56,7 @@ ms_sorted.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|J
                 <?php
                 foreach ($data['progress'] as $member){
                     ?>
-ms_chart.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE);?>, total: <?=(float)$member['totals'];?>, completed: <?=(float)$member['progress'];?>});
+ms_chart.push({ country: <?=json_encode((string)$member['name'], JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP|JSON_UNESCAPED_UNICODE);?>, total: <?=(float)$member['totals'];?>, completed: <?=(int)($member['completed'] ?? 0);?>});
                         <?php
                 }
                 ?>

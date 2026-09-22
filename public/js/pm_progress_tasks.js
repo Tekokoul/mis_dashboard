@@ -67,6 +67,22 @@ $(document).ready(function() {
                 // Saving reloads the page: where Back goes must go with the
                 // save, or it comes back pinned to the Progress list.
                 $('#taskform input[name="back"]').val($('form.ecommerce-form input[name="back"]').val() || '');
+                // "How far along" belongs to In progress: shown, and sent, only then
+                // (a disabled box is not sent, so another status clears nothing by accident).
+                var $res = $('#taskform select[name="result"]'), $pct = $('#taskform select[name="progress_pct"]');
+                if ($res.length && $pct.length) {
+                    var $pctRow = $pct.closest('.form-group');
+                    var syncPct = function (switched) {
+                        var on = $res.val() === '2';
+                        ($pctRow.length ? $pctRow : $pct).prop('hidden', !on);
+                        $pct.prop('disabled', !on);
+                        // Put in progress just now, with no share picked yet: start at 25%.
+                        // On opening, a record in progress with no share keeps "How far?".
+                        if (on && switched && !$pct.val()) { $pct.val('25'); }
+                    };
+                    $res.on('change', function () { syncPct(true); });
+                    syncPct(false);
+                }
                 openPopup();
 
                 // Save once. The button greys to "Saving…" and a second click

@@ -526,6 +526,19 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
             || die "could not create pm_merge_log_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
+    # 10. How far along a task in progress is: 25, 50 or 75 (%). NULL on every
+    #     record until somebody picks one, and NULL whenever the status is not
+    #     In progress; a task in progress with no percentage counts for nothing,
+    #     as every task in progress did before. Additive: one nullable column.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_progress_tasks_tbl' AND COLUMN_NAME='progress_pct'") || [ -z "$have" ]; then
+        die "could not read pm_progress_tasks_tbl columns from information_schema - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "adding pm_progress_tasks_tbl.progress_pct (how far along a task in progress is)"
+        qddl "ALTER TABLE pm_progress_tasks_tbl ADD COLUMN progress_pct TINYINT UNSIGNED DEFAULT NULL AFTER result" \
+            || die "could not add pm_progress_tasks_tbl.progress_pct (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
+    fi
+
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)
     if [ "${users:-0}" -eq 0 ]; then
         log "NOTE: no accounts exist yet. Create one with:"

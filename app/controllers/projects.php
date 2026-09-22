@@ -296,10 +296,11 @@ class projectsController extends coreController{
             "SELECT t.id, t.name, t.description,
                     (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id) AS reports,
                     (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.result = 1) AS deliveries,
-                    (SELECT d.result FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1) AS my_result
+                    (SELECT d.result FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1) AS my_result,
+                    " . (delivery_pct_available($this->DB) ? "(SELECT d.progress_pct FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1)" : "NULL") . " AS my_pct
                FROM pm_projects_tasks_tbl t
               WHERE t.project_id = ?
-              ORDER BY t.id", "all", [$this->member_id, $projectId]);
+              ORDER BY t.id", "all", delivery_pct_available($this->DB) ? [$this->member_id, $this->member_id, $projectId] : [$this->member_id, $projectId]);
     }
 
     /**
@@ -330,12 +331,21 @@ class projectsController extends coreController{
             if ($id <= 0 || !is_array($t) || (string)($t['remove'] ?? '0') === '1') { continue; }
             $result = (string)($t['result'] ?? '');
             if (!in_array($result, ['0', '1', '2'], true)) { continue; }
+            $pctOn = delivery_pct_available($this->DB);
             $now = $this->DB->MQ(
                 "SELECT t.id, (SELECT d.result FROM pm_progress_tasks_tbl d
-                                WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1) AS my_result
-                   FROM pm_projects_tasks_tbl t WHERE t.id = ? AND t.project_id = ?", "one", [$this->member_id, $id, $projectId]);
-            if (!is_set($now) || ($now['my_result'] !== null && (int)$now['my_result'] === (int)$result)) { continue; }
-            if (!task_result_save($this->DB, $this->member_id, $projectId, $id, (int)$result)) {
+                                WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1) AS my_result,
+                        " . ($pctOn ? "(SELECT d.progress_pct FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1)" : "NULL") . " AS my_pct
+                   FROM pm_projects_tasks_tbl t WHERE t.id = ? AND t.project_id = ?", "one", $pctOn ? [$this->member_id, $this->member_id, $id, $projectId] : [$this->member_id, $id, $projectId]);
+            // For a task in progress, how far along it is (25/50/75) is part of
+            // its status: a new percentage is a change, the same one is not.
+            // A blank ("How far?") is not given: it is no change, and never
+            // clears a percentage recorded since the form was opened.
+            $pct = delivery_pct($result, $t['pct'] ?? null);
+            $unchanged = is_set($now) && $now['my_result'] !== null && (int)$now['my_result'] === (int)$result
+                      && ((int)$result !== 2 || $pct === null || delivery_pct(2, $now['my_pct'] ?? null) === $pct);
+            if (!is_set($now) || $unchanged) { continue; }
+            if (!task_result_save($this->DB, $this->member_id, $projectId, $id, (int)$result, ((int)$result === 2 && $pct !== null) ? ['progress_pct' => $pct] : [])) {
                 $this->setAnswer(500, "Problem recording the status of a task.");
             }
         }
@@ -693,6 +703,7 @@ class projectsController extends coreController{
                 if (array_key_exists('name', $p)) { $t['name'] = (string)$p['name']; }
                 if (array_key_exists('description', $p)) { $t['description'] = (string)$p['description']; }
                 if (array_key_exists('result', $p)) { $t['my_result'] = ((string)$p['result'] === '') ? null : (string)$p['result']; }
+                if (array_key_exists('pct', $p)) { $t['my_pct'] = ((string)$p['pct'] === '') ? null : (string)$p['pct']; }
                 $t['remove'] = (string)($p['remove'] ?? '0') === '1';
             }
             unset($t);
@@ -1195,6 +1206,7 @@ class projectsController extends coreController{
                 $data['data'][$key]['project_id'] = $validated['project_id'];
                 $result = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_progress_tasks')." where project_id=". $data['data'][$key]['project_id']." and member_id=".$data['data'][$key]['member_id']. " and task_id=".$data['data'][$key]['task_id'] , "one");
                 $data['data'][$key]['result'] = $result['result'] ?? 0;
+                $data['data'][$key]['progress_pct'] = delivery_pct($result['result'] ?? 0, $result['progress_pct'] ?? null);
             }
         }
         $this->prepare_edit_mode();
@@ -1283,6 +1295,19 @@ class projectsController extends coreController{
                     "title" => "Date"
                 ]
             ]];
+        // In progress asks how far along: 25, 50 or 75%. The box is shown, and
+        // sent, only while Status says In progress (pm_progress_tasks.js).
+        if (delivery_pct_available($this->DB)) {
+            $common = [];
+            foreach ($data['model']['common'] as $k => $f) {
+                $common[$k] = $f;
+                if ($k === 'result') {
+                    $common['progress_pct'] = ["title" => "How far along", "type" => "dropdown", "values_from" => "values_list", "select2" => false,
+                                               "values_list" => array_combine(array_map('strval', delivery_pct_values()), array_map(function ($v) { return $v . '%'; }, delivery_pct_values()))];
+                }
+            }
+            $data['model']['common'] = $common;
+        }
         $task = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_projects_tasks')." where project_id=". (int)$validated['project_id'] ." and id=".(int)$validated['id'], "one");
         $values = $this->DB->MQ("select * from ". $this->model->get_table_name('pm_progress_tasks')." where project_id=". (int)$validated['project_id']." and member_id=".(int)$validated['member_id']." and task_id=".(int)$validated['id'], "one");
         $data['data'] = [
@@ -1294,6 +1319,13 @@ class projectsController extends coreController{
         ];
         if(is_set($values)){
             $data['data'] = array_merge($data['data'], $values);
+        }
+        // No percentage on this record yet: offer a blank, selected, so saving
+        // (a comment, a spend) does not state 25% on the person's behalf. The
+        // box starts at 25% only when somebody switches Status to In progress.
+        if (isset($data['model']['common']['progress_pct']) && delivery_pct($values['result'] ?? 0, $values['progress_pct'] ?? null) === null) {
+            $data['model']['common']['progress_pct']['values_list'] = ['' => 'How far?'] + $data['model']['common']['progress_pct']['values_list'];
+            $data['data']['progress_pct'] = '';
         }
 
         $this->prepare_edit_mode();
@@ -1337,11 +1369,15 @@ class projectsController extends coreController{
         // input, and db_esc() is only addslashes(): task_result_save binds
         // everything. $actual_budget is already a float or null from above.
         // The same helper serves the Status column on the activity form.
-        $executed = task_result_save($this->DB, (int)$validated['member_id'], (int)$validated['project_id'], (int)$validated['task_id'], (int)$validated['result'], [
+        $more = [
             'progress_date' => $validated['progress_date'],
             'comment'       => $validated['comment'],
             'actual_budget' => $actual_budget,
-        ]);
+        ];
+        // How far along (25/50/75): sent only while Status says In progress;
+        // task_result_save accepts nothing else and ignores it for any other status.
+        if (isset($this->query['progress_pct']) && is_string($this->query['progress_pct'])) { $more['progress_pct'] = $this->query['progress_pct']; }
+        $executed = task_result_save($this->DB, (int)$validated['member_id'], (int)$validated['project_id'], (int)$validated['task_id'], (int)$validated['result'], $more);
 
         if (!$executed) {
             $this->setAnswer(500, "Problem updating the entry.");

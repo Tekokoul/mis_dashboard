@@ -13,9 +13,11 @@ class projects_graphsController extends coreController{
             'pillars' => []    // Goal-level details
         ];
     
+        $allCompleted = 0;
         foreach ($pillars as $pillar) {
             $pillarTotal = 0;
             $pillarProgress = 0;
+            $pillarCompleted = 0;
     
             $pillarData = $pillar;
             $pillarData['objectives'] = [];
@@ -29,6 +31,7 @@ class projects_graphsController extends coreController{
             foreach ($objectives as $objective) {
                 $objectiveTotal = 0;
                 $objectiveProgress = 0;
+                $objectiveCompleted = 0;
     
                 $objectiveData = $objective;
                 $objectiveData['projects'] = [];
@@ -39,6 +42,7 @@ class projects_graphsController extends coreController{
                 foreach ($projects as $project) {
                     $projectTotal = 0;
                     $projectProgress = 0;
+                    $projectCompleted = 0;
     
                     $projectData = $project;
     
@@ -57,16 +61,11 @@ class projects_graphsController extends coreController{
                             $taskAssignments = count($appliesTo);
                             $projectTotal += $taskAssignments;
     
-                            $queryPart = implode(",", $appliesTo);
-                            $query = "SELECT COUNT(*) as completed 
-                                      FROM pm_progress_tasks_tbl 
-                                      WHERE result = 1 
-                                      AND task_id = " . $task['id'] . " 
-                                      AND project_id = " . $project['id'] . " 
-                                      AND member_id IN (" . $queryPart . ")";
-                            $completed = $this->DB->MQ($query, "one")['completed'] ?? 0;
-    
-                            $projectProgress += $completed;
+                            // Completed counts whole ("n of m completed"); progress also counts a
+                            // task in progress by its share (25/50/75%) - the percentages use that.
+                            list($doneHere, $shareHere) = $this->taskDelivery((int)$task['id'], (int)$project['id'], (array)$appliesTo);
+                            $projectProgress += $shareHere;
+                            $projectCompleted += $doneHere;
                         }
                     }
     
@@ -77,24 +76,26 @@ class projects_graphsController extends coreController{
     
                     $objectiveTotal += $projectTotal;
                     $objectiveProgress += $projectProgress;
+                    $objectiveCompleted += $projectCompleted;
     
                     $objectiveData['projects'][$project['id']] = $projectData;
                 }
     
                 $objectiveData['totals'] = $objectiveTotal;
-            $objectiveData['completed'] = $objectiveProgress;   // raw count, for "n of m delivered"
+            $objectiveData['completed'] = $objectiveCompleted;   // raw count, for "n of m delivered"
                 $objectiveData['progress'] = ($objectiveTotal > 0) 
                     ? round(($objectiveProgress / $objectiveTotal) * 100, 2) 
                     : 0;
     
                 $pillarTotal += $objectiveTotal;
                 $pillarProgress += $objectiveProgress;
+                $pillarCompleted += $objectiveCompleted;
     
                 $pillarData['objectives'][$objective['id']] = $objectiveData;
             }
     
             $pillarData['totals'] = $pillarTotal;
-            $pillarData['completed'] = $pillarProgress;
+            $pillarData['completed'] = $pillarCompleted;
             $pillarData['progress'] = ($pillarTotal > 0) 
                 ? round(($pillarProgress / $pillarTotal) * 100, 2) 
                 : 0;
@@ -105,11 +106,13 @@ class projects_graphsController extends coreController{
             // Accumulate totals and progress for the entire data structure
             $data['totals'] += $pillarTotal;
             $data['progress'] += $pillarProgress;
+            $allCompleted += $pillarCompleted;
         }
     
-        // Keep the raw count before it becomes a percentage: the view prints
-        // "n of m delivered" next to every bar, which a bare 0.00% never said.
-        $data['completed'] = (int)$data['progress'];
+        // The count of finished deliveries: the view prints "n of m delivered"
+        // next to every bar, which a bare 0.00% never said. The percentage
+        // below also counts work in progress by its share.
+        $data['completed'] = (int)$allCompleted;
 
         // Calculate overall progress as a percentage of totals
         $data['progress'] = ($data['totals'] > 0)
@@ -161,6 +164,7 @@ class projects_graphsController extends coreController{
     
         $pillarTotal = 0;
         $pillarProgress = 0;
+        $pillarCompleted = 0;
     
         // Fetch objectives linked to the goal
         // Same WBS ordering as overview() - see the note there.
@@ -170,6 +174,7 @@ class projects_graphsController extends coreController{
         foreach ($objectives as $objective) {
             $objectiveTotal = 0;
             $objectiveProgress = 0;
+            $objectiveCompleted = 0;
     
             $objectiveData = [
                 'id' => $objective['id'],
@@ -187,6 +192,7 @@ class projects_graphsController extends coreController{
             foreach ($projects as $project) {
                 $projectTotal = 0;
                 $projectProgress = 0;
+                $projectCompleted = 0;
     
                 // Fetch tasks linked to the project
                 $query = "SELECT id, applies_to FROM pm_projects_tasks_tbl WHERE project_id = " . $project['id'];
@@ -199,16 +205,11 @@ class projects_graphsController extends coreController{
                         $taskAssignments = count($appliesTo);
                         $projectTotal += $taskAssignments;
     
-                        $queryPart = implode(",", $appliesTo);
-                        $query = "SELECT COUNT(*) as progress 
-                                  FROM pm_progress_tasks_tbl 
-                                  WHERE result = 1 
-                                  AND task_id = " . $task['id'] . " 
-                                  AND project_id = " . $project['id'] . " 
-                                  AND member_id IN (" . $queryPart . ")";
-                        $taskProgress = $this->DB->MQ($query, "one")['progress'] ?? 0;
-    
-                        $projectProgress += $taskProgress;
+                        // Completed counts whole ("n of m completed"); progress also counts a
+                        // task in progress by its share (25/50/75%) - the percentages use that.
+                        list($doneHere, $shareHere) = $this->taskDelivery((int)$task['id'], (int)$project['id'], (array)$appliesTo);
+                        $projectProgress += $shareHere;
+                        $projectCompleted += $doneHere;
                     }
                 }
     
@@ -224,11 +225,12 @@ class projects_graphsController extends coreController{
     
                 $objectiveTotal += $projectTotal;
                 $objectiveProgress += $projectProgress;
+                $objectiveCompleted += $projectCompleted;
             }
     
             // Add objective data
             $objectiveData['totals'] = $objectiveTotal;
-            $objectiveData['completed'] = $objectiveProgress;   // raw count, for "n of m delivered"
+            $objectiveData['completed'] = $objectiveCompleted;   // raw count, for "n of m delivered"
             $objectiveData['progress'] = ($objectiveTotal > 0) 
                 ? round(($objectiveProgress / $objectiveTotal) * 100, 2) 
                 : 0;
@@ -237,11 +239,12 @@ class projects_graphsController extends coreController{
     
             $pillarTotal += $objectiveTotal;
             $pillarProgress += $objectiveProgress;
+            $pillarCompleted += $objectiveCompleted;
         }
     
         // Finalize goal data
         $data['pillar']['totals'] = $pillarTotal;
-        $data['pillar']['completed'] = $pillarProgress;
+        $data['pillar']['completed'] = $pillarCompleted;
         $data['pillar']['progress'] = ($pillarTotal > 0) 
             ? round(($pillarProgress / $pillarTotal) * 100, 2) 
             : 0;
@@ -274,6 +277,7 @@ class projects_graphsController extends coreController{
     
         $objectiveTotal = 0;
         $objectiveProgress = 0;
+        $objectiveCompleted = 0;
     
         // Fetch programmes linked to the objective
         $query = "SELECT id, name, abbr FROM pm_programmes_tbl WHERE objective_id = " . (int)$objective['id'] . " ORDER BY " . coreModel::natural_order_sql('abbr');
@@ -283,6 +287,7 @@ class projects_graphsController extends coreController{
         foreach ($programmes as $programme) {
             $programmeTotal = 0;
             $programmeProgress = 0;
+            $programmeCompleted = 0;
     
             // Fetch projects linked to the programme
             $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . (int)$programme['id'] . " AND objective_id = " . (int)$objective['id'] . " ORDER BY " . coreModel::natural_order_sql('abbr');
@@ -294,7 +299,7 @@ class projects_graphsController extends coreController{
             ];
     
             foreach ($projects as $project) {
-                list($projectTotal, $projectProgress) = $this->activityProgress((int)$project['id']);
+                list($projectTotal, $projectProgress, $projectCompleted) = $this->activityProgress((int)$project['id']);
                 $projectProgressPercentage = ($projectTotal > 0) ? round(($projectProgress / $projectTotal) * 100, 2) : 0;
     
                 // Add project data to the programme
@@ -307,6 +312,7 @@ class projects_graphsController extends coreController{
     
                 $programmeTotal += $projectTotal;
                 $programmeProgress += $projectProgress;
+                $programmeCompleted += $projectCompleted;
             }
     
             // Calculate programme progress as a percentage
@@ -318,6 +324,7 @@ class projects_graphsController extends coreController{
     
             $objectiveTotal += $programmeTotal;
             $objectiveProgress += $programmeProgress;
+            $objectiveCompleted += $programmeCompleted;
         }
 
         // Activities of this objective filed under a programme that belongs
@@ -331,27 +338,28 @@ class projects_graphsController extends coreController{
                . " WHERE p.objective_id = " . (int)$objective['id']
                . ($known ? " AND (p.programme_id IS NULL OR p.programme_id NOT IN (" . implode(",", $known) . "))" : "")
                . " ORDER BY " . coreModel::natural_order_sql('p.abbr');
-        $otherTotal = 0; $otherProgress = 0; $data['other_projects'] = [];
+        $otherTotal = 0; $otherProgress = 0; $otherCompleted = 0; $data['other_projects'] = [];
         foreach ((array)$this->DB->MQ($query, "all") as $project) {
-            list($t, $d) = $this->activityProgress((int)$project['id']);
+            list($t, $d, $dc) = $this->activityProgress((int)$project['id']);
             $data['other_projects'][] = [
                 "id" => (int)$project['id'], "name" => $project['name'], "abbr" => $project['abbr'],
                 "programme_name" => $project['programme_name'],
-                "totals" => $t, "completed" => $d, "progress" => ($t > 0) ? round(($d / $t) * 100, 2) : 0,
+                "totals" => $t, "completed" => $dc, "progress" => ($t > 0) ? round(($d / $t) * 100, 2) : 0,
             ];
-            $otherTotal += $t; $otherProgress += $d;
+            $otherTotal += $t; $otherProgress += $d; $otherCompleted += $dc;
         }
-        $data['other'] = ["totals" => $otherTotal, "completed" => $otherProgress, "progress" => ($otherTotal > 0) ? round(($otherProgress / $otherTotal) * 100, 2) : 0];
+        $data['other'] = ["totals" => $otherTotal, "completed" => $otherCompleted, "progress" => ($otherTotal > 0) ? round(($otherProgress / $otherTotal) * 100, 2) : 0];
         $data['gaps'] = activity_gaps_for($this->DB, array_column($data['other_projects'], 'id'));
         $objectiveTotal += $otherTotal;
         $objectiveProgress += $otherProgress;
+        $objectiveCompleted += $otherCompleted;
     
         // Calculate objective progress as a percentage
         $objectiveProgressPercentage = ($objectiveTotal > 0) ? round(($objectiveProgress / $objectiveTotal) * 100, 2) : 0;
     
         // Finalize objective data
         $data['objective']['totals'] = $objectiveTotal;
-        $data['objective']['completed'] = $objectiveProgress;
+        $data['objective']['completed'] = $objectiveCompleted;
         $data['objective']['progress'] = $objectiveProgressPercentage;
     
         $this->AddJS("/vendor/gauge/gauge.js");
@@ -360,22 +368,39 @@ class projects_graphsController extends coreController{
     }
   
     /**
-     * [assignments, delivered] for one activity: each task counts once per
-     * reporting entity it applies to; delivered = progress rows with result 1.
+     * [assignments, progress, completed] for one activity: each task counts
+     * once per reporting entity it applies to; completed = finished
+     * deliveries, progress = the same plus work in progress by its share
+     * (taskDelivery).
      */
     private function activityProgress($projectId) {
-        $total = 0; $done = 0;
+        $total = 0; $done = 0.0; $completed = 0;
         $tasks = $this->DB->MQ("SELECT id, applies_to FROM pm_projects_tasks_tbl WHERE project_id = " . (int)$projectId, "all");
         foreach ((array)$tasks as $task) {
             $appliesTo = json_decode((string)$task['applies_to'], true);
             if (!is_array($appliesTo) || count($appliesTo) === 0) { continue; }
             $members = array_map('intval', $appliesTo);
             $total += count($members);
-            $row = $this->DB->MQ("SELECT COUNT(*) AS progress FROM pm_progress_tasks_tbl WHERE result = 1 AND task_id = " . (int)$task['id']
-                                . " AND project_id = " . (int)$projectId . " AND member_id IN (" . implode(",", $members) . ")", "one");
-            $done += (int)($row['progress'] ?? 0);
+            list($c, $share) = $this->taskDelivery((int)$task['id'], (int)$projectId, $members);
+            $done += $share; $completed += $c;
         }
-        return [$total, $done];
+        return [$total, $done, $completed];
+    }
+
+    /**
+     * [completed, progress] for one task and the reporting entities it applies
+     * to. completed counts finished deliveries (for "n of m completed");
+     * progress also counts a task in progress by its share - 25, 50 or 75% -
+     * and is what every percentage and bar on these pages is made of
+     * (library: delivery_weight_sql). The entity ids are reduced to positive
+     * integers here, whatever the caller passed.
+     */
+    private function taskDelivery($taskId, $projectId, array $members) {
+        $members = array_values(array_filter(array_map('intval', $members), function ($v) { return $v > 0; }));
+        if (!$members) { return [0, 0.0]; }
+        $r = $this->DB->MQ("SELECT IFNULL(SUM(`result` = 1), 0) AS completed, IFNULL(SUM(" . delivery_weight_sql($this->DB) . "), 0) AS progress
+                              FROM pm_progress_tasks_tbl WHERE task_id = ? AND project_id = ? AND member_id IN (" . implode(',', $members) . ")", "one", [(int)$taskId, (int)$projectId]);
+        return [(int)($r['completed'] ?? 0), (float)($r['progress'] ?? 0)];
     }
 
     public function programme() {
@@ -399,6 +424,7 @@ class projects_graphsController extends coreController{
     
         $programmeTotal = 0;
         $programmeProgress = 0;
+        $programmeCompleted = 0;
     
         // Fetch projects linked to the programme
         $query = "SELECT id, name, abbr FROM pm_projects_tbl WHERE programme_id = " . (int)$validated['id'] . " AND objective_id = " . (int)$programme['objective_id'] . " ORDER BY " . coreModel::natural_order_sql('abbr');
@@ -409,6 +435,7 @@ class projects_graphsController extends coreController{
         foreach ($projects as $project) {
             $projectTotal = 0;
             $projectProgress = 0;
+            $projectCompleted = 0;
     
             // Fetch tasks linked to the project
             $query = "SELECT * FROM pm_projects_tasks_tbl WHERE project_id = " . $project['id'];
@@ -422,16 +449,11 @@ class projects_graphsController extends coreController{
                     $projectTotal += $taskAssignments;
     
                     // Create a query to get progress per division user
-                    $queryPart = implode(",", $appliesTo);
-                    $query = "SELECT COUNT(*) as progress 
-                              FROM pm_progress_tasks_tbl 
-                              WHERE result = 1 
-                              AND task_id = " . $task['id'] . " 
-                              AND project_id = " . $project['id'] . " 
-                              AND member_id IN (" . $queryPart . ")";
-                    $taskProgress = $this->DB->MQ($query, "one")['progress'] ?? 0;
-    
-                    $projectProgress += $taskProgress;
+                    // Completed counts whole ("n of m completed"); progress also counts a
+                    // task in progress by its share (25/50/75%) - the percentages use that.
+                    list($doneHere, $shareHere) = $this->taskDelivery((int)$task['id'], (int)$project['id'], (array)$appliesTo);
+                    $projectProgress += $shareHere;
+                    $projectCompleted += $doneHere;
                 }
             }
     
@@ -448,6 +470,7 @@ class projects_graphsController extends coreController{
     
             $programmeTotal += $projectTotal;
             $programmeProgress += $projectProgress;
+            $programmeCompleted += $projectCompleted;
         }
     
         // Calculate programme progress as a percentage
@@ -455,7 +478,7 @@ class projects_graphsController extends coreController{
     
         // Finalize programme data
         $data['programme']['totals'] = $programmeTotal;
-        $data['programme']['completed'] = $programmeProgress;
+        $data['programme']['completed'] = $programmeCompleted;
         $data['programme']['progress'] = $programmeProgressPercentage;
     
         $this->AddJS("/vendor/gauge/gauge.js");
@@ -499,7 +522,8 @@ class projects_graphsController extends coreController{
     
         $memberProgress = []; // To track progress per member across tasks
         $totalAssignments = 0; // Total assignments (tasks × assignees)
-        $completedAssignments = 0; // Total completed assignments (for project progress)
+        $completedAssignments = 0; // Total completed assignments (for "n of m completed")
+        $weightedAssignments = 0;  // The same, with work in progress counted by its share (for the percentages)
         // Each task with its own count, so the page can show what is left to
         // deliver task by task rather than only per reporting entity.
         $taskRows = [];
@@ -507,6 +531,7 @@ class projects_graphsController extends coreController{
         // Loop through tasks and process their `applies_to`
         foreach ($tasks as $task) {
             $taskDone = 0;
+            $taskShare = 0;
             // Same reduction to positive integers as the other views: `$member`
             // below is interpolated into three queries.
             $applies_to = array_values(array_filter(array_map('intval', (array)json_decode((string)($task['applies_to'] ?? "[]"), true)), fn($v) => $v > 0));
@@ -525,6 +550,7 @@ class projects_graphsController extends coreController{
                         'member_state' => $m,
                         'assigned_tasks' => 0,
                         'completed_tasks' => 0,
+                        'share' => 0,       // completed + in progress by its share
                         'progress' => 0, // Division user progress percentage
                         'budget' => 0
                     ];
@@ -533,13 +559,14 @@ class projects_graphsController extends coreController{
                 // Increment the member's assigned task count
                 $memberProgress[$member]['assigned_tasks']++;
     
-                // Check progress for this specific task and member
-                $query = "SELECT COUNT(*) as progress 
-                          FROM pm_progress_tasks_tbl 
-                          WHERE result = 1 AND member_id = " . $member . " AND project_id = " . $project['id'] . " AND task_id = " . $task['id'];
-                $progress = $this->DB->MQ($query, "one")['progress'] ?? 0;
-    
-                if ($progress > 0) {
+                // This entity's record for the task: completed counts whole, in progress
+                // by its share (25/50/75%) for the percentages; one assignment counts at most once.
+                list($doneHere, $shareHere) = $this->taskDelivery((int)$task['id'], (int)$project['id'], [$member]);
+                $shareHere = min(1.0, $shareHere);
+                $memberProgress[$member]['share'] += $shareHere;
+                $weightedAssignments += $shareHere;
+                $taskShare += $shareHere;
+                if ($doneHere > 0) {
                     $memberProgress[$member]['completed_tasks']++;
                     $completedAssignments++;
                     $taskDone++;
@@ -558,7 +585,7 @@ class projects_graphsController extends coreController{
                 'description' => (string)($task['description'] ?? ''),
                 'assignments' => $taskAssignments,
                 'completed'   => $taskDone,
-                'progress'    => $taskAssignments > 0 ? round($taskDone / $taskAssignments * 100, 2) : 0,
+                'progress'    => $taskAssignments > 0 ? round($taskShare / $taskAssignments * 100, 2) : 0,
             ];
         }
         $temp['project']['tasks'] = $taskRows;
@@ -567,12 +594,12 @@ class projects_graphsController extends coreController{
         foreach ($memberProgress as $member => $details) {
             $assignedTasks = $details['assigned_tasks'];
             $completedTasks = $details['completed_tasks'];
-            $memberProgress[$member]['progress'] = ($assignedTasks > 0) ? ($completedTasks / $assignedTasks) * 100 : 0;
+            $memberProgress[$member]['progress'] = ($assignedTasks > 0) ? ($details['share'] / $assignedTasks) * 100 : 0;
         }
     
         // Calculate overall project progress
         $temp['project']['progress'] = ($temp['project']['totals'] > 0) 
-        ? ($completedAssignments / $temp['project']['totals']) * 100 
+        ? ($weightedAssignments / $temp['project']['totals']) * 100 
         : 0;
         
         // Add division users with their states and progress to the response
@@ -597,14 +624,18 @@ class projects_graphsController extends coreController{
             $data['progress'][$member['id']] = [
                 'name' => $member['name'],
                 'totals' => 0,
-                'progress' => 0
+                'progress' => 0,
+                'completed' => 0   // finished only, for the "Completed" bar; progress also counts work in progress by its share
             ];
     
             $query = "SELECT COUNT(*) AS tasks_count FROM pm_projects_tasks_tbl WHERE JSON_CONTAINS(applies_to, '\"{$member['id']}\"')";
             $totals = $this->DB->MQ($query, "one")['tasks_count'] ?? 0;
             
-            $query = "SELECT COUNT(*) AS progress FROM `pm_progress_tasks_tbl` WHERE result = 1 AND member_id = " . $member['id'];
-            $pgs = $this->DB->MQ($query, "one")['progress'];
+            // Finished deliveries, plus work in progress by its share (25/50/75%).
+            $query = "SELECT IFNULL(SUM(" . delivery_weight_sql($this->DB) . "), 0) AS progress, IFNULL(SUM(`result` = 1), 0) AS completed FROM `pm_progress_tasks_tbl` WHERE member_id = " . (int)$member['id'];
+            $row = $this->DB->MQ($query, "one");
+            $pgs = (float)($row['progress'] ?? 0);
+            $data['progress'][$member['id']]['completed'] += (int)($row['completed'] ?? 0);
     
             $data['progress'][$member['id']]['totals'] += $totals;
             $data['progress'][$member['id']]['progress'] += $pgs;

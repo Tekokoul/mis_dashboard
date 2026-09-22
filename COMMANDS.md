@@ -204,6 +204,17 @@ instead, set one in Manage users.
 
 ## Recording delivery
 
+**In progress, and how far along.** Choosing *In progress* - in the Record
+delivery popup or in the Status box on the activity form - offers **How far
+along: 25%, 50% or 75%** (`pm_progress_tasks_tbl.progress_pct`, added at
+start-up). Every percentage and bar on the overview counts a task in progress
+by that share (completed 1, in progress 0.25 / 0.5 / 0.75, not started 0);
+"n of m completed" still counts finished work only. A record in progress with
+no percentage counts for nothing, as all of them did before the column
+existed, so no existing figure moves until somebody picks one. The Progress
+page shows it on the task ("In progress · 50%"). The weighting lives in
+`delivery_weight_sql()` (`app/includes/library.php`).
+
 On the overview's programme and project pages every activity carries
 **Record delivery** and, for those who may edit it (administrators and Power
 Users), **Edit** - the activity's own form, whose Back returns to that page.

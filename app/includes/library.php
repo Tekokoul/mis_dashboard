@@ -1991,20 +1991,66 @@ function task_result_save($db, $memberId, $projectId, $taskId, $result, array $m
     $keys = [(int)$memberId, (int)$projectId, (int)$taskId];
     $row = $db->MQ("SELECT * FROM `pm_progress_tasks_tbl` WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?", "one", $keys);
     $had = is_set($row);
-    $same = $had && (int)$row['result'] === $result;
+    // In progress carries how far along it is (25/50/75, $more['progress_pct']):
+    // the one given, else what the record had while it was in progress already.
+    // Any other status clears it.
+    $pctOn = delivery_pct_available($db);
+    $pct = null;
+    if ($pctOn && $result === 2) {
+        $pct = array_key_exists('progress_pct', $more) ? delivery_pct(2, $more['progress_pct'])
+             : (($had && (int)$row['result'] === 2) ? delivery_pct(2, $row['progress_pct'] ?? null) : null);
+    }
+    $same = $had && (int)$row['result'] === $result && (!$pctOn || delivery_pct($row['result'], $row['progress_pct'] ?? null) === $pct);
     $date    = array_key_exists('progress_date', $more) ? $more['progress_date'] : ($same ? $row['progress_date'] : date('Y-m-d H:i:s'));
     $comment = array_key_exists('comment', $more)       ? $more['comment']       : ($had ? $row['comment'] : '');
     $budget  = array_key_exists('actual_budget', $more) ? $more['actual_budget'] : ($had ? $row['actual_budget'] : null);
     if ($had) {
         return (bool)$db->MQ("UPDATE `pm_progress_tasks_tbl`
-                                 SET `result` = ?, `progress_date` = ?, `actual_budget` = ?, `comment` = ?
+                                 SET `result` = ?, " . ($pctOn ? "`progress_pct` = ?, " : "") . "`progress_date` = ?, `actual_budget` = ?, `comment` = ?
                                WHERE `member_id` = ? AND `project_id` = ? AND `task_id` = ?", false,
-            array_merge([$result, $date, $budget, $comment], $keys));
+            array_merge($pctOn ? [$result, $pct, $date, $budget, $comment] : [$result, $date, $budget, $comment], $keys));
     }
     return (bool)$db->MQ("INSERT INTO `pm_progress_tasks_tbl`
-                            (`member_id`, `project_id`, `result`, `task_id`, `progress_date`, `comment`, `actual_budget`)
-                          VALUES (?, ?, ?, ?, ?, ?, ?)", false,
-        [$keys[0], $keys[1], $result, $keys[2], $date, $comment, $budget]);
+                            (`member_id`, `project_id`, `result`, " . ($pctOn ? "`progress_pct`, " : "") . "`task_id`, `progress_date`, `comment`, `actual_budget`)
+                          VALUES (?, ?, ?, " . ($pctOn ? "?, " : "") . "?, ?, ?, ?)", false,
+        $pctOn ? [$keys[0], $keys[1], $result, $pct, $keys[2], $date, $comment, $budget]
+               : [$keys[0], $keys[1], $result, $keys[2], $date, $comment, $budget]);
+}
+
+/** How far along a task in progress can be marked, in percent. */
+function delivery_pct_values() {
+    return [25, 50, 75];
+}
+
+/**
+ * Whether records can carry that percentage: pm_progress_tasks_tbl.progress_pct
+ * is added at start-up (docker/entrypoint-app.sh, 10). Without it everything
+ * reads as before - a task in progress counts for nothing.
+ */
+function delivery_pct_available($db) {
+    static $ok = null;
+    if ($ok === null) { $ok = is_set($db->MQ("SHOW COLUMNS FROM pm_progress_tasks_tbl LIKE 'progress_pct'", "one")); }
+    return $ok;
+}
+
+/** The percentage a record stands for: 25, 50 or 75 when its status is In progress (2), otherwise null. */
+function delivery_pct($result, $pct) {
+    $p = (is_int($pct) || (is_string($pct) && ctype_digit($pct))) ? (int)$pct : 0;
+    return ((int)$result === 2 && in_array($p, delivery_pct_values(), true)) ? $p : null;
+}
+
+/**
+ * How much of a task one record counts for, as SQL for SUM(): Completed 1,
+ * In progress its share (0.25, 0.5 or 0.75; nothing when no share was given),
+ * Not started 0. Every percentage and bar on the overview is made of this;
+ * "n of m completed" still counts finished work only, SUM(result = 1).
+ */
+function delivery_weight_sql($db, $alias = '') {
+    $a = $alias !== '' ? $alias . '.' : '';
+    if (!delivery_pct_available($db)) { return "(CASE WHEN {$a}`result` = 1 THEN 1 ELSE 0 END)"; }
+    // Only the three values the screens offer count: a number written some
+    // other way (a generic edit screen, a hand-made record) counts for nothing.
+    return "(CASE WHEN {$a}`result` = 1 THEN 1 WHEN {$a}`result` = 2 AND {$a}`progress_pct` IN (" . implode(', ', delivery_pct_values()) . ") THEN {$a}`progress_pct` / 100 ELSE 0 END)";
 }
 
 function delivery_status_label($status) {
@@ -2017,7 +2063,7 @@ function delivery_status_label($status) {
  * 'green' (objectives and programmes on the main dashboard): the dashboard's
  * own greens, and no tag at all for something not started yet.
  */
-function delivery_status_chip($status, $tone = 'colour') {
+function delivery_status_chip($status, $tone = 'colour', $pct = null) {
     $icon = ['completed' => 'bx-check-circle', 'in_progress' => 'bx-adjust', 'not_started' => 'bx-time-five'][(string)$status] ?? 'bx-minus-circle';
     if ($tone === 'green') {
         if (!in_array((string)$status, ['completed', 'in_progress'], true)) { return ''; }
@@ -2025,7 +2071,9 @@ function delivery_status_chip($status, $tone = 'colour') {
     } else {
         $class = ['completed' => 'completed', 'in_progress' => 'in-progress', 'not_started' => 'not-started'][(string)$status] ?? 'idle';
     }
-    return '<span class="afcdc-status afcdc-status--' . $class . '"><i class="bx ' . $icon . '" aria-hidden="true"></i> ' . display(delivery_status_label($status)) . '</span>';
+    // In progress may say how far along: "In progress · 50%".
+    $label = delivery_status_label($status) . (((string)$status === 'in_progress' && (int)$pct > 0) ? " \u{00B7} " . (int)$pct . '%' : '');
+    return '<span class="afcdc-status afcdc-status--' . $class . '"><i class="bx ' . $icon . '" aria-hidden="true"></i> ' . display($label) . '</span>';
 }
 
 /** The status as a small square in its colour, the word for the screen reader and on hover (the Tasks column of the Projects list). */

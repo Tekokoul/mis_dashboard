@@ -47,7 +47,7 @@ $(document).ready(function() {
             $row.find('input[type="text"]').prop('readonly', true).removeAttr('required')
                 .closest('.form-group').removeClass('afcdc-field--missing');
             // Nor does its status get posted: a status is for a task that stays.
-            $row.find('select.afcdc-task__status').prop('disabled', true);
+            $row.find('select.afcdc-task__status, select.afcdc-task__pct').prop('disabled', true);
             $(this).prop('hidden', true);
             $row.find('[data-undo-remove-task]').prop('hidden', false);
         });
@@ -57,7 +57,7 @@ $(document).ready(function() {
             $row.removeClass('afcdc-task--removed');
             $row.find('input[name$="[remove]"]').val('0');
             $row.find('input[type="text"]').prop('readonly', false).eq(0).attr('required', 'required');
-            $row.find('select.afcdc-task__status').prop('disabled', false);
+            $row.find('select.afcdc-task__status, select.afcdc-task__pct').prop('disabled', false);
             $(this).prop('hidden', true);
             $row.find('[data-remove-existing-task]').prop('hidden', false);
         });
@@ -67,6 +67,20 @@ $(document).ready(function() {
         $newTasks.on('change', 'select.afcdc-task__status', function () {
             var was = this.getAttribute('data-afcdc-was');
             this.setAttribute('data-afcdc-status', this.value);
+            this.setAttribute('data-afcdc-touched', (was !== null && this.value === was) ? '0' : '1');
+            // How far along belongs to In progress only; a task put in
+            // progress without a percentage yet starts at 25%.
+            var $pct = $(this).closest('td').find('select.afcdc-task__pct');
+            if ($pct.length) {
+                var on = this.value === '2';
+                $pct.prop('hidden', !on);
+                if (on && !$pct.val()) { $pct.val('25').trigger('change'); }
+                else if (!on) { $pct.attr('data-afcdc-touched', '0'); }   // hidden: the server ignores it for any other status
+                else { var pw = $pct.attr('data-afcdc-was'); $pct.attr('data-afcdc-touched', (pw !== undefined && $pct.val() === pw) ? '0' : '1'); }
+            }
+        });
+        $newTasks.on('change', 'select.afcdc-task__pct', function () {
+            var was = this.getAttribute('data-afcdc-was');
             this.setAttribute('data-afcdc-touched', (was !== null && this.value === was) ? '0' : '1');
         });
         // Enter in a row being TYPED adds the next one instead of submitting.
