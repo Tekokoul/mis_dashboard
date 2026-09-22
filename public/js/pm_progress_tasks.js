@@ -84,6 +84,18 @@ $(document).ready(function() {
                     syncPct(false);
                 }
                 openPopup();
+                // The task's name and description are read-only boxes sized to
+                // what they hold: one line for "Task", as many as a long name
+                // needs. Measured once the popup is on screen - a hidden box
+                // measures as nothing - and again a moment later, after its
+                // opening animation.
+                var sizeBoxes = function () {
+                    $('#taskform textarea[disabled]').each(function () {
+                        this.rows = 1; this.style.height = 'auto'; this.style.overflow = 'hidden';
+                        if (this.scrollHeight > 0) { this.style.height = (this.scrollHeight + 2) + 'px'; }
+                    });
+                };
+                sizeBoxes(); window.setTimeout(sizeBoxes, 80);
 
                 // Save once. The button greys to "Saving…" and a second click
                 // (or Enter in a field plus a click) is ignored; the popup is

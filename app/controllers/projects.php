@@ -1251,9 +1251,12 @@ class projectsController extends coreController{
                 // One vocabulary everywhere (library: delivery_status): Not
                 // started, In progress, Completed - on the task table, the
                 // graphs and the Status box of the Projects list.
+                // A multi-line box, sized to its text by pm_progress_tasks.js:
+                // a one-line box cut a long task name off.
                 "task" => [
                     "title" => "Task",
-                    "type" => "varchar",
+                    "type" => "text",
+                    "no_editor" => true,
                     "order_field" => "ASC",
                     "disabled" => true,
                     "no_update" => true,

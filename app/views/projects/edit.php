@@ -107,9 +107,9 @@ $col_width = 12/$columns;
                                 <td>
                                     <?php // data-afcdc-was, because a hidden input's defaultValue IS its value: the browser gives it no memory of what it started as, so the unsaved-changes check has nothing to compare against without this. ?>
                                     <input type="hidden" name="tasks[<?= $tid; ?>][remove]" value="<?= $removed ? '1' : '0'; ?>" data-afcdc-was="<?= $removed ? '1' : '0'; ?>">
-                                    <input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][name]" value="<?= display($t['name']); ?>" maxlength="250"<?= $removed ? ' readonly' : ' required'; ?>>
+                                    <input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][name]" value="<?= display($t['name']); ?>" title="<?= display($t['name']); ?>" maxlength="250"<?= $removed ? ' readonly' : ' required'; ?>>
                                 </td>
-                                <td><input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"<?= $removed ? ' readonly' : ''; ?>></td>
+                                <td><input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" title="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"<?= $removed ? ' readonly' : ''; ?>></td>
                                 <?php if ($mayRecord) {
                                     // NULL until this person's entity has recorded anything. "Not
                                     // recorded" is offered only then, so a record is never un-made here.

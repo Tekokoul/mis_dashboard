@@ -204,6 +204,12 @@ instead, set one in Manage users.
 
 ## Recording delivery
 
+**Long task names.** The Record delivery popup shows the task's name and
+description in boxes sized to their text. On the activity form the task boxes
+are narrow: click into one whose text does not fit and the whole text shows in
+a line under the row while you edit (it follows the typing and goes when you
+leave the box); hovering a box shows it too.
+
 **In progress, and how far along.** Choosing *In progress* - in the Record
 delivery popup or in the Status box on the activity form - offers **How far
 along: 25%, 50% or 75%** (`pm_progress_tasks_tbl.progress_pct`, added at

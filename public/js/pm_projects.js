@@ -83,6 +83,34 @@ $(document).ready(function() {
             var was = this.getAttribute('data-afcdc-was');
             this.setAttribute('data-afcdc-touched', (was !== null && this.value === was) ? '0' : '1');
         });
+        // The name and description boxes are narrow, so a long text is cut off.
+        // While a box whose text does not fit is being edited, the whole text
+        // shows in a line under its row and follows the typing; it goes when
+        // the box is left. (A peek row has neither task class, so the
+        // numbering and the empty-row check above never count it.)
+        var peeking = null;
+        function peekRow() {
+            var $r = $newTasks.find('tr.afcdc-task__peek');
+            if (!$r.length) {
+                var cols = $newTasks.find('thead th').length || 4;
+                $r = $('<tr class="afcdc-task__peek"><td colspan="' + cols + '"><span class="afcdc-task__peek-label"></span> <span class="afcdc-task__peek-text"></span></td></tr>');
+            }
+            return $r;
+        }
+        function showPeek(input) {
+            var fits = input.scrollWidth <= input.clientWidth + 1;
+            if (fits || !input.value) { hidePeek(); return; }
+            var $r = peekRow(), $tr = $(input).closest('tr');
+            $r.find('.afcdc-task__peek-label').text(/\[name\]$/.test(input.name) ? 'Full name' : 'Full description');
+            $r.find('.afcdc-task__peek-text').text(input.value);
+            if ($r.prev()[0] !== $tr[0]) { $tr.after($r); }
+            peeking = input;
+        }
+        function hidePeek() { $newTasks.find('tr.afcdc-task__peek').remove(); peeking = null; }
+        var boxes = 'tr.afcdc-task input[type="text"], tr.afcdc-new-task input[type="text"]';
+        $newTasks.on('focus', boxes, function () { showPeek(this); });
+        $newTasks.on('input', boxes, function () { if (peeking === this || document.activeElement === this) { showPeek(this); } });
+        $newTasks.on('blur', boxes, function () { hidePeek(); });
         // Enter in a row being TYPED adds the next one instead of submitting.
         // Only in those rows: in a saved task's box Enter means "I have fixed
         // this, save it", and adding a blank row there is never what was meant.
