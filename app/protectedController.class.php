@@ -129,10 +129,18 @@ class protectedController extends vanillaController {
         // 'projects_graphs/*' is open to all and the model check below reads the
         // model from the path for core's own addresses only. Inherited actions
         // (core's db_*, the framework's public helpers) are not addresses, and
-        // neither is anything whose name starts with an underscore.
-        if ($action === '' || $action[0] === '_'
-            || (method_exists($this, $action) && strcasecmp((new ReflectionMethod($this, $action))->getDeclaringClass()->getName(), get_class($this)) !== 0)) {
+        // neither is anything whose name starts with an underscore. The name
+        // must also be spelled exactly as declared: PHP finds methods whatever
+        // the case, but the access map above is looked up as typed, so
+        // system/Info missed 'system/info' => [1] and fell to 'system/*'.
+        if ($action === '' || $action[0] === '_') {
             $this->setAnswer(404, "The page you asked for does not exist.");
+        }
+        if (method_exists($this, $action)) {
+            $m = new ReflectionMethod($this, $action);
+            if (strcasecmp($m->getDeclaringClass()->getName(), get_class($this)) !== 0 || $m->getName() !== $action) {
+                $this->setAnswer(404, "The page you asked for does not exist.");
+            }
         }
 
         // The generic screens (core/db_*) serve goals, objectives, units,

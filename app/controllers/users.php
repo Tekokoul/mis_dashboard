@@ -309,6 +309,8 @@ class usersController extends protectedController {
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        // Accounts only: the table name arrives with the request.
+        if ((string)($validated['tablename'] ?? '') !== 'core_users') { $this->setAnswer(404, "Unknown form."); }
         $executed = $this->model->add_data($validated['tablename'], $this->query);
         if(isset($executed['common'])){
             $id_part = ($this->update_redirect=="db_edit") ? "/".$executed['common'] : "";
@@ -348,6 +350,8 @@ class usersController extends protectedController {
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        // Accounts only: the table name arrives with the request.
+        if ((string)($validated['tablename'] ?? '') !== 'core_users') { $this->setAnswer(404, "Unknown form."); }
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem updating the entry.");

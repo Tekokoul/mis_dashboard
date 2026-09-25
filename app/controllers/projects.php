@@ -171,6 +171,10 @@ class projectsController extends coreController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        // The activity form saves activities, and nothing else: the table name
+        // arrives with the request, and this route skips everything the
+        // generic screens check for other tables.
+        if ((string)($validated['tablename'] ?? '') !== 'pm_projects') { $this->setAnswer(404, "Unknown form."); }
 
         $additional_tables = (array)($this->query['additional_tables'] ?? []);
         unset($this->query['additional_tables']);
@@ -407,6 +411,10 @@ class projectsController extends coreController{
             "id" => FILTER_SANITIZE_NUMBER_INT
         ];
         $validated = $this->sanitize($this->query, $rules);
+        // The activity form saves activities, and nothing else: the table name
+        // arrives with the request, and this route skips everything the
+        // generic screens check for other tables.
+        if ((string)($validated['tablename'] ?? '') !== 'pm_projects') { $this->setAnswer(404, "Unknown form."); }
 
         $additional_tables = (array)($this->query['additional_tables'] ?? []);
         unset($this->query['additional_tables']);
@@ -449,14 +457,17 @@ class projectsController extends coreController{
             $new_id = $validated['id'];
             $id_part = "edit/".$new_id;
 
+            // The details table of an activity whose type has one (dates,
+            // milestones, percentages) is updated in place. Nothing here
+            // deletes: this branch used to delete every row of the stored type
+            // when another table was posted - for a task activity, all its
+            // tasks, delivery records left pointing at nothing - and the form
+            // cannot change an activity's type anyway ("type" is no_update).
+            // Tasks are edited through tasks/new_tasks (applyTaskEdits).
             foreach ($additional_tables as $add_tbl => $values){
+                if (!is_array($values) || (string)$previous['type'] === 'pm_projects_tasks' || $add_tbl !== (string)$previous['type']) { continue; }
                 $values['project_id'] = $new_id;
-                if($previous['type']==$add_tbl){
-                    $executed = $this->model->update_data($add_tbl, $values['id'], $values);
-                } else {
-                    $this->DB->MQ("delete from ".$this->model->get_table_name($previous['type'])." where project_id=".$validated['id']);
-                    $executed = $this->model->add_data($add_tbl, $values);
-                }
+                $executed = $this->model->update_data($add_tbl, $values['id'] ?? 0, $values);
             }
             if ($validated['tablename'] === 'pm_projects') {
                 // The tasks first: removing the last one leaves the activity
@@ -770,6 +781,8 @@ class projectsController extends coreController{
             "id" => FILTER_UNSAFE_RAW
         ];
         $validated = $this->sanitize($this->query, $rules);
+        // Tasks only: the table name arrives with the request.
+        if ((string)($validated['tablename'] ?? '') !== 'pm_projects_tasks') { $this->setAnswer(404, "Unknown form."); }
         // A task counts only where it applies. Nothing chosen used to store
         // NULL, which hid the task from Progress and from every gauge.
         $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
