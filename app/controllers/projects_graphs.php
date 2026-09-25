@@ -607,6 +607,9 @@ class projects_graphsController extends coreController{
         $temp['project']['members'] = array_values($memberProgress);
     
         $data = $temp;
+        // Merges into this activity, with Undo for those who decide merges:
+        // Executives land here after a merge (they may not open the edit form).
+        $data['merges'] = merge_history($this->DB, (int)$project['id'], (int)($this->query['merged'] ?? 0));
     
         $this->AddJS("/vendor/gauge/gauge.js");
         $this->AddJS("/js/graphs.js");

@@ -241,6 +241,10 @@ class coreController extends protectedController{
         ];
         $validated = $this->sanitize($this->query, $rules);
         $this->refuseSwitchedOff($validated['tablename']);
+        // Activities are saved on their own form (projects/add_update and
+        // projects/edit_update), which keeps goal, objective and programme
+        // consistent; this generic save would skip that.
+        if ($validated['tablename'] === 'pm_projects') { $this->setAnswer(409, "Activities are saved on their own form: Projects / Interventions."); }
         if ($validated['tablename'] === 'pm_projects_tasks') {
             // A task applies to every active reporting entity unless chosen otherwise (see library.php).
             $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
@@ -314,6 +318,10 @@ class coreController extends protectedController{
         ];
         $validated = $this->sanitize($this->query, $rules);
         $this->refuseSwitchedOff($validated['tablename']);
+        // Activities are saved on their own form (projects/add_update and
+        // projects/edit_update), which keeps goal, objective and programme
+        // consistent; this generic save would skip that.
+        if ($validated['tablename'] === 'pm_projects') { $this->setAnswer(409, "Activities are saved on their own form: Projects / Interventions."); }
         if ($validated['tablename'] === 'pm_projects_tasks') {
             // A task applies to every active reporting entity unless chosen otherwise (see library.php).
             $this->query['applies_to'] = default_applies_to($this->DB, $this->query['applies_to'] ?? null);
@@ -330,10 +338,18 @@ class coreController extends protectedController{
             $previous = (array)$this->DB->MQ("SELECT * FROM " . $this->model->get_table_name($validated['tablename'])
                                            . " WHERE id = ?", "one", [(int)$validated['id']]);
         }
+        // The save and whatever has to follow it (activities under a moved
+        // objective or programme) are one transaction.
+        $this->DB->txBegin();
         $executed = $this->model->update_data($validated['tablename'], $validated['id'], $this->query);
         if (in_array('false', $executed, true)) {
+            $this->DB->txRollBack();
             $this->setAnswer(500, "Problem updating the entry.");
         } else {
+            // An objective moved to another goal, or a programme to another
+            // objective, takes its activities with it (library.php).
+            children_follow_parent($this->DB, (string)$validated['tablename'], (int)$validated['id'], $previous);
+            $this->DB->txCommit();
             record_filing_feedback($this->DB, $validated['tablename'], $this->query, $previous, (int)$validated['id'], $deliberate);
             $id_part = ($this->update_redirect=="db_edit") ? "/".$validated['id'] : "";
             redirect($this->L("core/".$this->update_redirect."/".$validated['tablename'].$id_part) . '?back=' . rawurlencode($this->backTo('core/db_list/' . $validated['tablename'], $back)));
@@ -390,6 +406,13 @@ class coreController extends protectedController{
         ];
         $validated = $this->sanitize($this->parts, $rules);
         $this->refuseSwitchedOff($validated['model'], true);
+        // A goal, objective, programme, unit or reporting entity that still has
+        // something under it, or a task with delivery records, is not deleted:
+        // what hangs off it would point at nothing and drop out of every count.
+        // The answer says what is still there, so it can be moved first.
+        $blocker = ($validated['model'] === 'pm_projects_tasks') ? task_delete_blocker($this->DB, (int)$validated['id'])
+                 : parent_delete_blocker($this->DB, (string)$validated['model'], (int)$validated['id']);
+        if ($blocker !== '') { $this->setAnswer(409, $blocker, [], "json"); }
         if ($validated['model'] === 'pm_projects') {
             // An activity takes its tasks, delivery records, dates, milestones,
             // percentages and pending filing proposals with it (library.php,

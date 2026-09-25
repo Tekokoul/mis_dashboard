@@ -93,15 +93,23 @@ $('.modal-basic').magnificPopup({
     modal: true,
     callbacks : {
         open : function(){
-            var mp = $.magnificPopup.instance,
-                t = $(mp.currItem.el[0]);
             var content = $(this.content);
-            content.on('click', '.modal-dismiss', function (e) {
+            // One set of handlers at a time, and the row read when Confirm is
+            // pressed. The dialog is one element Magnific detaches and puts
+            // back, so handlers bound on every opening piled up, each holding
+            // the row it was opened for: Cancel on row A, then Confirm on row B,
+            // deleted A as well as B.
+            content.off('click.ceDelete');
+            content.on('click.ceDelete', '.modal-dismiss', function (e) {
                 e.preventDefault();
                 $.magnificPopup.close();
             });
-            content.on('click', '.modal-confirm', function (e) {
+            content.on('click.ceDelete', '.modal-confirm', function (e) {
                 e.preventDefault();
+                var $btn = $(this);
+                if ($btn.prop('disabled')) { return; }
+                var mp = $.magnificPopup.instance, t = $(mp.currItem.el[0]);
+                $btn.prop('disabled', true);
                 $.magnificPopup.close();
                 // POST, with the CSRF token: as a GET this could be triggered
                 // by an <img src> on any page an administrator visited.
@@ -115,13 +123,19 @@ $('.modal-basic').magnificPopup({
                         location.reload();
                     },
                     error: function(xhr){
+                        // The server says why when it refuses (a goal that still
+                        // holds objectives, a task with delivery records).
+                        var msg = '';
+                        try { msg = ((xhr.responseJSON || JSON.parse(xhr.responseText)) || {}).message || ''; } catch (err) {}
                         alert(xhr.status === 403
-                            ? 'The page had been open too long for the deletion to be accepted. Reload and try again.'
-                            : 'The entry could not be deleted (' + xhr.status + ').');
-                    }
+                            ? 'The page had been open too long for the deletion to be accepted, or your level may not delete this. Reload and try again.'
+                            : (msg ? String(msg).replace(/<[^>]+>/g, '') : 'The entry could not be deleted (' + xhr.status + ').'));
+                    },
+                    complete: function () { $btn.prop('disabled', false); }
                 });
             });
-        }
+        },
+        close : function () { $(this.content).off('click.ceDelete'); }
     }
 });
 

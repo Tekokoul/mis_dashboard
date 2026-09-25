@@ -564,7 +564,7 @@ $(function () {
         var $f = $(this);
         var keep = $.trim($f.find('input[name="keep"]:checked').closest('tr').find('.afcdc-merge__code').text());
         var n = $f.find('input[name="ids[]"]').length;
-        if (!window.confirm('Merge these ' + n + ' activities into ' + (keep || 'the one you keep') + '? The others are removed and their tasks and deliveries move to it. The merge can be undone on its page.')) { e.preventDefault(); return; }
+        if (!window.confirm('Merge these ' + n + ' activities into ' + (keep || 'the one you keep') + '? The others are removed and their tasks and deliveries move to it. The merge can be undone from the activity\'s page.')) { e.preventDefault(); return; }
         // Once confirmed, once: a second click would send the same merge again.
         window.setTimeout(function () { $f.find('button[type="submit"]').prop('disabled', true).attr('aria-busy', 'true'); }, 0);
     });

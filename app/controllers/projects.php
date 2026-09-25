@@ -176,6 +176,8 @@ class projectsController extends coreController{
         unset($this->query['additional_tables']);
 
         $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
+        // A project's own unit is set by Move to unit only (projects/unit_move).
+        unset($this->query['unit_id']);
         $deliberate = (string)($this->query['filed_from_parent'] ?? '') === '1';
         // "Save and add another": a form marker, not a column.
         $another = (string)($this->query['after_save'] ?? '') === 'another';
@@ -411,6 +413,8 @@ class projectsController extends coreController{
 
         $previous = $this->DB->MQ("select * from ".$this->model->get_table_name($validated['tablename'])." where id=".(int)$validated['id'], "one");
         $back = (string)($this->query['back'] ?? ''); unset($this->query['back']);
+        // A project's own unit is set by Move to unit only (projects/unit_move).
+        unset($this->query['unit_id']);
         $postedTasks = []; $postedNewTasks = [];
         if ($validated['tablename'] === 'pm_projects') {
             $this->normaliseParents($this->query);
@@ -792,10 +796,16 @@ class projectsController extends coreController{
         ];
         $validated = $this->sanitize($this->parts, $rules);
         $validated['model'] = "pm_projects_tasks";
+        // The same rule as removing a task on the activity form: a task that
+        // has been reported on stays, or its records would point at nothing.
+        if (($why = task_delete_blocker($this->DB, (int)$validated['id'])) !== '') { $this->setAnswer(409, $why, [], "json"); }
+        $task = $this->DB->MQ("SELECT project_id FROM pm_projects_tasks_tbl WHERE id = ?", "one", [(int)$validated['id']]);
         $executed = $this->model->delete_data($validated['model'], $validated['id']);
         if(in_array('false', $executed, true)) {
             $this->setAnswer(500, "Problem deleting entry", [], "json");
         } else {
+            // An activity with no task cannot be reported on: it gets "Task" back.
+            if (is_set($task)) { $this->ensureDefaultTask((int)$task['project_id']); }
             $this->setAnswer(200, "Successfully deleted entry <b>".$validated['id']."</b> from model '<b>".$validated['model']."</b>'", [], "json");
         }
     }
@@ -1439,7 +1449,9 @@ class projectsController extends coreController{
             // Checked again inside the merge, under a lock, where it cannot change underneath.
             $result = $this->mergeApply($ids, $keep, $posted, $fingerprint);
             if (is_int($result)) {
-                redirect($this->L('projects/edit/' . $keep) . '?' . http_build_query(['merged' => $result, 'back' => $this->backTo('projects/list', $back)]));
+                // Executives may merge but not edit: they land on the activity's
+                // overview page, which carries the same merge note and Undo.
+                redirect($this->L((can_edit() ? 'projects/edit/' : 'projects_graphs/project/') . $keep) . '?' . http_build_query(['merged' => $result, 'back' => $this->backTo('projects/list', $back)]));
             }
             $errors[] = $result;
             $page = $this->mergePage($ids, $keep, $posted);

@@ -17,6 +17,7 @@ foreach ($members as $member){
         </ol>
     </div>
 </header>
+<?= merge_history_panels((array)($data['merges'] ?? [])); ?>
 <div class="row">
     <div class="col-lg-5 col-md-12">
     <div>

@@ -121,6 +121,20 @@ class protectedController extends vanillaController {
             $this->setAnswer(403, "Your account does not have access to this page.");
         }
 
+        // An address runs only an action its own controller declares. The
+        // overview and system controllers extend coreController for its
+        // helpers, and the router calls any public method: so
+        // /projects_graphs/db_delete/pm_projects/5 ran core's delete - with its
+        // cascade - for every signed-in level, Viewers included, because
+        // 'projects_graphs/*' is open to all and the model check below reads the
+        // model from the path for core's own addresses only. Inherited actions
+        // (core's db_*, the framework's public helpers) are not addresses, and
+        // neither is anything whose name starts with an underscore.
+        if ($action === '' || $action[0] === '_'
+            || (method_exists($this, $action) && strcasecmp((new ReflectionMethod($this, $action))->getDeclaringClass()->getName(), get_class($this)) !== 0)) {
+            $this->setAnswer(404, "The page you asked for does not exist.");
+        }
+
         // The generic screens (core/db_*) serve goals, objectives, units,
         // programmes AND accounts, and the activity forms name the table they
         // save to. Every model a request names must be one this group may
@@ -131,7 +145,11 @@ class protectedController extends vanillaController {
         $parts = array_values((array)($this->R->url['parts'] ?? []));
         $query = (array)($this->R->url['query'] ?? []);
         $named = [];
-        if ($controller === 'core' || ($controller === 'projects' && $action === 'get_details')) { $named[] = (string)($parts[0] ?? ''); }
+        // Only the actions whose first path part IS a model name: unit_accept/7
+        // and the like carry an id there, and reading it as a model refused
+        // every Executive ("7" is no model anyone may write).
+        $pathModel = ['db_list', 'db_view', 'db_add', 'db_edit', 'db_delete', 'json_edit', 'next_code', 'suggest_parent'];
+        if (($controller === 'core' && in_array($action, $pathModel, true)) || ($controller === 'projects' && $action === 'get_details')) { $named[] = (string)($parts[0] ?? ''); }
         foreach (['tablename', 'model'] as $k) { if (isset($query[$k]) && is_string($query[$k])) { $named[] = $query[$k]; } }
         foreach (array_keys((array)($query['additional_tables'] ?? [])) as $k) { $named[] = (string)$k; }
         $named = array_values(array_filter(array_unique($named), 'strlen'));

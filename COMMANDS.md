@@ -265,6 +265,33 @@ Clear all recorded progress and start again — **local development database onl
 
 ---
 
+## What cannot be deleted, and what follows a move
+
+- A **goal, objective, programme, unit or reporting entity** that still has
+  something under it is not deleted: the answer names what is left ("This
+  objective still holds 4 programmes and 39 activities") so it can be moved
+  first (`parent_delete_blocker()` in `app/includes/library.php`).
+- A **task with delivery records** is kept, on every route (`task_delete_blocker()`).
+- An **objective moved to another goal** takes its activities' goal along; a
+  **programme moved to another objective** takes its activities' objective and
+  goal along - in the same transaction as the save, with an audit row
+  (`children_follow_parent()`).
+- Activities are saved only on their own form; the generic screens
+  (`core/db_add_update`, `core/db_edit_update`) refuse `pm_projects`.
+- A project's own unit is written only by **Move to unit**; the activity form
+  never writes `unit_id`.
+
+## Addresses and access
+
+An address runs only an action its own controller declares
+(`protectedController::authorize()`): the overview and system controllers
+extend the generic one for its helpers, and the router calls any public
+method, so without this rule `/projects_graphs/db_delete/...` ran the generic
+delete for every signed-in level. Inherited actions and the framework's
+public helpers answer 404.
+
+---
+
 ## Deleting an activity
 
 Administrators only, from the list (bin icon) or from the activity's own

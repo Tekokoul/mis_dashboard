@@ -1749,6 +1749,29 @@ function merge_forwarding($db, $projectId) {
  * Merges into this activity that have not been undone, newest first. Only
  * the newest can be undone: an older one is untangled after it.
  */
+/**
+ * The merge notes of an activity, for its edit form and its overview page:
+ * "Moved here" when a merged-away activity's address was followed, "Merge
+ * undone" after an undo, and each merge into it - with "Undo merge" on the
+ * newest one for those who decide merges (can_vet: Administrators and
+ * Executives, whom the edit form does not admit).
+ */
+function merge_history_panels(array $merges) {
+    $html = '';
+    if ((int)($_GET['merged_from'] ?? 0) > 0) { $html .= '<div class="afcdc-review-panel afcdc-merge-panel" role="status"><div class="afcdc-review__note"><span class="afcdc-review__tag">Moved here</span> The activity you opened was merged into this one.</div></div>'; }
+    if (($_GET['unmerged'] ?? '') === '1') { $html .= '<div class="afcdc-review-panel afcdc-merge-panel" role="status"><div class="afcdc-review__note"><span class="afcdc-review__tag">Merge undone</span> The merged activities are back, with their own codes, tasks and deliveries.</div></div>'; }
+    foreach ($merges as $mg) {
+        $list = implode(', ', array_map(function ($x) { return '<code>' . display($x['abbr']) . '</code> ' . display($x['name']); }, (array)$mg['merged']));
+        $html .= '<div class="afcdc-review-panel afcdc-merge-panel" role="' . ($mg['just'] ? 'status' : 'note') . '"><div class="afcdc-review__note">'
+               . '<span class="afcdc-review__tag">' . ($mg['just'] ? 'Merged' : 'Merged here') . '</span> '
+               . display(date('j M Y', strtotime($mg['merged_at']))) . ($mg['by'] !== '' ? ' by ' . display($mg['by']) : '') . ': '
+               . $list . ' became part of this activity; their tasks and deliveries are listed with its own.'
+               . (($mg['can_undo'] && can_vet()) ? ' <a href="#" class="afcdc-review__act" data-merge-undo="' . (int)$mg['id'] . '">Undo merge</a>' : '')
+               . '</div></div>';
+    }
+    return $html;
+}
+
 function merge_history($db, $projectId, $justId = 0) {
     if (!merge_available($db) || (int)$projectId <= 0) { return []; }
     $out = [];
@@ -2401,12 +2424,102 @@ function activity_children_delete($db, $projectId) {
         $db->MQ("DELETE FROM `" . $table . "` WHERE " . $where, false, $p);
     };
     $remove('pm_progress_tasks_tbl', "project_id = ? OR task_id IN (SELECT id FROM pm_projects_tasks_tbl WHERE project_id = ?)", [$projectId, $projectId]);
+    // Its cached meaning vector too, as a merge already does (a derived cache: not audited).
+    if (is_set($db->MQ("SHOW TABLES LIKE 'pm_embeddings_tbl'", "one"))) { $db->MQ("DELETE FROM pm_embeddings_tbl WHERE kind = 'activity' AND ref_id = ?", false, [$projectId]); }
     foreach (['pm_progress_dates_tbl', 'pm_progress_milestones_tbl', 'pm_progress_percentages_tbl',
               'pm_projects_tasks_tbl', 'pm_projects_dates_tbl', 'pm_projects_milestones_tbl', 'pm_projects_percentages_tbl',
               'pm_allocation_review_tbl'] as $t) {
         $remove($t, "project_id = ?", [$projectId]);
     }
     return $gone;
+}
+
+/**
+ * Why a task cannot be deleted, or '' when it can: one with delivery records
+ * stays, as on the activity form (applyTaskEdits), or they would point at
+ * nothing. Used by projects/task_delete and core/db_delete.
+ */
+function task_delete_blocker($db, $taskId) {
+    $n = (int)($db->MQ("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE task_id = ?", "one", [(int)$taskId])['n'] ?? 0);
+    return $n > 0 ? "This task has " . $n . " delivery record" . ($n === 1 ? '' : 's') . ", so it is kept. Clear its entries on the Progress page first if it really has to go." : '';
+}
+
+/**
+ * Why a goal, objective, programme, unit or reporting entity cannot be
+ * deleted, or '' when nothing hangs off it (and for every other model). What
+ * is still under it is named, so it can be moved first.
+ */
+function parent_delete_blocker($db, $model, $id) {
+    $id = (int)$id;
+    $n = function ($sql, array $p) use ($db) { return (int)($db->MQ($sql, "one", $p)['n'] ?? 0); };
+    $what = [];
+    $say = function ($count, $one, $many) use (&$what) { if ($count > 0) { $what[] = $count . ' ' . ($count === 1 ? $one : $many); } };
+    switch ((string)$model) {
+        case 'pm_pillars':
+            $say($n("SELECT COUNT(*) AS n FROM pm_objectives_tbl WHERE pillar_id = ?", [$id]), 'objective', 'objectives');
+            $say($n("SELECT COUNT(*) AS n FROM pm_projects_tbl WHERE pillar_id = ?", [$id]), 'activity', 'activities');
+            $label = 'goal'; break;
+        case 'pm_objectives':
+            $say($n("SELECT COUNT(*) AS n FROM pm_programmes_tbl WHERE objective_id = ?", [$id]), 'programme', 'programmes');
+            $say($n("SELECT COUNT(*) AS n FROM pm_projects_tbl WHERE objective_id = ?", [$id]), 'activity', 'activities');
+            $label = 'objective'; break;
+        case 'pm_programmes':
+            $say($n("SELECT COUNT(*) AS n FROM pm_projects_tbl WHERE programme_id = ?", [$id]), 'activity', 'activities');
+            $label = 'programme'; break;
+        case 'pm_units':
+            if (!units_available($db)) { return ''; }
+            $say($n("SELECT COUNT(*) AS n FROM pm_objectives_tbl WHERE unit_id = ?", [$id]), 'objective', 'objectives');
+            if (unit_moves_available($db)) { $say($n("SELECT COUNT(*) AS n FROM pm_projects_tbl WHERE unit_id = ?", [$id]), 'project moved to it', 'projects moved to it'); }
+            $label = 'unit'; break;
+        case 'pm_members':
+            $say($n("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE JSON_CONTAINS(applies_to, ?)", [json_encode((string)$id)]), 'task applying to it', 'tasks applying to it');
+            $say($n("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE member_id = ?", [$id]), 'delivery record', 'delivery records');
+            $label = 'reporting entity'; break;
+        default:
+            return '';
+    }
+    return $what ? 'This ' . $label . ' still holds ' . implode(' and ', $what) . '. Move or remove them first, then delete it.' : '';
+}
+
+/**
+ * After an objective or a programme is saved: when the objective went to
+ * another goal, its activities take that goal; when the programme went to
+ * another objective, its activities take that objective and its goal.
+ * pm_projects_tbl stores goal, objective and programme side by side and the
+ * overview joins on them together, so activities left behind vanished from
+ * the moved item's page (0%) and could no longer be saved. Runs inside the
+ * caller's transaction; one audit row per move. Returns how many followed.
+ */
+function children_follow_parent($db, $model, $id, $previous) {
+    $id = (int)$id; $previous = (array)$previous;
+    if (!$previous) { return 0; }
+    $user = (string)($_SESSION['user']['username'] ?? '');
+    $audit = function ($record) use ($db, $user) {
+        $db->MQ("INSERT INTO `core_table_logs_tbl` (`tablename`, `record`, `log_date`, `user`) VALUES (?, ?, ?, ?)", false,
+            ['pm_projects_tbl', json_encode($record, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), date("Y-m-d H:i:s"), $user]);
+    };
+    if ($model === 'pm_objectives') {
+        $now = $db->MQ("SELECT pillar_id FROM pm_objectives_tbl WHERE id = ?", "one", [$id]);
+        $to = (int)($now['pillar_id'] ?? 0); $from = (int)($previous['pillar_id'] ?? 0);
+        if (!is_set($now) || $to <= 0 || $to === $from) { return 0; }
+        $ids = array_map('intval', array_column((array)$db->MQ("SELECT id FROM pm_projects_tbl WHERE objective_id = ? AND IFNULL(pillar_id, 0) <> ?", "all", [$id, $to]), 'id'));
+        if (!$ids) { return 0; }
+        $db->MQ("UPDATE pm_projects_tbl SET pillar_id = ? WHERE objective_id = ? AND IFNULL(pillar_id, 0) <> ?", false, [$to, $id, $to]);
+        $audit(['action' => 'follow_objective', 'objective_id' => $id, 'pillar_from' => $from, 'pillar_to' => $to, 'activity_ids' => $ids]);
+        return count($ids);
+    }
+    if ($model === 'pm_programmes') {
+        $now = $db->MQ("SELECT g.objective_id, o.pillar_id FROM pm_programmes_tbl g LEFT JOIN pm_objectives_tbl o ON o.id = g.objective_id WHERE g.id = ?", "one", [$id]);
+        $to = (int)($now['objective_id'] ?? 0); $from = (int)($previous['objective_id'] ?? 0);
+        if (!is_set($now) || $to <= 0 || $to === $from) { return 0; }
+        $goal = (int)($now['pillar_id'] ?? 0);
+        $ids = array_map('intval', array_column((array)$db->MQ("SELECT id FROM pm_projects_tbl WHERE programme_id = ?", "all", [$id]), 'id'));
+        if (!$ids) { return 0; }
+        $db->MQ("UPDATE pm_projects_tbl SET objective_id = ?, pillar_id = ? WHERE programme_id = ?", false, [$to, $goal > 0 ? $goal : null, $id]);
+        $audit(['action' => 'follow_programme', 'programme_id' => $id, 'objective_from' => $from, 'objective_to' => $to, 'pillar_to' => $goal, 'activity_ids' => $ids]);
+        return count($ids);
+    }
+    return 0;
 }
 
 /**

@@ -142,6 +142,11 @@
       "hidden": true,
       "no_update": true
     },
+    "unit_id": {
+      "hidden": true,
+      "no_update": true,
+      "_note": "Written only by projects/unit_move (activities_move_to_unit: Administrators and Executives, checked and audited). no_update keeps every form save from writing it."
+    },
     "active": {
       "type": "dropdown",
       "appear_in_list": 4,
