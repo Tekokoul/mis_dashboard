@@ -344,7 +344,7 @@ and Programmes lists.
 
 Every activity's edit form, and its page on the Overview, has a **Files**
 card. Power Users and administrators attach files (**Attach files**, up to
-10 at a time, 25 MB each); every level that reads the lists (administrators,
+10 at a time, 10 MB each); every level that reads the lists (administrators,
 executives, Power Users) views and downloads them; only administrators
 remove one. Viewers do not see files.
 

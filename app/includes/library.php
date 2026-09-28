@@ -2546,7 +2546,11 @@ function attachments_available($db) {
 
 function attachment_dir() { return _ROOT_PATH . 'storage' . DS . 'attachments' . DS; }
 
-function attachment_max_bytes() { return 25 * 1024 * 1024; }
+/** The largest file that can be attached. Every message and the browser-side check read it from here. */
+function attachment_max_bytes() { return 10 * 1024 * 1024; }
+
+/** The same limit in words, for messages: "10 MB". */
+function attachment_max_label() { return round(attachment_max_bytes() / 1048576) . ' MB'; }
 
 /** ext => what it is, its icon, and how it can be viewed ('inline' in the browser, 'preview' made here, '' download only). */
 function attachment_kinds() {
@@ -2627,7 +2631,7 @@ function attachment_store($db, $projectId, array $f, $userId) {
     if (!is_uploaded_file($tmp)) { return ['error' => '"' . $name . '" did not upload completely; try again.']; }
     $size = (int)@filesize($tmp);
     if ($size <= 0) { return ['error' => '"' . $name . '" is empty.']; }
-    if ($size > attachment_max_bytes()) { return ['error' => '"' . $name . '" is larger than 25 MB.']; }
+    if ($size > attachment_max_bytes()) { return ['error' => '"' . $name . '" is larger than ' . attachment_max_label() . '.']; }
     $d = attachment_detect($tmp, $name);
     if (isset($d['error'])) { return $d; }
     $stored = bin2hex(random_bytes(16));
@@ -2742,7 +2746,7 @@ function attachment_preview_xlsx($path) {
 
 function attachment_preview_docx($path) {
     $size = @filesize($path);
-    if ($size === false || $size > attachment_max_bytes()) { throw new RuntimeException('the file is larger than 25 MB'); }
+    if ($size === false || $size > attachment_max_bytes()) { throw new RuntimeException('the file is larger than ' . attachment_max_label()); }
     $z = new ZipArchive();
     if ($z->open($path, ZipArchive::RDONLY) !== true) { throw new RuntimeException('the file could not be opened'); }
     try {

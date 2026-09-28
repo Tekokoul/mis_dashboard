@@ -1043,6 +1043,7 @@ $(function () {
     var $card = $('#afcdc-attachments');
     if (!$card.length) { return; }
     var max = parseInt($card.attr('data-max-bytes'), 10) || 0;
+    var tooBig = 'Larger than ' + Math.round(max / 1048576) + ' MB, not sent: ';   // the limit comes from the server (attachment_max_bytes)
     function say(msg, bad) {
         $card.find('.afcdc-attach__status').text(msg || '').prop('hidden', !msg).toggleClass('is-bad', !!bad);
     }
@@ -1076,7 +1077,7 @@ $(function () {
         var input = this, files = Array.prototype.slice.call(input.files || []);
         if (!files.length) { return; }
         var big = files.filter(function (f) { return max && f.size > max; }).map(function (f) { return f.name; });
-        if (big.length) { say('Larger than 25 MB, not sent: ' + big.join(', ') + '.', true); files = files.filter(function (f) { return !(max && f.size > max); }); }
+        if (big.length) { say(tooBig + big.join(', ') + '.', true); files = files.filter(function (f) { return !(max && f.size > max); }); }
         if (!files.length) { input.value = ''; return; }
         var fd = new FormData();
         fd.append('csrf', window.CSRF_TOKEN || '');
@@ -1089,7 +1090,7 @@ $(function () {
                 items.forEach(addRow);
                 recount();
                 var done = items.length ? (items.length + (items.length === 1 ? ' file attached.' : ' files attached.')) : '';
-                say((big.length ? 'Larger than 25 MB, not sent: ' + big.join(', ') + '. ' : '') + done + (errs.length ? ' ' + errs.join(' ') : ''), errs.length > 0 || big.length > 0);
+                say((big.length ? tooBig + big.join(', ') + '. ' : '') + done + (errs.length ? ' ' + errs.join(' ') : ''), errs.length > 0 || big.length > 0);
             })
             .fail(function (xhr) { say(failed(xhr, 'The upload'), true); })
             .always(function () { input.value = ''; $card.removeClass('is-busy'); });

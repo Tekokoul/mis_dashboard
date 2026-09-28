@@ -42,7 +42,7 @@ $attachMayRemove = can_delete();
             </li>
             <?php endforeach; ?>
         </ul>
-        <p class="afcdc-attach__empty text-muted"<?= $attachItems ? ' hidden' : ''; ?>>No files attached yet.<?= $attachMayAdd ? ' PDF, Word and Excel files, up to 25 MB each.' : ''; ?></p>
+        <p class="afcdc-attach__empty text-muted"<?= $attachItems ? ' hidden' : ''; ?>>No files attached yet.<?= $attachMayAdd ? ' PDF, Word and Excel files, up to ' . display(attachment_max_label()) . ' each.' : ''; ?></p>
     </div>
     <?php // A row as custom.js adds it after an upload - the same markup as above. ?>
     <template id="afcdc-attach-row">
