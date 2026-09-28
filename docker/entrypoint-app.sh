@@ -144,8 +144,11 @@ fi
 # ---------------------------------------------------------------------------
 # 3. Writable paths
 # ---------------------------------------------------------------------------
-mkdir -p /var/www/html/public/cache /var/www/html/public/media /var/www/html/logs /var/www/html/db/users_settings
+mkdir -p /var/www/html/public/cache /var/www/html/public/media /var/www/html/logs /var/www/html/db/users_settings /var/www/html/storage/attachments
 chown -R www-data:www-data /var/www/html/db/users_settings
+# Attached files: readable and writable by PHP only (not under public/, not served by nginx).
+chown -R www-data:www-data /var/www/html/storage/attachments
+chmod 750 /var/www/html/storage/attachments
 # public/media is a volume that outlives the image, so the brand assets the
 # image ships under media/logo are hidden after the first start. The Dockerfile
 # staged them in /opt/brand; refresh the volume's copy on every start so a
@@ -537,6 +540,32 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
         log "adding pm_progress_tasks_tbl.progress_pct (how far along a task in progress is)"
         qddl "ALTER TABLE pm_progress_tasks_tbl ADD COLUMN progress_pct TINYINT UNSIGNED DEFAULT NULL AFTER result" \
             || die "could not add pm_progress_tasks_tbl.progress_pct (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
+    fi
+
+    # 11. Files attached to activities: PDF, Word and Excel. The file itself
+    #     lives in the attachments volume under a random name; this row says
+    #     what it is and whose it is. Additive: one new table.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_attachments_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_attachments_tbl (files attached to activities)"
+        qddl "CREATE TABLE pm_attachments_tbl (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                project_id INT(11) NOT NULL,
+                original_name VARCHAR(255) NOT NULL,
+                stored_name CHAR(32) NOT NULL,
+                kind VARCHAR(8) NOT NULL,
+                mime VARCHAR(120) NOT NULL,
+                size INT(11) UNSIGNED NOT NULL DEFAULT 0,
+                sha256 CHAR(64) NOT NULL DEFAULT '',
+                uploaded_by INT(11) NOT NULL DEFAULT 0,
+                uploaded_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_attachments_stored (stored_name),
+                KEY idx_attachments_project (project_id)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
+            || die "could not create pm_attachments_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)

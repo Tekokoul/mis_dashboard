@@ -36,6 +36,8 @@ class protectedController extends vanillaController {
         'projects/get_details'          => [1, 2, 3],
         'projects/get_objectives'       => [1, 2, 3],
         'projects/get_programmes'       => [1, 2, 3],
+        'projects/attachment_view'      => [1, 2, 3],   // files on an activity: read by every level that reads the lists
+        'projects/attachment_download'  => [1, 2, 3],
         'core/db_list'                  => [1, 2, 3],
         'core/db_view'                  => [1, 2, 3],
         'imports/list'                  => [1, 2, 3],   // the controller also answers 404 unless IMPORT_ENABLED
@@ -51,6 +53,7 @@ class protectedController extends vanillaController {
         'projects/task'                 => [1, 3],
         'projects/task_update'          => [1, 3],
         'projects/task_delete'          => [1, 3],
+        'projects/attachment_upload'    => [1, 3],      // added by those who edit activities
         'core/db_add'                   => [1, 3],
         'core/db_add_update'            => [1, 3],
         'core/db_edit'                  => [1, 3],
@@ -79,6 +82,8 @@ class protectedController extends vanillaController {
         'core/unit_accept_all'          => [1, 2],
         // Deleting, accounts, the json screens: the administrator's (the default)
         'core/db_delete'                => [1],
+        'projects/attachment_delete'    => [1],         // removed by administrators, like every delete
+        'core/objective_order'          => [1],         // the order of objectives on the Overview
         'projects/*'                    => [1],
         'core/*'                        => [1],
     ];

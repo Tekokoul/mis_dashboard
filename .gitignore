@@ -42,3 +42,5 @@ node_modules/
 *-live.sql
 allocations*.sql
 vetting-shortlist-*.md
+# Files attached to activities live in a Docker volume, never in the repository or the image.
+storage/

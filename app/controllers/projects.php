@@ -272,6 +272,7 @@ class projectsController extends coreController{
         $data['review'] = allocation_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
         $data['gaps'] = is_array($data['data']) ? activity_gaps($this->DB, $data['data']) : [];
         $data['tasks'] = $this->activityTasks((int)$validated['id']);
+        $data['attachments'] = attachment_list($this->DB, (int)$validated['id']);
         $data['may_record'] = $this->mayRecordHere();
         // For the Delete confirm: counted with the delete's own predicate.
         $data['gone'] = can_delete() ? activity_children_count($this->DB, (int)$validated['id']) : [];
@@ -307,6 +308,83 @@ class projectsController extends coreController{
                FROM pm_projects_tasks_tbl t
               WHERE t.project_id = ?
               ORDER BY t.id", "all", delivery_pct_available($this->DB) ? [$this->member_id, $this->member_id, $projectId] : [$this->member_id, $projectId]);
+    }
+
+    /**
+     * Files attached to an activity (library.php, "Files attached to
+     * activities"). Upload: those who edit activities; view and download:
+     * every level that reads the lists; delete: administrators.
+     *
+     *   POST projects/attachment_upload/<activity>   files[] (multipart), up to 10 at once
+     *   GET  projects/attachment_view/<id>           a PDF in the browser, a preview of Word / Excel
+     *   GET  projects/attachment_download/<id>       the original file
+     *   POST projects/attachment_delete/<id>
+     */
+    public function attachment_upload() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        $this->mapRoute("id");
+        $pid = (int)($this->parts['id'] ?? 0);
+        if (!attachments_available($this->DB)) { $this->setAnswer(404, "Files cannot be attached here yet.", [], "json"); }
+        if ($pid <= 0 || !is_set($this->DB->MQ("SELECT id FROM pm_projects_tbl WHERE id = ?", "one", [$pid]))) { $this->setAnswer(404, "No such activity - it may have been deleted or merged.", [], "json"); }
+        $files = [];
+        $in = $_FILES['files'] ?? null;
+        if (is_array($in) && is_array($in['name'] ?? null)) {
+            foreach ($in['name'] as $i => $n) {
+                $files[] = ['name' => $n, 'type' => $in['type'][$i] ?? '', 'tmp_name' => $in['tmp_name'][$i] ?? '', 'error' => $in['error'][$i] ?? UPLOAD_ERR_NO_FILE, 'size' => $in['size'][$i] ?? 0];
+            }
+        } elseif (is_array($in)) {
+            $files[] = $in;
+        }
+        $files = array_values(array_filter($files, function ($f) { return (int)($f['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE; }));
+        if (!$files) { $this->setAnswer(422, "Choose one or more files first.", [], "json"); }
+        if (count($files) > 10) { $this->setAnswer(422, "Attach up to 10 files at a time.", [], "json"); }
+        $items = []; $errors = [];
+        $link = function ($path) { return $this->L($path); };
+        foreach ($files as $f) {
+            $r = attachment_store($this->DB, $pid, $f, current_user_id());
+            if (isset($r['error'])) { $errors[] = $r['error']; } else { $items[] = attachment_item($r['row'], $link); }
+        }
+        $this->setAnswer(200, count($items) . " file(s) attached.", ['items' => $items, 'errors' => $errors], "json");
+    }
+
+    public function attachment_view() {
+        $this->checkMethod("GET");
+        $this->mapRoute("id");
+        $row = attachment_get($this->DB, (int)($this->parts['id'] ?? 0));
+        if (!$row) { $this->setAnswer(404, "There is no such file - it may have been deleted."); }
+        $kind = attachment_kinds()[(string)$row['kind']] ?? ['view' => '', 'label' => ''];
+        if ($kind['view'] === 'inline') {
+            if (attachment_send($row, true) === false) { $this->setAnswer(404, "The file is missing from the store. Tell the administrator."); }
+        }
+        if ($kind['view'] !== 'preview') { redirect($this->L('projects/attachment_download/' . (int)$row['id'])); }
+        $project = $this->DB->MQ("SELECT id, abbr, name FROM pm_projects_tbl WHERE id = ?", "one", [(int)$row['project_id']]);
+        $data = [
+            'meta_name'  => (string)$row['original_name'],
+            'attachment' => $row,
+            'kind'       => $kind,
+            'preview'    => attachment_preview($row),
+            'project'    => is_set($project) ? $project : null,
+        ];
+        $this->render($data);
+    }
+
+    public function attachment_download() {
+        $this->checkMethod("GET");
+        $this->mapRoute("id");
+        $row = attachment_get($this->DB, (int)($this->parts['id'] ?? 0));
+        if (!$row) { $this->setAnswer(404, "There is no such file - it may have been deleted."); }
+        if (attachment_send($row, false) === false) { $this->setAnswer(404, "The file is missing from the store. Tell the administrator."); }
+    }
+
+    public function attachment_delete() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        $this->mapRoute("id");
+        if (!can_delete() || !attachments_available($this->DB)) { $this->setAnswer(403, "Only an administrator can remove a file.", [], "json"); }
+        $row = attachment_remove($this->DB, (int)($this->parts['id'] ?? 0));
+        if (!$row) { $this->setAnswer(404, "There is no such file - it may have been deleted already.", [], "json"); }
+        $this->setAnswer(200, "Removed.", ['id' => (int)$row['id']], "json");
     }
 
     /**
@@ -710,6 +788,7 @@ class projectsController extends coreController{
             // The task rows come back as they were typed, marks included, so a
             // refused save costs nothing that was entered.
             $data['tasks'] = $this->activityTasks($id);
+            $data['attachments'] = attachment_list($this->DB, $id);
             $data['may_record'] = $this->mayRecordHere();
             $data['gone'] = can_delete() ? activity_children_count($this->DB, $id) : [];
             foreach ($data['tasks'] as &$t) {
@@ -1562,6 +1641,12 @@ class projectsController extends coreController{
         foreach ($tasksOf as $orig => $tids) {
             $this->DB->MQ("UPDATE pm_progress_tasks_tbl SET project_id = ? WHERE project_id = ? AND task_id IN (" . $in($tids) . ")", false, array_merge([$orig, $keep], $tids));
         }
+        // Files that came with a merged activity go back to it (those added to the kept one since stay).
+        if ($this->mergeTableExists('pm_attachments_tbl')) {
+            foreach ((array)($snap['attachments'] ?? []) as $a) {
+                $this->DB->MQ("UPDATE pm_attachments_tbl SET project_id = ? WHERE id = ? AND project_id = ?", false, [(int)$a['project_id'], (int)$a['id'], $keep]);
+            }
+        }
         if ($this->mergeTableExists('pm_import_rows_tbl')) {
             foreach ((array)($snap['imports'] ?? []) as $r) {
                 foreach (['match_project_id', 'nearest_project_id', 'result_project_id'] as $col) {
@@ -1743,11 +1828,14 @@ class projectsController extends coreController{
         $feedback = $this->mergeTableExists('pm_filing_feedback_tbl')
             ? (array)$this->DB->MQ("SELECT id, row_id FROM pm_filing_feedback_tbl WHERE model = 'pm_projects' AND row_id IN (" . $in($others) . ")", "all", $others)
             : [];
+        // Files attached to the merged activities move to the one kept; the undo moves them back.
+        $attach = $this->mergeTableExists('pm_attachments_tbl')
+            ? (array)$this->DB->MQ("SELECT id, project_id FROM pm_attachments_tbl WHERE project_id IN (" . $in($others) . ")", "all", $others) : [];
         $snapshot = json_encode([
             'version' => 1, 'merged_by_name' => $whoName,
             'kept' => $rows[$keep], 'kept_after' => $after,
             'merged' => array_map(function ($id) use ($rows) { return $rows[$id]; }, $others),
-            'tasks' => $tasks, 'progress' => $progress, 'reviews' => $reviews, 'imports' => $imports, 'feedback' => $feedback,
+            'tasks' => $tasks, 'progress' => $progress, 'reviews' => $reviews, 'imports' => $imports, 'feedback' => $feedback, 'attachments' => $attach,
         ], JSON_UNESCAPED_UNICODE | JSON_PRESERVE_ZERO_FRACTION | JSON_INVALID_UTF8_SUBSTITUTE);
         if (!is_string($snapshot) || $snapshot === '') { $this->DB->txRollBack(); return 'The merge could not be recorded, so nothing was changed.'; }
 
@@ -1755,6 +1843,7 @@ class projectsController extends coreController{
             $this->DB->MQ("UPDATE pm_projects_tasks_tbl SET project_id = ?, name = ?, description = ? WHERE id = ?", false, [$keep, $t['name_after'], $t['description_after'], $t['id']]);
         }
         $this->DB->MQ("UPDATE pm_progress_tasks_tbl SET project_id = ? WHERE project_id IN (" . $in($others) . ")", false, array_merge([$keep], $others));
+        if ($attach) { $this->DB->MQ("UPDATE pm_attachments_tbl SET project_id = ? WHERE project_id IN (" . $in($others) . ")", false, array_merge([$keep], $others)); }
         foreach ($imports as $r) {
             foreach (['match_project_id', 'nearest_project_id', 'result_project_id'] as $col) {
                 if (in_array((int)$r[$col], $others, true)) { $this->DB->MQ("UPDATE pm_import_rows_tbl SET `$col` = ? WHERE id = ?", false, [$keep, (int)$r['id']]); }

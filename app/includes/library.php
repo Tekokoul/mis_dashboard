@@ -2424,6 +2424,13 @@ function activity_children_delete($db, $projectId) {
         $db->MQ("DELETE FROM `" . $table . "` WHERE " . $where, false, $p);
     };
     $remove('pm_progress_tasks_tbl', "project_id = ? OR task_id IN (SELECT id FROM pm_projects_tasks_tbl WHERE project_id = ?)", [$projectId, $projectId]);
+    // Its attached files: the rows go (audited) with everything else; the files
+    // themselves are removed by the caller once the transaction has committed,
+    // so a failure part-way cannot lose a file whose row is kept.
+    if (attachments_available($db)) {
+        $gone['files'] = array_column((array)$db->MQ("SELECT stored_name FROM pm_attachments_tbl WHERE project_id = ?", "all", [$projectId]), 'stored_name');
+        $remove('pm_attachments_tbl', "project_id = ?", [$projectId]);
+    }
     // Its cached meaning vector too, as a merge already does (a derived cache: not audited).
     if (is_set($db->MQ("SHOW TABLES LIKE 'pm_embeddings_tbl'", "one"))) { $db->MQ("DELETE FROM pm_embeddings_tbl WHERE kind = 'activity' AND ref_id = ?", false, [$projectId]); }
     foreach (['pm_progress_dates_tbl', 'pm_progress_milestones_tbl', 'pm_progress_percentages_tbl',
@@ -2523,6 +2530,298 @@ function children_follow_parent($db, $model, $id, $previous) {
 }
 
 /**
+ * Files attached to activities: PDF, Word and Excel. The row is in
+ * pm_attachments_tbl (docker/entrypoint-app.sh, 11); the file is in the
+ * attachments volume, outside public/, under a random name - so nothing is
+ * reachable except through projects/attachment_view and attachment_download,
+ * which check the reader's level. What a file IS is decided from its content,
+ * not its name: a .pdf must start %PDF, a .docx/.xlsx must be an Office zip
+ * without macros, a .doc/.xls an OLE compound file.
+ */
+function attachments_available($db) {
+    static $ok = null;
+    if ($ok === null) { $ok = is_set($db->MQ("SHOW TABLES LIKE 'pm_attachments_tbl'", "one")); }
+    return $ok;
+}
+
+function attachment_dir() { return _ROOT_PATH . 'storage' . DS . 'attachments' . DS; }
+
+function attachment_max_bytes() { return 25 * 1024 * 1024; }
+
+/** ext => what it is, its icon, and how it can be viewed ('inline' in the browser, 'preview' made here, '' download only). */
+function attachment_kinds() {
+    return [
+        'pdf'  => ['mime' => 'application/pdf', 'label' => 'PDF', 'icon' => 'bxs-file-pdf', 'view' => 'inline'],
+        'docx' => ['mime' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'label' => 'Word', 'icon' => 'bxs-file-doc', 'view' => 'preview'],
+        'doc'  => ['mime' => 'application/msword', 'label' => 'Word (old format)', 'icon' => 'bxs-file-doc', 'view' => ''],
+        'xlsx' => ['mime' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'label' => 'Excel', 'icon' => 'bxs-spreadsheet', 'view' => 'preview'],
+        'xls'  => ['mime' => 'application/vnd.ms-excel', 'label' => 'Excel (old format)', 'icon' => 'bxs-spreadsheet', 'view' => ''],
+    ];
+}
+
+/** The signed-in person's account id (two spellings are in use across the session code). */
+function current_user_id() { return (int)($_SESSION['user']['user_id'] ?? $_SESSION['user']['id'] ?? 0); }
+
+/** A file name fit to keep and to send back: no path, no control characters, at most 180 characters. */
+function attachment_clean_name($name) {
+    $n = basename(str_replace('\\', '/', (string)$name));
+    $n = trim(preg_replace('/\s+/u', ' ', (string)preg_replace('/[\x00-\x1F\x7F]+/u', '', $n)));
+    if (mb_strlen($n) > 180) {
+        $ext = pathinfo($n, PATHINFO_EXTENSION);
+        $n = mb_substr(pathinfo($n, PATHINFO_FILENAME), 0, 170) . ($ext !== '' ? '.' . $ext : '');
+    }
+    return $n !== '' ? $n : 'file';
+}
+
+/** ['kind', 'mime'] for a file whose content matches its name, or ['error' => why not]. */
+function attachment_detect($path, $name) {
+    $ext = strtolower(pathinfo((string)$name, PATHINFO_EXTENSION));
+    $kinds = attachment_kinds();
+    if (!isset($kinds[$ext])) { return ['error' => '"' . $name . '": only PDF, Word (.docx, .doc) and Excel (.xlsx, .xls) files can be attached.']; }
+    $fh = @fopen($path, 'rb'); $head = $fh ? (string)fread($fh, 8) : ''; if ($fh) { fclose($fh); }
+    $ok = false;
+    if ($ext === 'pdf') {
+        $ok = strncmp($head, '%PDF-', 5) === 0;
+    } elseif ($ext === 'doc' || $ext === 'xls') {
+        $ok = $head === "\xD0\xCF\x11\xE0\xA1\xB1\x1A\xE1";
+    } elseif (strncmp($head, "PK\x03\x04", 4) === 0 && class_exists('ZipArchive')) {
+        $z = new ZipArchive();
+        if ($z->open($path, ZipArchive::RDONLY) === true) {
+            $main = ($ext === 'docx') ? 'word/document.xml' : 'xl/workbook.xml';
+            $types = $z->locateName('[Content_Types].xml') !== false ? (string)$z->getFromName('[Content_Types].xml', 262144) : '';
+            $ok = $types !== '' && $z->locateName($main) !== false
+               // No macros or ActiveX, whatever the part is called: the content types declare them.
+               && !preg_match('/macroEnabled|vbaProject|activeX|vbaData/i', $types);
+            for ($i = 0; $ok && $i < $z->numFiles; $i++) {
+                if (preg_match('#(^|/)(vbaProject\.bin|vbaData\.xml)$|(^|/)activeX/#i', (string)$z->getNameIndex($i))) { $ok = false; }
+            }
+            $z->close();
+        }
+    }
+    if (!$ok) { return ['error' => '"' . $name . '" is not a real ' . strtoupper($ext) . ' file: its content does not match its name.']; }
+    return ['kind' => $ext, 'mime' => $kinds[$ext]['mime']];
+}
+
+/** Where a stored file is: two levels by the first hex pair of its random name, so no folder grows without end. '' for a name that is not ours. */
+function attachment_file_path($stored) {
+    $s = (string)$stored;
+    if (!preg_match('/^[a-f0-9]{32}$/', $s)) { return ''; }
+    return attachment_dir() . substr($s, 0, 2) . DS . $s;
+}
+
+function attachment_unlink_stored($stored) {
+    $p = attachment_file_path($stored);
+    if ($p !== '' && is_file($p)) { @unlink($p); }
+}
+
+/**
+ * One uploaded file ($_FILES entry) attached to activity $projectId. Returns
+ * ['row' => the new row] or ['error' => a sentence for the person].
+ */
+function attachment_store($db, $projectId, array $f, $userId) {
+    $name = attachment_clean_name($f['name'] ?? '');
+    $err = (int)($f['error'] ?? UPLOAD_ERR_NO_FILE);
+    if ($err === UPLOAD_ERR_INI_SIZE || $err === UPLOAD_ERR_FORM_SIZE) { return ['error' => '"' . $name . '" is too large to upload.']; }
+    if ($err !== UPLOAD_ERR_OK) { return ['error' => '"' . $name . '" did not upload completely; try again.']; }
+    $tmp = (string)($f['tmp_name'] ?? '');
+    if (!is_uploaded_file($tmp)) { return ['error' => '"' . $name . '" did not upload completely; try again.']; }
+    $size = (int)@filesize($tmp);
+    if ($size <= 0) { return ['error' => '"' . $name . '" is empty.']; }
+    if ($size > attachment_max_bytes()) { return ['error' => '"' . $name . '" is larger than 25 MB.']; }
+    $d = attachment_detect($tmp, $name);
+    if (isset($d['error'])) { return $d; }
+    $stored = bin2hex(random_bytes(16));
+    $path = attachment_file_path($stored);
+    $dir = dirname($path);
+    if (!is_dir($dir) && !@mkdir($dir, 0750, true) && !is_dir($dir)) { return ['error' => 'The file store cannot be written to. Tell the administrator.']; }
+    if (!@move_uploaded_file($tmp, $path)) { return ['error' => '"' . $name . '" could not be stored. Tell the administrator.']; }
+    @chmod($path, 0640);
+    $id = (int)$db->MQ("INSERT INTO pm_attachments_tbl (project_id, original_name, stored_name, kind, mime, size, sha256, uploaded_by, uploaded_at)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())", "last",
+        [(int)$projectId, $name, $stored, $d['kind'], $d['mime'], $size, (string)hash_file('sha256', $path), (int)$userId]);
+    if ($id <= 0) { @unlink($path); return ['error' => '"' . $name . '" could not be recorded. Tell the administrator.']; }
+    return ['row' => attachment_get($db, $id)];
+}
+
+/** One attachment with its uploader's name, or null. */
+function attachment_get($db, $id) {
+    if (!attachments_available($db)) { return null; }
+    $r = $db->MQ("SELECT a.*, TRIM(CONCAT(IFNULL(u.givenname, ''), ' ', IFNULL(u.sn, ''))) AS uploaded_by_name
+                    FROM pm_attachments_tbl a LEFT JOIN core_users_tbl u ON u.id = a.uploaded_by WHERE a.id = ?", "one", [(int)$id]);
+    return is_set($r) ? $r : null;
+}
+
+/** An activity's attachments, newest first. */
+function attachment_list($db, $projectId) {
+    if (!attachments_available($db) || (int)$projectId <= 0) { return []; }
+    return (array)$db->MQ("SELECT a.*, TRIM(CONCAT(IFNULL(u.givenname, ''), ' ', IFNULL(u.sn, ''))) AS uploaded_by_name
+                             FROM pm_attachments_tbl a LEFT JOIN core_users_tbl u ON u.id = a.uploaded_by
+                            WHERE a.project_id = ? ORDER BY a.uploaded_at DESC, a.id DESC", "all", [(int)$projectId]);
+}
+
+function attachment_size_label($bytes) {
+    $b = (int)$bytes;
+    if ($b >= 1048576) { return number_format($b / 1048576, 1) . ' MB'; }
+    if ($b >= 1024) { return number_format($b / 1024, 0) . ' KB'; }
+    return $b . ' bytes';
+}
+
+/**
+ * What a list shows for one attachment, the same for the page and for the
+ * answer to an upload. $link turns a path into an address (the view's L()).
+ */
+function attachment_item(array $r, callable $link) {
+    $k = attachment_kinds()[(string)$r['kind']] ?? ['label' => strtoupper((string)$r['kind']), 'icon' => 'bxs-file', 'view' => ''];
+    $by = trim((string)($r['uploaded_by_name'] ?? ''));
+    return [
+        'id'           => (int)$r['id'],
+        'name'         => (string)$r['original_name'],
+        'kind'         => (string)$r['kind'],
+        'icon'         => $k['icon'],
+        'meta'         => implode(' · ', array_filter([$k['label'], attachment_size_label($r['size']), date('j M Y', strtotime((string)$r['uploaded_at'])), $by])),
+        'view_url'     => $k['view'] !== '' ? $link('projects/attachment_view/' . (int)$r['id']) : '',
+        'download_url' => $link('projects/attachment_download/' . (int)$r['id']),
+    ];
+}
+
+/** Remove one attachment: its row goes to the audit log first, then the row and the file go. Returns the row, or null. */
+function attachment_remove($db, $id) {
+    $row = $db->MQ("SELECT * FROM pm_attachments_tbl WHERE id = ?", "one", [(int)$id]);
+    if (!is_set($row)) { return null; }
+    $db->MQ("INSERT INTO `core_table_logs_tbl` (`tablename`, `record`, `log_date`, `user`) VALUES (?, ?, ?, ?)", false,
+        ['pm_attachments_tbl', json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), date("Y-m-d H:i:s"), (string)($_SESSION['user']['username'] ?? '')]);
+    $db->MQ("DELETE FROM pm_attachments_tbl WHERE id = ?", false, [(int)$id]);
+    attachment_unlink_stored($row['stored_name']);
+    return $row;
+}
+
+/**
+ * A readable preview of a Word or Excel file, made here - nothing is sent
+ * anywhere. ['html' => escaped markup, 'note' => what was left out] or
+ * ['error' => why there is none]. Sizes are capped before anything is
+ * inflated (xlsx.php): an upload is a stranger's file.
+ */
+function attachment_preview(array $row) {
+    $path = attachment_file_path($row['stored_name'] ?? '');
+    if ($path === '' || !is_file($path)) { return ['error' => 'The file is missing from the store.']; }
+    require_once __DIR__ . '/xlsx.php';   // the size-capped, network-free reading the workbook import uses
+    try {
+        if ($row['kind'] === 'xlsx') { return attachment_preview_xlsx($path); }
+        if ($row['kind'] === 'docx') { return attachment_preview_docx($path); }
+    } catch (RuntimeException $e) {
+        // Sentences written for the reader (xlsx.php, and the checks above).
+        return ['error' => 'A preview could not be made: ' . lcfirst(rtrim($e->getMessage(), '.')) . '. Download the file to open it.'];
+    } catch (Throwable $e) {
+        return ['error' => 'A preview could not be made. Download the file to open it.'];
+    }
+    return ['error' => 'There is no preview for this kind of file. Download it to open it.'];
+}
+
+function attachment_preview_xlsx($path) {
+    $names = array_keys(xlsx_sheets($path));
+    $html = ''; $cut = count($names) > 6;
+    foreach (array_slice($names, 0, 6) as $name) {
+        $rows = xlsx_read($path, $name)['rows'];
+        $html .= '<h3 class="afcdc-preview__sheet">' . display($name) . '</h3>';
+        if (!$rows) { $html .= '<p class="text-muted">This sheet is empty.</p>'; continue; }
+        $maxCol = 0;
+        foreach ($rows as $cells) { $maxCol = max($maxCol, (int)max(array_keys($cells))); }
+        if ($maxCol > 29) { $cut = true; $maxCol = 29; }
+        $html .= '<div class="table-responsive afcdc-preview__wrap"><table class="table table-sm table-bordered afcdc-preview__table"><tbody>';
+        $n = 0;
+        foreach ($rows as $rnum => $cells) {
+            if (++$n > 300) { $cut = true; break; }
+            $html .= '<tr><th scope="row">' . (int)$rnum . '</th>';
+            for ($c = 0; $c <= $maxCol; $c++) { $html .= '<td>' . display((string)($cells[$c] ?? '')) . '</td>'; }
+            $html .= '</tr>';
+        }
+        $html .= '</tbody></table></div>';
+    }
+    return ['html' => $html, 'note' => $cut ? 'Only the first 6 sheets, 300 rows and 30 columns are shown here. Download the file for all of it.' : ''];
+}
+
+function attachment_preview_docx($path) {
+    $size = @filesize($path);
+    if ($size === false || $size > attachment_max_bytes()) { throw new RuntimeException('the file is larger than 25 MB'); }
+    $z = new ZipArchive();
+    if ($z->open($path, ZipArchive::RDONLY) !== true) { throw new RuntimeException('the file could not be opened'); }
+    try {
+        xlsx_budget(0, true);
+        $doc = xlsx_xml(xlsx_part($z, 'word/document.xml'), 'word/document.xml');
+    } finally {
+        $z->close();
+    }
+    $w = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+    $body = $doc->children($w)->body;
+    if (!$body) { throw new RuntimeException('the document has no body'); }
+    // The text of a run and of the containers a run can sit in (links, tracked insertions).
+    $runs = function (SimpleXMLElement $n) use ($w, &$runs) {
+        $s = '';
+        foreach ($n->children($w) as $name => $c) {
+            if ($name === 't') { $s .= (string)$c; }
+            elseif ($name === 'tab') { $s .= "\t"; }
+            elseif ($name === 'br' || $name === 'cr') { $s .= "\n"; }
+            elseif (in_array($name, ['r', 'hyperlink', 'ins', 'smartTag', 'fldSimple', 'sdt', 'sdtContent'], true)) { $s .= $runs($c); }
+        }
+        return $s;
+    };
+    $html = ''; $count = 0; $cut = false;
+    foreach ($body->children($w) as $name => $node) {
+        if (++$count > 3000) { $cut = true; break; }
+        if ($name === 'p') {
+            $t = $runs($node);
+            if (trim($t) === '') { continue; }
+            $pPr = $node->children($w)->pPr;
+            $style = ($pPr && $pPr->children($w)->pStyle) ? (string)$pPr->children($w)->pStyle->attributes($w)['val'] : '';
+            $isList = $pPr && isset($pPr->children($w)->numPr);
+            $esc = nl2br(display($t));
+            if (preg_match('/^(Title|Heading1)$/i', $style)) { $html .= '<h3>' . $esc . '</h3>'; }
+            elseif (preg_match('/^Heading[23]$/i', $style)) { $html .= '<h4>' . $esc . '</h4>'; }
+            elseif (preg_match('/^Heading/i', $style)) { $html .= '<h5>' . $esc . '</h5>'; }
+            elseif ($isList || preg_match('/List/i', $style)) { $html .= '<p class="afcdc-preview__li">&bull; ' . $esc . '</p>'; }
+            else { $html .= '<p>' . $esc . '</p>'; }
+        } elseif ($name === 'tbl') {
+            $html .= '<div class="table-responsive afcdc-preview__wrap"><table class="table table-sm table-bordered afcdc-preview__table"><tbody>';
+            $rn = 0;
+            foreach ($node->children($w) as $tn => $tr) {
+                if ($tn !== 'tr') { continue; }
+                if (++$rn > 300) { $cut = true; break; }
+                $html .= '<tr>';
+                foreach ($tr->children($w) as $cn => $tc) {
+                    if ($cn !== 'tc') { continue; }
+                    $cell = [];
+                    foreach ($tc->children($w) as $pn => $pp) { if ($pn === 'p') { $cell[] = $runs($pp); } }
+                    $html .= '<td>' . nl2br(display(trim(implode("\n", $cell)))) . '</td>';
+                }
+                $html .= '</tr>';
+            }
+            $html .= '</tbody></table></div>';
+        }
+    }
+    if ($html === '') { $html = '<p class="text-muted">The document has no text to show.</p>'; }
+    return ['html' => $html, 'note' => ($cut ? 'Only the beginning of the document is shown. ' : '') . 'This is a text preview: layout, images and formatting are left out. Download the file for the original.'];
+}
+
+/**
+ * Send a stored file to the browser and stop: inline (a PDF opens in its
+ * tab) or as a download. The name is sent twice, plainly for old browsers
+ * and in UTF-8 for the rest.
+ */
+function attachment_send(array $row, $inline) {
+    $path = attachment_file_path($row['stored_name'] ?? '');
+    if ($path === '' || !is_file($path)) { return false; }
+    while (ob_get_level() > 0) { ob_end_clean(); }
+    $name = (string)$row['original_name'];
+    $plain = str_replace(['"', '\\'], '_', (string)preg_replace('/[^\x20-\x7E]+/', '_', $name));
+    header('Content-Type: ' . (string)$row['mime']);
+    header('Content-Length: ' . (string)filesize($path));
+    header('Content-Disposition: ' . ($inline ? 'inline' : 'attachment') . '; filename="' . $plain . '"; filename*=UTF-8\'\'' . rawurlencode($name));
+    header('Cache-Control: private, no-store');
+    readfile($path);
+    exit;
+}
+
+/**
  * What activity_children_delete would remove: the tasks, and the delivery
  * records filed on the activity or on any of its tasks - the same
  * predicate as the delete, so the confirm on the form counts what goes.
@@ -2531,8 +2830,9 @@ function activity_children_count($db, $projectId) {
     $projectId = (int)$projectId;
     $n = function ($sql, array $p) use ($db) { return (int)($db->MQ($sql, "one", $p)['n'] ?? 0); };
     return [
-        'tasks'      => $n("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE project_id = ?", [$projectId]),
-        'deliveries' => $n("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE project_id = ? OR task_id IN (SELECT id FROM pm_projects_tasks_tbl WHERE project_id = ?)", [$projectId, $projectId]),
+        'tasks'       => $n("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE project_id = ?", [$projectId]),
+        'deliveries'  => $n("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE project_id = ? OR task_id IN (SELECT id FROM pm_projects_tasks_tbl WHERE project_id = ?)", [$projectId, $projectId]),
+        'attachments' => attachments_available($db) ? $n("SELECT COUNT(*) AS n FROM pm_attachments_tbl WHERE project_id = ?", [$projectId]) : 0,
     ];
 }
 

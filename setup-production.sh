@@ -374,11 +374,16 @@ cmd_backup() {
     # The app also writes files inside its own container - per-user list
     # preferences, anything saved through the admin JSON editor, settings.php -
     # and none of that is in a volume, so a rebuild discards it. Keep a copy
-    # next to the database dump so a deploy can be undone completely.
+    # next to the database dump so a deploy can be undone completely. The
+    # files attached to activities (storage/attachments, a volume) go in the
+    # same archive, under attachments/: the database rows point at them. A
+    # container from before attachments existed has no such folder, which is
+    # not an error.
     if svc_running app; then
         local appdata="backups/appdata_$(date -u +%Y%m%d_%H%M%S)"
         if dc cp app:/var/www/html/db "$appdata" >/dev/null 2>&1 \
            && dc cp app:/var/www/html/app/configuration/settings.php "$appdata/settings.php" >/dev/null 2>&1 \
+           && { dc cp app:/var/www/html/storage/attachments "$appdata/attachments" >/dev/null 2>&1 || true; } \
            && COPYFILE_DISABLE=1 tar -czf "$appdata.tar.gz" -C backups "$(basename "$appdata")"; then
             rm -rf "$appdata"
             ok "wrote ${appdata}.tar.gz (files the app wrote inside its container)"

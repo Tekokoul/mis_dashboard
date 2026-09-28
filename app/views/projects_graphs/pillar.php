@@ -31,7 +31,7 @@
         // Completed first, then In progress, then Not started; WBS order within each.
         $roll = delivery_rollup($this->DB);
         $objStatusOf = function ($o) use ($roll) { return delivery_rollup_status($roll['objective_all'][(int)$o['id']] ?? null); };
-        foreach (sort_by_delivery_status((array)$data['pillar']['objectives'], $objStatusOf) as $objective){
+        foreach ((array)$data['pillar']['objectives'] as $objective){   // in the order set on the Overview ("Reorder objectives")
             $oStatus = $objStatusOf($objective);
             ?>
                 <div class="row afcdc-drill">

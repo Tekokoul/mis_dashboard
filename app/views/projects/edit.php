@@ -156,6 +156,7 @@ $col_width = 12/$columns;
             <?php } else { ?>
             <div id="project_details"></div>
             <?php } ?>
+            <?php $attachProjectId = (int)($data['data']['id'] ?? 0); include __DIR__ . '/_attachments.php'; ?>
             </div>
 
     </div>
@@ -211,7 +212,8 @@ $col_width = 12/$columns;
     // Outside the form: the modal's buttons would otherwise submit it. What
     // goes with the activity is counted here so nobody confirms blind.
     $goneTasks = (int)($data['gone']['tasks'] ?? 0);
-    $goneReports = (int)($data['gone']['deliveries'] ?? 0); ?>
+    $goneReports = (int)($data['gone']['deliveries'] ?? 0);
+    $goneFiles = (int)($data['gone']['attachments'] ?? 0); ?>
 <div id="afcdc-delete-activity" class="modal-block modal-block-primary mfp-hide">
     <section class="card">
         <header class="card-header"><h2 class="card-title">Delete this activity?</h2></header>
@@ -220,7 +222,7 @@ $col_width = 12/$columns;
                 <div class="modal-icon"><i class="fas fa-question-circle"></i></div>
                 <div class="modal-text">
                     <p class="mb-2"><strong><?= display(trim((string)($data['data']['abbr'] ?? '') . ' ' . (string)($data['data']['name'] ?? ''))); ?></strong></p>
-                    <p class="mb-0">Its <?= $goneTasks; ?> task<?= $goneTasks === 1 ? '' : 's'; ?> and <?= $goneReports; ?> delivery record<?= $goneReports === 1 ? '' : 's'; ?> go with it. This cannot be undone.</p>
+                    <p class="mb-0">Its <?= $goneTasks; ?> task<?= $goneTasks === 1 ? '' : 's'; ?><?= $goneFiles > 0 ? ',' : ' and'; ?> <?= $goneReports; ?> delivery record<?= $goneReports === 1 ? '' : 's'; ?><?= $goneFiles > 0 ? ' and ' . $goneFiles . ' attached file' . ($goneFiles === 1 ? '' : 's') : ''; ?> go with it. This cannot be undone.</p>
                 </div>
             </div>
         </div>

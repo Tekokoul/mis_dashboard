@@ -340,6 +340,52 @@ and Programmes lists.
 
 ---
 
+## Files on an activity (PDF, Word, Excel)
+
+Every activity's edit form, and its page on the Overview, has a **Files**
+card. Power Users and administrators attach files (**Attach files**, up to
+10 at a time, 25 MB each); every level that reads the lists (administrators,
+executives, Power Users) views and downloads them; only administrators
+remove one. Viewers do not see files.
+
+- **PDF** opens in the browser (**View**); **Word (.docx)** and **Excel
+  (.xlsx)** get a text/table preview made on this server - nothing is sent
+  anywhere; the older **.doc** and **.xls** are download only.
+- What a file is, is checked from its content, not its name: a renamed
+  program, a macro-enabled document or anything else is refused.
+- Files live in the `attachments` Docker volume at
+  `/var/www/html/storage/attachments` inside the app container - outside the
+  web root, reachable only through `projects/attachment_view|download`, which
+  check the reader's level - under random names; `pm_attachments_tbl` holds
+  the original name, type, size, SHA-256, who uploaded it and when.
+- Deleting an activity removes its files (their rows go to the audit log
+  first); merging activities moves the merged ones' files to the kept one,
+  and undoing the merge moves them back.
+- **Backups**: `./setup-production.sh backup` (and every deploy) puts the
+  files in the `appdata_<date>.tar.gz` archive, under `attachments/`, next to
+  the database dump. To put them back after a restore:
+
+  ```bash
+  tar -xzf backups/appdata_<date>.tar.gz -C /tmp && docker compose cp /tmp/appdata_<date>/attachments/. app:/var/www/html/storage/attachments/ && docker compose exec -T app chown -R www-data:www-data /var/www/html/storage/attachments
+  ```
+
+  The archive grows with the files; prune old ones by hand when the disk
+  needs it (`ls -lh backups/`).
+
+---
+
+## The order of objectives on the Overview
+
+Administrators see **Reorder objectives** at the top right of the Overview.
+It turns each goal's list into a sortable one: drag an objective into place
+(or use the arrows on its row, the keyboard way), then **Save order**. The
+order is `pm_objectives_tbl.position`, and each goal's own page follows it.
+A goal whose objectives changed since the page was opened refuses the save
+(reload and do it again). The codes (1.0, 2.0 ...) do not change. Each save
+leaves an audit row with the order before and after.
+
+---
+
 ## Moving projects to another unit
 
 A unit belongs to an objective, and a project follows its objective's unit

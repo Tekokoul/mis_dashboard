@@ -36,3 +36,5 @@ node_modules/
 
 # Docs are useful in the repo, not in a production image.
 COMMANDS.md
+# Files attached to activities live in a Docker volume, never in the repository or the image.
+storage/

@@ -105,6 +105,9 @@ services:
       # Per-user list preferences are written by the app at runtime; without
       # a volume every deploy reset them.
       - users_settings:/var/www/html/db/users_settings
+      # Files attached to activities (PDF, Word, Excel). OUTSIDE public/: served only
+      # through projects/attachment_view|download, which check the reader's level.
+      - attachments:/var/www/html/storage/attachments
     networks: [internal, matchnet]
 
 volumes:
@@ -112,6 +115,7 @@ volumes:
   media:
   cache:
   users_settings:
+  attachments:
 
 networks:
   internal:

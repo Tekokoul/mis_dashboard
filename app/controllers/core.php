@@ -429,7 +429,10 @@ class coreController extends protectedController{
                 $this->setAnswer(500, "Problem deleting the activity - nothing was removed.", [], "json");
             }
             $this->DB->txCommit();
-            $this->setAnswer(200, "Deleted activity <b>" . (int)$validated['id'] . "</b> with " . $gone['tasks'] . " task(s) and " . $gone['deliveries'] . " delivery record(s).", $gone, "json");
+            // Its attached files, now that nothing can roll back (activity_children_delete).
+            foreach ((array)($gone['files'] ?? []) as $stored) { attachment_unlink_stored($stored); }
+            unset($gone['files']);
+            $this->setAnswer(200, "Deleted activity <b>" . (int)$validated['id'] . "</b> with " . $gone['tasks'] . " task(s), " . $gone['deliveries'] . " delivery record(s) and " . (int)($gone['attachments'] ?? 0) . " file(s).", $gone, "json");
         }
         $executed = $this->model->delete_data($validated['model'], $validated['id']);
         if(in_array('false', $executed, true)) {
@@ -437,6 +440,43 @@ class coreController extends protectedController{
         } else {
             $this->setAnswer(200, "Successfully deleted entry <b>".$validated['id']."</b> from model '<b>".$validated['model']."</b>'", [], "json");
         }
+    }
+
+    /**
+     * POST core/objective_order  order = {"<goal id>": [objective ids in order], ...}
+     * The order of objectives under each goal, as dragged on the Overview
+     * ("Reorder objectives", administrators). A goal's list must name exactly
+     * the objectives it holds now - one added or moved since the page was
+     * opened refuses the save rather than leaving it without a place. One
+     * transaction; one audit row per goal.
+     */
+    public function objective_order() {
+        $this->checkMethod("POST");
+        $this->enforceCSRF();
+        if (!can_structure()) { $this->setAnswer(403, "Only an administrator can reorder objectives.", [], "json"); }
+        $order = json_decode((string)($this->query['order'] ?? ''), true);
+        if (!is_array($order) || !$order) { $this->setAnswer(422, "Nothing to save.", [], "json"); }
+        $user = (string)($_SESSION['user']['username'] ?? '');
+        $this->DB->txBegin();
+        foreach ($order as $pillar => $ids) {
+            if (!ctype_digit((string)$pillar) || !is_array($ids)) { $this->DB->txRollBack(); $this->setAnswer(422, "That is not an order of objectives.", [], "json"); }
+            foreach ($ids as $v) { if (!ctype_digit((string)$v)) { $this->DB->txRollBack(); $this->setAnswer(422, "That is not an order of objectives.", [], "json"); } }
+            $ids = array_map('intval', $ids);
+            $before = (array)$this->DB->MQ("SELECT id, position FROM pm_objectives_tbl WHERE pillar_id = ? ORDER BY position, id FOR UPDATE", "all", [(int)$pillar]);
+            $have = array_map('intval', array_column($before, 'id'));
+            $a = $have; $b = $ids; sort($a); sort($b);
+            if ($a !== $b || count($ids) !== count(array_unique($ids))) {
+                $this->DB->txRollBack();
+                $this->setAnswer(409, "The objectives under this goal changed since the page was opened. Reload the Overview and try again.", [], "json");
+            }
+            foreach ($ids as $i => $id) {
+                $this->DB->MQ("UPDATE pm_objectives_tbl SET position = ? WHERE id = ? AND pillar_id = ?", false, [$i + 1, $id, (int)$pillar]);
+            }
+            $this->DB->MQ("INSERT INTO `core_table_logs_tbl` (`tablename`, `record`, `log_date`, `user`) VALUES (?, ?, ?, ?)", false,
+                ['pm_objectives_tbl', json_encode(['action' => 'objective_order', 'pillar_id' => (int)$pillar, 'before' => $before, 'after' => $ids]), date("Y-m-d H:i:s"), $user]);
+        }
+        $this->DB->txCommit();
+        $this->setAnswer(200, "The new order is saved.", [], "json");
     }
 
     public function password_update(){

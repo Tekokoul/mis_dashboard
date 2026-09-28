@@ -17,6 +17,7 @@ $latest = $data['latest_delivery'] ?? null;
         <ol class="breadcrumbs">
             <li><span><?php if ($latest): ?>Latest recorded delivery: <time datetime="<?= date(DATE_ATOM, strtotime($latest)); ?>"><?= date('j M Y', strtotime($latest)); ?></time><?php else: ?>No deliveries recorded yet<?php endif; ?></span></li>
             <li><a href="#" class="afcdc-print" role="button"><i class="bx bx-printer" aria-hidden="true"></i> Print or save as PDF</a></li>
+            <?php if (can_structure()): ?><li><a href="#" class="afcdc-reorder-start" role="button"><i class="bx bx-sort" aria-hidden="true"></i> Reorder objectives</a></li><?php endif; ?>
         </ol>
     </div>
 </header>
@@ -41,6 +42,17 @@ $latest = $data['latest_delivery'] ?? null;
     </div>
 </div>
 
+<?php if (can_structure()): ?>
+<?php // Shown while reordering (custom.js): drag within a goal, or the arrows on each row, then Save. ?>
+<div class="afcdc-reorder-bar" data-url="<?= display($this->L('core/objective_order')); ?>" role="region" aria-label="Reorder objectives" hidden>
+    <p class="afcdc-reorder-bar__text"><strong>Reorder objectives.</strong> Drag them into the order you want within each goal, or use the arrows on each row. The Overview and each goal's page show them in this order.</p>
+    <div class="afcdc-reorder-bar__acts">
+        <button type="button" class="btn btn-primary btn-sm" data-afcdc-reorder-save>Save order</button>
+        <button type="button" class="btn btn-default btn-sm" data-afcdc-reorder-cancel>Cancel</button>
+    </div>
+    <span class="afcdc-reorder-bar__msg" role="status" aria-live="polite"></span>
+</div>
+<?php endif; ?>
 <div class="row">
     <?php foreach ($lenses as $i => $lens):
         $lensName = htmlspecialchars($lens['name'], ENT_QUOTES, 'UTF-8');
@@ -77,11 +89,13 @@ $latest = $data['latest_delivery'] ?? null;
 
                     <div>
                         <?php
-                        // Completed first, then In progress, then Not started; WBS order within each.
+                        // In the order an administrator set ("Reorder objectives": pm_objectives_tbl.position), id breaking ties.
                         $roll = delivery_rollup($this->DB);
                         $pillarId = (int)$lens['id'];
                         $objStatusOf = function ($o) use ($roll, $pillarId) { return delivery_rollup_status($roll['objective'][$pillarId . ':' . (int)$o['id']] ?? null); };
-                        foreach (sort_by_delivery_status((array)$objectives, $objStatusOf) as $objective):
+                        ?>
+                        <div class="afcdc-objectives" data-pillar-id="<?= $pillarId; ?>">
+                        <?php foreach ((array)$objectives as $objective):
                             $objName = htmlspecialchars($objective['name'], ENT_QUOTES, 'UTF-8');
                             $objPct  = (float)$objective['progress'];
                             // abbr holds the WBS code (1.1, 2.3 ...) when it is seeded.
@@ -92,7 +106,7 @@ $latest = $data['latest_delivery'] ?? null;
                             $objDone = (int)($objective['completed'] ?? 0);
                             $objStatus = $objStatusOf($objective);
                         ?>
-                        <div class="afcdc-deliverable afcdc-drill<?= $objAll === 0 ? ' afcdc-deliverable--unfunded' : ''; ?>">
+                        <div class="afcdc-deliverable afcdc-drill<?= $objAll === 0 ? ' afcdc-deliverable--unfunded' : ''; ?>" data-objective-id="<?= (int)$objective['id']; ?>">
                             <span class="afcdc-deliverable__wbs"><?= htmlspecialchars($wbs !== '' ? $wbs : '—', ENT_QUOTES, 'UTF-8'); ?></span>
                             <span class="afcdc-deliverable__name">
                                 <a class="stretched-link" href="<?= $this->L("projects_graphs/objective/" . (int)$objective['id']); ?>"><?= $objName; ?></a>
@@ -112,8 +126,10 @@ $latest = $data['latest_delivery'] ?? null;
                                     <?php if ($objAll > 0): ?> <?= delivery_status_chip($objStatus, 'green'); ?><?php endif; ?>
                                 </span>
                             </div>
+                            <?php if (can_structure()): ?><span class="afcdc-reorder__ctl"><i class="bx bx-grid-vertical afcdc-reorder__grip" aria-hidden="true"></i><button type="button" class="afcdc-reorder__up" aria-label="Move <?= $objName; ?> up"><i class="bx bx-up-arrow-alt" aria-hidden="true"></i></button><button type="button" class="afcdc-reorder__down" aria-label="Move <?= $objName; ?> down"><i class="bx bx-down-arrow-alt" aria-hidden="true"></i></button></span><?php endif; ?>
                         </div>
                         <?php endforeach; ?>
+                        </div>
 
                         <?php if (empty($objectives)): ?>
                             <p class="afcdc-progress-zero mt-2 mb-0">No key deliverables are recorded under this goal yet.</p>

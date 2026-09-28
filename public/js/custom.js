@@ -1033,3 +1033,127 @@ $(function () {
     $in.on('blur', function () { window.setTimeout(close, 150); });
     $(document).on('click', function (e) { if (!$(e.target).closest('.afcdc-search-wrap, .afcdc-search').length) { close(); } });
 });
+
+/* Files attached to an activity (projects/_attachments.php). The file goes up
+ * on its own as soon as it is chosen - the card sits inside the activity form,
+ * and Save must not wait for it or send it. The list is updated in place, so
+ * nothing typed on the form is lost. The server checks what each file really
+ * is; the size is checked here too, to say so before a long upload. */
+$(function () {
+    var $card = $('#afcdc-attachments');
+    if (!$card.length) { return; }
+    var max = parseInt($card.attr('data-max-bytes'), 10) || 0;
+    function say(msg, bad) {
+        $card.find('.afcdc-attach__status').text(msg || '').prop('hidden', !msg).toggleClass('is-bad', !!bad);
+    }
+    function recount() {
+        var n = $card.find('.afcdc-attach__list .afcdc-attach__item').length;
+        $card.find('.afcdc-attach__count').text('(' + n + ')');
+        $card.find('.afcdc-attach__empty').prop('hidden', n > 0);
+    }
+    function addRow(it) {
+        var tpl = document.getElementById('afcdc-attach-row');
+        if (!tpl || !tpl.content) { return; }
+        var $row = $(tpl.content.firstElementChild.cloneNode(true));
+        $row.attr('data-id', it.id);
+        $row.find('[data-slot="icon"]').addClass(it.icon + ' afcdc-attach__icon--' + it.kind);
+        var $name = $row.find('[data-slot="name"]').text(it.name).attr('href', it.view_url || it.download_url);
+        if (it.view_url) { $name.attr({ target: '_blank', rel: 'noopener' }); }
+        $row.find('[data-slot="meta"]').text(it.meta);
+        if (it.view_url) { $row.find('[data-slot="view"]').attr('href', it.view_url); } else { $row.find('[data-slot="view"]').remove(); }
+        $row.find('[data-slot="download"]').attr('href', it.download_url);
+        $row.find('[data-slot="delete"]').attr({ 'data-afcdc-attach-delete': it.id, 'aria-label': 'Delete ' + it.name });
+        $card.find('.afcdc-attach__list').prepend($row);
+    }
+    function failed(xhr, what) {
+        var msg = '';
+        try { msg = ((xhr.responseJSON || JSON.parse(xhr.responseText)) || {}).message || ''; } catch (e) {}
+        if (xhr.status === 413) { msg = 'The files together are too large to send at once. Send fewer at a time.'; }
+        if (xhr.status === 403 && !msg) { msg = 'The page had been open too long. Reload it and try again.'; }
+        return msg || (what + ' did not go through (' + xhr.status + ').');
+    }
+    $card.on('change', 'input[data-afcdc-attach-input]', function () {
+        var input = this, files = Array.prototype.slice.call(input.files || []);
+        if (!files.length) { return; }
+        var big = files.filter(function (f) { return max && f.size > max; }).map(function (f) { return f.name; });
+        if (big.length) { say('Larger than 25 MB, not sent: ' + big.join(', ') + '.', true); files = files.filter(function (f) { return !(max && f.size > max); }); }
+        if (!files.length) { input.value = ''; return; }
+        var fd = new FormData();
+        fd.append('csrf', window.CSRF_TOKEN || '');
+        files.forEach(function (f) { fd.append('files[]', f, f.name); });
+        say('Uploading ' + files.length + (files.length === 1 ? ' file…' : ' files…'));
+        $card.addClass('is-busy');
+        $.ajax({ url: $card.attr('data-upload-url'), method: 'POST', data: fd, processData: false, contentType: false, dataType: 'json' })
+            .done(function (r) {
+                var d = (r && r.data) || {}, items = d.items || [], errs = d.errors || [];
+                items.forEach(addRow);
+                recount();
+                var done = items.length ? (items.length + (items.length === 1 ? ' file attached.' : ' files attached.')) : '';
+                say((big.length ? 'Larger than 25 MB, not sent: ' + big.join(', ') + '. ' : '') + done + (errs.length ? ' ' + errs.join(' ') : ''), errs.length > 0 || big.length > 0);
+            })
+            .fail(function (xhr) { say(failed(xhr, 'The upload'), true); })
+            .always(function () { input.value = ''; $card.removeClass('is-busy'); });
+    });
+    $card.on('click', '[data-afcdc-attach-delete]', function (e) {
+        e.preventDefault();
+        var $btn = $(this), id = $btn.attr('data-afcdc-attach-delete'), $li = $btn.closest('.afcdc-attach__item');
+        var name = $.trim($li.find('.afcdc-attach__name').text());
+        if (!window.confirm('Delete "' + name + '"? It is removed for everyone. This cannot be undone.')) { return; }
+        $btn.prop('disabled', true);
+        $.ajax({ url: $card.attr('data-delete-url') + '/' + encodeURIComponent(id), method: 'POST', data: { csrf: window.CSRF_TOKEN || '' }, dataType: 'json' })
+            .done(function () { $li.remove(); recount(); say('Deleted "' + name + '".'); })
+            .fail(function (xhr) { $btn.prop('disabled', false); say(failed(xhr, 'The delete'), true); });
+    });
+});
+
+/* Reordering objectives on the Overview (administrators). "Reorder objectives"
+ * turns each goal's list into a sortable one: drag a row, or use its arrows
+ * (the keyboard way). Save sends the order of the goals that changed to
+ * core/objective_order; Cancel reloads the page as it was. */
+$(function () {
+    var $start = $('.afcdc-reorder-start'), $bar = $('.afcdc-reorder-bar');
+    if (!$start.length || !$bar.length) { return; }
+    var $lists = $('.afcdc-objectives'), before = null;
+    function orderNow() {
+        var o = {};
+        $lists.each(function () {
+            o[$(this).attr('data-pillar-id')] = $(this).children('.afcdc-deliverable').map(function () { return this.getAttribute('data-objective-id'); }).get();
+        });
+        return o;
+    }
+    $start.on('click', function (e) {
+        e.preventDefault();
+        if ($('body').hasClass('afcdc-reordering')) { return; }
+        $('body').addClass('afcdc-reordering');
+        $bar.prop('hidden', false);
+        before = orderNow();
+        if ($.fn.sortable) {
+            $lists.sortable({ items: '> .afcdc-deliverable', axis: 'y', containment: 'parent', tolerance: 'pointer', cancel: 'button',
+                              placeholder: 'afcdc-reorder-placeholder', forcePlaceholderSize: true });
+        }
+        $bar.find('[data-afcdc-reorder-save]').trigger('focus');
+    });
+    $(document).on('click', '.afcdc-reorder__up, .afcdc-reorder__down', function (e) {
+        e.preventDefault();
+        var $row = $(this).closest('.afcdc-deliverable');
+        if ($(this).hasClass('afcdc-reorder__up')) { $row.prev('.afcdc-deliverable').before($row); } else { $row.next('.afcdc-deliverable').after($row); }
+        $(this).trigger('focus');
+    });
+    $bar.on('click', '[data-afcdc-reorder-cancel]', function () { window.location.reload(); });
+    $bar.on('click', '[data-afcdc-reorder-save]', function () {
+        var now = orderNow(), changed = {};
+        Object.keys(now).forEach(function (k) { if (now[k].join(',') !== (before[k] || []).join(',')) { changed[k] = now[k]; } });
+        if (!Object.keys(changed).length) { $bar.find('.afcdc-reorder-bar__msg').text('Nothing has moved yet.'); return; }
+        var $b = $(this).prop('disabled', true);
+        $bar.find('.afcdc-reorder-bar__msg').text('Saving…');
+        $.ajax({ url: $bar.attr('data-url'), method: 'POST', dataType: 'json', data: { csrf: window.CSRF_TOKEN || '', order: JSON.stringify(changed) } })
+            .done(function () { window.location.reload(); })
+            .fail(function (xhr) {
+                $b.prop('disabled', false);
+                var msg = '';
+                try { msg = ((xhr.responseJSON || JSON.parse(xhr.responseText)) || {}).message || ''; } catch (err) {}
+                $bar.find('.afcdc-reorder-bar__msg').text(msg || ('The order was not saved (' + xhr.status + ').'));
+            });
+    });
+});
+

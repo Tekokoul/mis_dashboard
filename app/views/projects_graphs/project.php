@@ -103,6 +103,7 @@ foreach ($members as $member){
                 <?php
             }
         ?>
+        <?php $attachProjectId = (int)$data['project']['id']; include __DIR__ . '/../projects/_attachments.php'; ?>
     </div>
 </div>
 <script nonce="<?= csp_nonce(); ?>">

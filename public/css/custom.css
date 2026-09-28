@@ -1086,6 +1086,67 @@ html .afcdc-task__peek-label { font-size: 0.6875rem; font-weight: 700; letter-sp
 /* The Status box on the activity form, and beside it "how far along" while a task is in progress. */
 html .afcdc-task__status-wrap { display: flex; align-items: center; gap: 0.35rem; }
 html select.afcdc-task__pct { flex: 0 0 auto; width: auto; min-width: 5.5rem; }
+/* Files attached to an activity (projects/_attachments.php). */
+html .afcdc-attach { margin-top: 1rem; }
+html .afcdc-attach__head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.5rem; }
+html .afcdc-attach__title { margin: 0; font-size: 1rem; font-weight: 700; color: var(--afcdc-ink); display: flex; align-items: center; gap: 0.35rem; }
+html .afcdc-attach__count { font-weight: 400; color: var(--afcdc-ink-soft); }
+html .afcdc-attach__add { cursor: pointer; }
+html .afcdc-attach__add:focus-within { outline: 2px solid var(--au-green-deep); outline-offset: 2px; }
+html .afcdc-attach.is-busy .afcdc-attach__add { opacity: 0.6; pointer-events: none; }
+html .afcdc-attach__status { margin: 0 0 0.5rem; font-size: 0.8125rem; color: var(--au-green-deep); }
+html .afcdc-attach__status.is-bad { color: var(--afcdc-not-started); }
+html .afcdc-attach__list { list-style: none; margin: 0; padding: 0; }
+html .afcdc-attach__item { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0; border-top: 1px solid var(--afcdc-rule, #E3E6E4); }
+html .afcdc-attach__item:first-child { border-top: 0; }
+html .afcdc-attach__icon { font-size: 1.6rem; flex: 0 0 auto; color: var(--afcdc-ink-soft); }
+html .afcdc-attach__icon--pdf { color: #B42318; }
+html .afcdc-attach__icon--docx, html .afcdc-attach__icon--doc { color: #1F5FA8; }
+html .afcdc-attach__icon--xlsx, html .afcdc-attach__icon--xls { color: #1D6F42; }
+html .afcdc-attach__main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
+html .afcdc-attach__name { font-weight: 600; overflow-wrap: anywhere; }
+html .afcdc-attach__meta { font-size: 0.75rem; color: var(--afcdc-ink-soft); }
+html .afcdc-attach__acts { display: inline-flex; gap: 0.3rem; flex: 0 0 auto; flex-wrap: wrap; justify-content: flex-end; }
+html .afcdc-attach__empty { margin: 0.25rem 0 0; font-size: 0.8125rem; }
+/* The preview of a Word or Excel file. */
+html .afcdc-preview__lead { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+html .afcdc-preview__note { font-size: 0.8125rem; color: var(--afcdc-ink-soft); border-left: 3px solid var(--afcdc-rule, #D0D5D2); padding-left: 0.6rem; }
+html .afcdc-preview__error { color: var(--afcdc-not-started); }
+html .afcdc-preview__doc { max-width: 60rem; line-height: 1.55; }
+html .afcdc-preview__doc h3, html .afcdc-preview__sheet { font-size: 1.15rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
+html .afcdc-preview__doc h4 { font-size: 1rem; font-weight: 700; margin: 1rem 0 0.4rem; }
+html .afcdc-preview__li { margin: 0 0 0.3rem 1rem; }
+html .afcdc-preview__wrap { max-height: 70vh; overflow: auto; margin-bottom: 1rem; }
+html .afcdc-preview__table { font-size: 0.8125rem; margin: 0; }
+html .afcdc-preview__table th[scope="row"] { color: var(--afcdc-ink-soft); font-weight: 400; background: var(--afcdc-canvas); position: sticky; left: 0; }
+html .afcdc-preview__table td { white-space: pre-wrap; min-width: 4rem; }
+/* Reordering objectives on the Overview (administrators). The bar floats at
+   the foot of the screen - the page header is fixed and grows tall on narrow
+   screens, so a bar pinned under it would hide - and the rows shrink to code,
+   name and arrows while they are being moved. */
+html .afcdc-reorder__ctl { display: none; }
+html .afcdc-reorder-bar { position: fixed; z-index: 1030; right: 16px; bottom: 16px; width: min(40rem, calc(100vw - 32px));
+    display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem 1rem; padding: 0.75rem 1rem;
+    background: #FFF; border: 1px solid var(--afcdc-rule, #D0D5D2); border-left: 4px solid var(--au-green-deep); border-radius: 4px; box-shadow: 0 8px 28px rgba(0,0,0,.16); }
+html .afcdc-reorder-bar__text { margin: 0; flex: 1 1 18rem; font-size: 0.8125rem; line-height: 1.45; }
+html .afcdc-reorder-bar__acts { display: inline-flex; gap: 0.5rem; }
+html .afcdc-reorder-bar__msg { flex-basis: 100%; font-size: 0.8125rem; color: var(--afcdc-not-started); }
+html .afcdc-reorder-bar__msg:empty { display: none; }
+html body.afcdc-reordering .content-body { padding-bottom: 11rem; }
+html body.afcdc-reordering .scroll-to-top { display: none !important; }
+html body.afcdc-reordering .afcdc-deliverable { grid-template-columns: 2.75rem 1fr auto; align-items: center; cursor: grab;
+    padding: 0.5rem 0.5rem 0.5rem 0.4rem; margin-bottom: 0.35rem; border: 1px dashed var(--afcdc-rule, #C9D0CC); border-radius: 4px; background: #FFF; }
+html body.afcdc-reordering .afcdc-deliverable::after { content: none; }
+html body.afcdc-reordering .afcdc-deliverable__meta { display: none; }
+html body.afcdc-reordering .afcdc-deliverable .stretched-link { pointer-events: none; color: inherit; }
+html body.afcdc-reordering .afcdc-deliverable .stretched-link::after { display: none; }
+html body.afcdc-reordering .afcdc-reorder__ctl { display: inline-flex; grid-column: 3; grid-row: 1; align-items: center; gap: 0.25rem; position: relative; z-index: 3; }
+html .afcdc-reorder__grip { font-size: 1.2rem; color: var(--afcdc-ink-soft); margin-right: 0.15rem; }
+html .afcdc-reorder__up, html .afcdc-reorder__down { border: 1px solid var(--afcdc-rule, #C9D0CC); background: #FFF; border-radius: 3px; width: 2rem; height: 2rem; display: inline-flex; align-items: center; justify-content: center; padding: 0; color: var(--afcdc-ink); cursor: pointer; }
+html .afcdc-reorder__up:hover, html .afcdc-reorder__down:hover, html .afcdc-reorder__up:focus-visible, html .afcdc-reorder__down:focus-visible { border-color: var(--au-green-deep); color: var(--au-green-deep); outline: none; box-shadow: 0 0 0 2px rgba(26,86,50,.25); }
+html .afcdc-reorder-placeholder { height: 2.9rem; margin-bottom: 0.35rem; border: 2px dashed var(--au-green-deep); border-radius: 4px; background: rgba(26,86,50,.04); visibility: visible !important; }
+html body.afcdc-reordering .ui-sortable-helper { box-shadow: 0 8px 22px rgba(0,0,0,.14); cursor: grabbing; }
+@media print { html .afcdc-reorder-bar, html .afcdc-reorder__ctl, html .afcdc-reorder-start { display: none !important; } }
 /* Record delivery and Edit on an overview row stay together: a long name must not leave one on each line. */
 html .afcdc-row-actions { display: inline-block; white-space: nowrap; }
 /* A project run by another unit than its objective's says so under its name. */
