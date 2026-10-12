@@ -511,7 +511,10 @@ class projects_graphsController extends coreController{
         }
 
         // Fetch all tasks for the project
-        $query = "SELECT * FROM pm_projects_tasks_tbl WHERE project_id=" . (int)$project['id'];
+        // With each task's focal person, once the database has focal people.
+        $query = focal_people_available($this->DB)
+            ? "SELECT t.*, f.name AS focal_name FROM pm_projects_tasks_tbl t LEFT JOIN pm_focal_people_tbl f ON f.id = t.focal_person_id WHERE t.project_id=" . (int)$project['id']
+            : "SELECT * FROM pm_projects_tasks_tbl WHERE project_id=" . (int)$project['id'];
         $tasks = $this->DB->MQ($query, "all");
     
         $temp['project'] = $project;
@@ -583,6 +586,7 @@ class projects_graphsController extends coreController{
                 'id'          => (int)$task['id'],
                 'name'        => (string)$task['name'],
                 'description' => (string)($task['description'] ?? ''),
+                'focal_name'  => (string)($task['focal_name'] ?? ''),
                 'assignments' => $taskAssignments,
                 'completed'   => $taskDone,
                 'progress'    => $taskAssignments > 0 ? round($taskShare / $taskAssignments * 100, 2) : 0,

@@ -615,7 +615,11 @@ $(function () {
         var why = (field.tagName === 'SELECT' && !field.options.length) ? 'Nothing to choose from yet' : 'Required';
         $group.addClass('afcdc-field--missing');
         var $msg = $group.find('.afcdc-field__msg');
-        if (!$msg.length && $group.length) { $msg = $('<div class="afcdc-field__msg" role="alert"></div>').appendTo(grouped ? $group.children().last() : $group); }
+        if (!$msg.length && $group.length) {
+            $msg = $('<div class="afcdc-field__msg" role="alert"></div>');
+            // In a table cell, right under the box (a task's name cell also holds its focal-person dropdown).
+            if (grouped) { $msg.appendTo($group.children().last()); } else { $msg.insertAfter(field); }
+        }
         $msg.text(why);
         if (!pending) {
             pending = field;

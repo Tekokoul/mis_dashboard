@@ -111,6 +111,13 @@ and (table_name='" . $this->get_table_name($table_name) . "')
             // A unit field waits for its switch: while units are off the form
             // neither shows nor saves it (library.php units_enabled()).
             $model['common'] = units_strip_settings($model['common']);
+            // A task's focal person is chosen on the activity form only, from the
+            // list (projects::applyTaskEdits). The generic task screens neither
+            // show it nor write it, so nobody can type an id there.
+            if ($this->get_table_name($table_name) === 'pm_projects_tasks_tbl' && isset($model['common']['focal_person_id'])) {
+                $model['common']['focal_person_id']['hidden'] = true;
+                $model['common']['focal_person_id']['no_update'] = true;
+            }
 
 //            array_multisort(array_column($model['common'], "appear_in_form"), SORT_ASC, $model['common']);
         }

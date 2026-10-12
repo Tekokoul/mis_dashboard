@@ -51,6 +51,9 @@ $col_width = 12/$columns;
             // named rows threw away the very row a refusal is about, leaving
             // "a name for every task" on screen with no row to name.
             $newTasks = array_values(array_filter((array)($data['data']['new_tasks'] ?? []), function ($t) { return is_array($t) && (trim((string)($t['name'] ?? '')) !== '' || trim((string)($t['description'] ?? '')) !== ''); }));
+            // Focal person: a dropdown per task once the database has focal people (null until then).
+            $focal = $data['focal_people'] ?? null;
+            $focalOn = is_array($focal);
             ?>
             <div class="card card-modern" id="afcdc-new-tasks">
                 <div class="card-body">
@@ -60,7 +63,7 @@ $col_width = 12/$columns;
                             <thead>
                             <tr>
                                 <th width="4%">#</th>
-                                <th width="38%">Name</th>
+                                <th width="38%">Name<?= $focalOn ? '<span class="afcdc-th-sub"> and focal person</span>' : ''; ?></th>
                                 <th>Description</th>
                                 <th width="5%"><a href="#" data-add-task aria-label="Add a task" title="Add a task"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
                             </tr>
@@ -69,7 +72,7 @@ $col_width = 12/$columns;
                             <?php foreach ($newTasks as $i => $t): ?>
                             <tr class="afcdc-new-task">
                                 <td class="afcdc-new-task__num"><?= $i + 1; ?></td>
-                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][name]" value="<?= display($t['name']); ?>" placeholder="Task name" maxlength="250"></td>
+                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][name]" value="<?= display($t['name']); ?>" placeholder="Task name" maxlength="250"><?php if ($focalOn) { echo focal_select_html($focal, 'new_tasks[' . $i . '][focal]', $t['focal'] ?? null); } ?></td>
                                 <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"></td>
                                 <td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td>
                             </tr>
@@ -78,6 +81,8 @@ $col_width = 12/$columns;
                             </tbody>
                         </table>
                     </div>
+                    <?php // The dropdown a row added with + gets (pm_projects.js names it). ?>
+                    <?php if ($focalOn) { ?><template id="afcdc-focal-template"><?= focal_select_html($focal, '', null); ?></template><?php } ?>
                 </div>
             </div>
         </div>

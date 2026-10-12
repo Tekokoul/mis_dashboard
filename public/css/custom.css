@@ -1240,3 +1240,7 @@ html .afcdc-import__table td.afcdc-col-actions a { margin: 0 0.35rem 0.35rem 0; 
 html .afcdc-review__act.disabled { pointer-events: none; opacity: 0.55; }
 html #datatable-list tr.afcdc-review--agreed td:first-child { box-shadow: inset 4px 0 0 var(--au-gold); }
 html #datatable-list tr.afcdc-row--inactive td { color: var(--afcdc-idle); }
+
+/* Focal person: a dropdown under each task's name on the activity forms. */
+html .afcdc-task__focal { margin-top: 0.35rem; }
+html .afcdc-th-sub { font-weight: 400; text-transform: none; letter-spacing: 0; }

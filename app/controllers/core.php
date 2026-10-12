@@ -179,9 +179,28 @@ class coreController extends protectedController{
      * they did not exist (library.php units_enabled()).
      */
     private function refuseSwitchedOff($model, $json = false) {
+        // The focal-people list exists once migration 12 has run.
+        if (strtolower((string)$model) === 'pm_focal_people' && !focal_people_available($this->DB)) {
+            if ($json) { $this->setAnswer(404, "Focal people are not set up yet.", [], "json"); }
+            $this->setAnswer(404, "The page you asked for does not exist.");
+        }
         if (!in_array(strtolower((string)$model), ['pm_units', 'pm_unit_review'], true) || units_enabled()) { return; }
         if ($json) { $this->setAnswer(404, "Units are switched off.", [], "json"); }
         $this->setAnswer(404, "The page you asked for does not exist.");
+    }
+
+    /**
+     * Names on the focal-people list are unique (the table's key). Adding a
+     * name already there used to end on the database error page; it is now
+     * refused in words, pointing at the existing row when it is inactive.
+     */
+    private function refuseDuplicateFocalPerson($id) {
+        $name = trim((string)preg_replace('/\s+/u', ' ', (string)($this->query['name'] ?? '')));
+        if ($name === '' || !focal_people_available($this->DB)) { return; }
+        $dup = $this->DB->MQ("SELECT id, active FROM pm_focal_people_tbl WHERE name = ? AND id <> ?", "one", [$name, (int)$id]);
+        if (!is_set($dup)) { return; }
+        $this->setAnswer(409, '"' . display($name) . '" is already on the list of focal people.'
+            . ((int)$dup['active'] === 1 ? '' : ' They are marked inactive: set Active to Yes on their row instead of adding them again.'));
     }
 
     public function db_view(){
@@ -241,6 +260,7 @@ class coreController extends protectedController{
         ];
         $validated = $this->sanitize($this->query, $rules);
         $this->refuseSwitchedOff($validated['tablename']);
+        if ($validated['tablename'] === 'pm_focal_people') { $this->refuseDuplicateFocalPerson((int)($validated['id'] ?? 0)); }
         // Activities are saved on their own form (projects/add_update and
         // projects/edit_update), which keeps goal, objective and programme
         // consistent; this generic save would skip that.
@@ -318,6 +338,7 @@ class coreController extends protectedController{
         ];
         $validated = $this->sanitize($this->query, $rules);
         $this->refuseSwitchedOff($validated['tablename']);
+        if ($validated['tablename'] === 'pm_focal_people') { $this->refuseDuplicateFocalPerson((int)($validated['id'] ?? 0)); }
         // Activities are saved on their own form (projects/add_update and
         // projects/edit_update), which keeps goal, objective and programme
         // consistent; this generic save would skip that.

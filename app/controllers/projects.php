@@ -139,6 +139,7 @@ class projectsController extends coreController{
         $data["model"] = $this->model->get_table_fields("pm_projects");
         $data['meta_name'] = $this->model->get_meta_name("pm_projects");
         $data['back'] = $this->backTo('projects/list');
+        $data['focal_people'] = $this->focalPeopleFor([]);
         // Opened from a programme's "Add an activity" button: that programme
         // is preselected, with the objective and goal it belongs to, so the
         // three boxes agree and nothing is filed where nobody put it.
@@ -203,7 +204,7 @@ class projectsController extends coreController{
             // Tasks typed on the add form; created right after the activity.
             foreach ((array)($this->query['new_tasks'] ?? []) as $t) {
                 if (!is_array($t) || trim((string)($t['name'] ?? '')) === '') { continue; }
-                $newTasks[] = ['name' => mb_substr(trim((string)$t['name']), 0, 250), 'description' => trim((string)($t['description'] ?? ''))];
+                $newTasks[] = ['name' => mb_substr(trim((string)$t['name']), 0, 250), 'description' => trim((string)($t['description'] ?? '')), 'focal' => (string)($t['focal'] ?? '')];
             }
         }
         unset($this->query['new_tasks']);
@@ -217,10 +218,16 @@ class projectsController extends coreController{
             }
             if ($validated['tablename'] === 'pm_projects') {
                 foreach ($newTasks as $t) {
-                    $this->model->add_data('pm_projects_tasks', [
+                    $row = [
                         'project_id' => (int)$new_id, 'name' => $t['name'], 'description' => $t['description'],
                         'applies_to' => default_applies_to($this->DB, null),
-                    ]);
+                    ];
+                    $f = focal_people_available($this->DB) ? focal_person_value($this->DB, $t['focal']) : false;
+                    $ins = $this->model->add_data('pm_projects_tasks', $row);
+                    // Written here, not through add_data: the model keeps the column off generic saves.
+                    if (is_int($f) && (int)($ins['common'] ?? 0) > 0) {
+                        $this->DB->MQ("UPDATE pm_projects_tasks_tbl SET focal_person_id = ? WHERE id = ? AND project_id = ?", false, [$f, (int)$ins['common'], (int)$new_id]);
+                    }
                 }
                 $this->ensureDefaultTask((int)$new_id);   // only adds "Task" when there is still no task
                 // What the form had suggested when this was saved; keeping it
@@ -272,6 +279,7 @@ class projectsController extends coreController{
         $data['review'] = allocation_reviews($this->DB, [(int)$validated['id']])[(int)$validated['id']] ?? null;
         $data['gaps'] = is_array($data['data']) ? activity_gaps($this->DB, $data['data']) : [];
         $data['tasks'] = $this->activityTasks((int)$validated['id']);
+        $data['focal_people'] = $this->focalPeopleFor($data['tasks']);
         $data['attachments'] = attachment_list($this->DB, (int)$validated['id']);
         $data['may_record'] = $this->mayRecordHere();
         // For the Delete confirm: counted with the delete's own predicate.
@@ -300,7 +308,7 @@ class projectsController extends coreController{
         // my_result is what this person's own reporting entity has recorded
         // against the task (NULL while nothing has), for the form's Status column.
         return (array)$this->DB->MQ(
-            "SELECT t.id, t.name, t.description,
+            "SELECT t.id, t.name, t.description, " . (focal_people_available($this->DB) ? "t.focal_person_id" : "NULL") . " AS focal_person_id,
                     (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id) AS reports,
                     (SELECT COUNT(*) FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.result = 1) AS deliveries,
                     (SELECT d.result FROM pm_progress_tasks_tbl d WHERE d.task_id = t.id AND d.project_id = t.project_id AND d.member_id = ? LIMIT 1) AS my_result,
@@ -449,10 +457,14 @@ class projectsController extends coreController{
         $projectId = (int)$projectId;
         if ($projectId <= 0) { return []; }
         $kept = [];
+        // The focal person is written only when the row posted one: a form
+        // opened before focal people existed (or by someone without the
+        // column) posts nothing, and the task keeps whoever it had.
+        $focalOn = focal_people_available($this->DB);
         foreach ($tasks as $id => $t) {
             $id = (int)$id;
             if ($id <= 0 || !is_array($t)) { continue; }
-            $mine = $this->DB->MQ("SELECT id FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", "one", [$id, $projectId]);
+            $mine = $this->DB->MQ("SELECT id" . ($focalOn ? ", focal_person_id" : "") . " FROM pm_projects_tasks_tbl WHERE id = ? AND project_id = ?", "one", [$id, $projectId]);
             if (!is_set($mine)) { continue; }
             if ((string)($t['remove'] ?? '0') === '1') {
                 // Any progress row at all, not only a delivery: a "not
@@ -465,19 +477,30 @@ class projectsController extends coreController{
             }
             $name = mb_substr(trim((string)($t['name'] ?? '')), 0, 250);
             if ($name === '') { continue; }   // refused before this point; never blanked here
-            $this->DB->MQ("UPDATE pm_projects_tasks_tbl SET name = ?, description = ? WHERE id = ? AND project_id = ?", false,
-                          [$name, trim((string)($t['description'] ?? '')), $id, $projectId]);
+            $set = "name = ?, description = ?";
+            $vals = [$name, trim((string)($t['description'] ?? ''))];
+            if ($focalOn && array_key_exists('focal', $t) && ($f = focal_person_value($this->DB, $t['focal'], $mine['focal_person_id'] ?? null)) !== false) {
+                $set .= ", focal_person_id = ?"; $vals[] = $f;
+            }
+            $vals[] = $id; $vals[] = $projectId;
+            $this->DB->MQ("UPDATE pm_projects_tasks_tbl SET " . $set . " WHERE id = ? AND project_id = ?", false, $vals);
         }
         foreach ($newTasks as $t) {
             if (!is_array($t)) { continue; }
             $name = mb_substr(trim((string)($t['name'] ?? '')), 0, 250);
             if ($name === '') { continue; }
-            $this->model->add_data('pm_projects_tasks', [
+            $row = [
                 'project_id'  => $projectId,
                 'name'        => $name,
                 'description' => trim((string)($t['description'] ?? '')),
                 'applies_to'  => default_applies_to($this->DB, null),
-            ]);
+            ];
+            $f = $focalOn ? focal_person_value($this->DB, $t['focal'] ?? '') : false;
+            $ins = $this->model->add_data('pm_projects_tasks', $row);
+            // Written here, not through add_data: the model keeps the column off generic saves.
+            if (is_int($f) && (int)($ins['common'] ?? 0) > 0) {
+                $this->DB->MQ("UPDATE pm_projects_tasks_tbl SET focal_person_id = ? WHERE id = ? AND project_id = ?", false, [$f, (int)$ins['common'], $projectId]);
+            }
         }
         return $kept;
     }
@@ -798,10 +821,12 @@ class projectsController extends coreController{
                 if (array_key_exists('description', $p)) { $t['description'] = (string)$p['description']; }
                 if (array_key_exists('result', $p)) { $t['my_result'] = ((string)$p['result'] === '') ? null : (string)$p['result']; }
                 if (array_key_exists('pct', $p)) { $t['my_pct'] = ((string)$p['pct'] === '') ? null : (string)$p['pct']; }
+                if (array_key_exists('focal', $p)) { $t['focal_person_id'] = ((string)$p['focal'] === '') ? null : (string)$p['focal']; }
                 $t['remove'] = (string)($p['remove'] ?? '0') === '1';
             }
             unset($t);
         }
+        $data['focal_people'] = $this->focalPeopleFor($mode === 'edit' ? (array)($data['tasks'] ?? []) : []);
         // render() picks the view from the routed action; the registry keeps
         // its url through __set, so the array is replaced whole.
         $url = $this->R->url; $url['action'] = ($mode === 'edit') ? 'edit' : 'add'; $this->R->url = $url;
@@ -826,6 +851,19 @@ class projectsController extends coreController{
             $o = $this->DB->MQ("SELECT pillar_id FROM pm_objectives_tbl WHERE id = ?", "one", [$objective]);
             if (is_set($o)) { $row['pillar_id'] = (int)$o['pillar_id']; }
         }
+    }
+
+    /**
+     * The focal-person dropdown's list for a form showing these tasks, or null
+     * while there is nobody to choose (no table yet, or an empty list): the
+     * column is then left off the form, and nothing about focal people is saved.
+     */
+    private function focalPeopleFor(array $tasks) {
+        if (!focal_people_available($this->DB)) { return null; }
+        // Until the list has someone in it there is nothing to choose: the
+        // column stays off and the forms post nothing about focal people.
+        $people = focal_people_options($this->DB, array_column($tasks, 'focal_person_id'));
+        return $people ? $people : null;
     }
 
     /** The default "Task" an activity needs to be reported at all (library: ensure_default_task). */

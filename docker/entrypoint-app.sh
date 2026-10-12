@@ -568,6 +568,33 @@ if [ "$AUTO_MIGRATE" = "true" ]; then
             || die "could not create pm_attachments_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
     fi
 
+    # 12. Focal people: who answers for a task. A short list administrators
+    #     keep (Administrative > Focal people), and one optional pointer on
+    #     each task. Additive: a new table and a nullable column, so every
+    #     existing task reads "Not assigned" until someone chooses.
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.TABLES WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_focal_people_tbl'") || [ -z "$have" ]; then
+        die "could not read information_schema.TABLES - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "creating pm_focal_people_tbl (focal people for tasks)"
+        qddl "CREATE TABLE pm_focal_people_tbl (
+                id INT(11) NOT NULL AUTO_INCREMENT,
+                name VARCHAR(150) NOT NULL DEFAULT '',
+                active TINYINT(1) NOT NULL DEFAULT 1,
+                PRIMARY KEY (id),
+                UNIQUE KEY uq_focal_people_name (name)
+              ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci" \
+            || die "could not create pm_focal_people_tbl (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the CREATE by hand as root"
+    fi
+    if ! have=$(q "SELECT COUNT(*) FROM information_schema.COLUMNS WHERE TABLE_SCHEMA='${DB_NAME}' AND TABLE_NAME='pm_projects_tasks_tbl' AND COLUMN_NAME='focal_person_id'") || [ -z "$have" ]; then
+        die "could not read pm_projects_tasks_tbl columns from information_schema - refusing to guess whether the migration is needed"
+    fi
+    if [ "$have" = "0" ]; then
+        log "adding pm_projects_tasks_tbl.focal_person_id (the task's focal person)"
+        qddl "ALTER TABLE pm_projects_tasks_tbl ADD COLUMN focal_person_id INT(11) DEFAULT NULL, ADD KEY idx_tasks_focal (focal_person_id)" \
+            || die "could not add pm_projects_tasks_tbl.focal_person_id (see the DDL error above) - check DB_ROOT_PASSWORD in .env, or run the ALTER by hand as root"
+    fi
+
     users=$(q "SELECT COUNT(*) FROM core_users_tbl" || echo 0)
     if [ "${users:-0}" -eq 0 ]; then
         log "NOTE: no accounts exist yet. Create one with:"

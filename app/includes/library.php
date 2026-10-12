@@ -2244,7 +2244,7 @@ function model_may($model, $op) {
     if ($model === '' || $model === 'core_users') { return can_admin(); }
     if ($op === 'delete') { return can_delete(); }
     if ($op === 'read') { return can_browse(); }
-    if (in_array($model, ['pm_pillars', 'pm_objectives', 'pm_units'], true)) { return can_structure(); }
+    if (in_array($model, ['pm_pillars', 'pm_objectives', 'pm_units', 'pm_focal_people'], true)) { return can_structure(); }
     if (in_array($model, ['pm_programmes', 'pm_projects', 'pm_projects_tasks', 'pm_projects_dates', 'pm_projects_milestones', 'pm_projects_percentages',
                           'pm_progress_tasks', 'pm_progress_dates', 'pm_progress_milestones', 'pm_progress_percentages'], true)) { return can_edit(); }
     return can_admin();
@@ -2442,6 +2442,70 @@ function activity_children_delete($db, $projectId) {
 }
 
 /**
+ * Focal people: who answers for a task. A plain list administrators keep
+ * (Administrative > Focal people, core/db_list/pm_focal_people); a task names
+ * one of them or nobody (pm_projects_tasks_tbl.focal_person_id). The names
+ * live in the database only - they are staff, and the code is published.
+ * Everything here is off until migration 12 has added the table and column.
+ */
+function focal_people_available($db) {
+    static $ok = null;
+    if ($ok === null) {
+        $ok = is_set($db->MQ("SHOW TABLES LIKE 'pm_focal_people_tbl'", "one"))
+           && is_set($db->MQ("SHOW COLUMNS FROM pm_projects_tasks_tbl LIKE 'focal_person_id'", "one"));
+    }
+    return $ok;
+}
+
+/**
+ * The dropdown's people, [id => ['name', 'active']], by name: everyone
+ * active, plus anyone in $keep (the people the tasks on the page already
+ * name), so a person made inactive still shows on the tasks they hold
+ * instead of being silently dropped by the next save.
+ */
+function focal_people_options($db, array $keep = []) {
+    $keep = array_values(array_unique(array_filter(array_map('intval', $keep), function ($v) { return $v > 0; })));
+    $sql = "SELECT id, name, active FROM pm_focal_people_tbl WHERE active = 1"
+         . ($keep ? " OR id IN (" . implode(',', array_fill(0, count($keep), '?')) . ")" : "") . " ORDER BY name, id";
+    $out = [];
+    foreach ((array)$db->MQ($sql, "all", $keep) as $r) {
+        $out[(int)$r['id']] = ['name' => (string)$r['name'], 'active' => (int)$r['active'] === 1];
+    }
+    return $out;
+}
+
+/**
+ * What to store for a posted focal person: null for "Not assigned", the id
+ * of an active person on the list (or of the person the task already has,
+ * active or not), or false for anything else - the task is then left as it
+ * is rather than cleared by a value nobody chose.
+ */
+function focal_person_value($db, $posted, $current = null) {
+    $p = trim((string)$posted);
+    if ($p === '') { return null; }
+    if (!ctype_digit($p)) { return false; }
+    $id = (int)$p;
+    if ($id <= 0) { return false; }
+    if ($current !== null && $current !== '' && (int)$current === $id) { return $id; }
+    return is_set($db->MQ("SELECT id FROM pm_focal_people_tbl WHERE id = ? AND active = 1", "one", [$id])) ? $id : false;
+}
+
+/** The focal-person dropdown for one task row. $name '' leaves the name off (the row template custom code clones). */
+function focal_select_html(array $people, $name, $selected, $extra = '') {
+    $sel = ($selected === null || $selected === '') ? '' : (string)(int)$selected;
+    $h = '<select class="form-select form-select-sm afcdc-task__focal"' . ($name !== '' ? ' name="' . display($name) . '"' : '')
+       . ' data-afcdc-was="' . $sel . '" aria-label="Focal person for this task"' . $extra . '>'
+       . '<option value=""' . ($sel === '' ? ' selected' : '') . '>Not assigned</option>';
+    foreach ($people as $id => $person) {
+        // An inactive person is offered only on the task that already names them.
+        if (!$person['active'] && $sel !== (string)(int)$id) { continue; }
+        $h .= '<option value="' . (int)$id . '"' . ($sel === (string)(int)$id ? ' selected' : '') . '>'
+            . display($person['name']) . ($person['active'] ? '' : ' (inactive)') . '</option>';
+    }
+    return $h . '</select>';
+}
+
+/**
  * Why a task cannot be deleted, or '' when it can: one with delivery records
  * stays, as on the activity form (applyTaskEdits), or they would point at
  * nothing. Used by projects/task_delete and core/db_delete.
@@ -2482,6 +2546,11 @@ function parent_delete_blocker($db, $model, $id) {
             $say($n("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE JSON_CONTAINS(applies_to, ?)", [json_encode((string)$id)]), 'task applying to it', 'tasks applying to it');
             $say($n("SELECT COUNT(*) AS n FROM pm_progress_tasks_tbl WHERE member_id = ?", [$id]), 'delivery record', 'delivery records');
             $label = 'reporting entity'; break;
+        case 'pm_focal_people':
+            // Named on tasks: deleting would leave those tasks pointing at nobody.
+            if (!focal_people_available($db)) { return ''; }
+            $c = $n("SELECT COUNT(*) AS n FROM pm_projects_tasks_tbl WHERE focal_person_id = ?", [$id]);
+            return $c > 0 ? 'This focal person is named on ' . $c . ' ' . ($c === 1 ? 'task' : 'tasks') . '. Set Active to No to stop offering them for new tasks, or choose someone else on those tasks first, then delete.' : '';
         default:
             return '';
     }
@@ -2746,7 +2815,10 @@ function attachment_preview_xlsx($path) {
 
 function attachment_preview_docx($path) {
     $size = @filesize($path);
-    if ($size === false || $size > attachment_max_bytes()) { throw new RuntimeException('the file is larger than ' . attachment_max_label()); }
+    // The reading cap, not the upload limit: files attached when the limit was
+    // 25 MB keep their preview (the workbook reader's cap, xlsx.php).
+    $cap = defined('XLSX_MAX_FILE_BYTES') ? XLSX_MAX_FILE_BYTES : 25 * 1024 * 1024;
+    if ($size === false || $size > $cap) { throw new RuntimeException('the file is larger than ' . round($cap / 1048576) . ' MB'); }
     $z = new ZipArchive();
     if ($z->open($path, ZipArchive::RDONLY) !== true) { throw new RuntimeException('the file could not be opened'); }
     try {

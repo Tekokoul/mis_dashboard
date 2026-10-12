@@ -374,6 +374,34 @@ remove one. Viewers do not see files.
 
 ---
 
+## Focal people on tasks
+
+Each task can name a **focal person**: who answers for it. Power Users and
+administrators choose one from a dropdown in the **Focal person** column of
+the activity form's task table (also on the add form); the activity's page
+on the Overview shows it under each task. Tasks with nobody chosen read
+"Not assigned".
+
+- **The list** is kept by administrators under **Administrative > Focal
+  people** (`core/db_list/pm_focal_people`): add a name, rename one, or set
+  **Active** to No. An inactive person is no longer offered for new choices
+  but stays on the tasks that already name them. A person still named on a
+  task cannot be deleted; the refusal says how many tasks.
+- **The names live in the database only** (`pm_focal_people_tbl`), never in
+  the code: the repository is public. Load a batch with an untracked SQL file
+  (`INSERT IGNORE INTO pm_focal_people_tbl (name, active) VALUES (...)`), which
+  is safe to run twice because names are unique.
+- Stored as `pm_projects_tasks_tbl.focal_person_id` (migration 12, nullable).
+  A form opened before the column existed posts nothing for it, and the task
+  keeps whoever it had; an id that is not an active person on the list is
+  ignored rather than saved. Only the activity form writes it: the generic
+  task screens neither show nor save it.
+- **Assign focal people on live.** The local-to-live exports
+  (`export-import.php`, `export-allocations.php`) neither carry nor clear
+  them, and the list's ids differ between the two databases.
+
+---
+
 ## The order of objectives on the Overview
 
 Administrators see **Reorder objectives** at the top right of the Overview.

@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "name": "Focal people",
+    "actions": [],
+    "filters": []
+  },
+  "fields": {
+    "id": {
+      "hidden": true,
+      "no_update": true
+    },
+    "name": {
+      "title": "Name",
+      "type": "varchar",
+      "appear_in_list": 1,
+      "list_width": 70,
+      "search_field": true,
+      "required": true,
+      "order_field": "ASC"
+    },
+    "active": {
+      "title": "Active",
+      "type": "dropdown",
+      "appear_in_list": 2,
+      "list_width": 15,
+      "values_from": "values_list",
+      "values_list": {
+        "1": "Yes",
+        "0": "No"
+      }
+    }
+  }
+}

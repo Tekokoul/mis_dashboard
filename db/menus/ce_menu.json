@@ -87,6 +87,13 @@
     "active_for": "1"
   },
   {
+    "title": "Focal people",
+    "type": "link",
+    "link": "core/db_list/pm_focal_people",
+    "icon": "bx-user-pin",
+    "active_for": "1"
+  },
+  {
     "title": "Manage users",
     "type": "link",
     "link": "users/list",

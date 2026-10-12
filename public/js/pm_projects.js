@@ -11,7 +11,7 @@ $(document).ready(function() {
             var rows = $newTasks.find('tr.afcdc-new-task');
             rows.each(function (i) {
                 $(this).find('.afcdc-new-task__num').text(saved + i + 1);
-                $(this).find('input').each(function () { this.name = this.name.replace(/new_tasks\[\d+\]/, 'new_tasks[' + i + ']'); });
+                $(this).find('input, select').each(function () { if (this.name) { this.name = this.name.replace(/new_tasks\[\d+\]/, 'new_tasks[' + i + ']'); } });
             });
             $newTasks.find('.afcdc-new-tasks__empty').prop('hidden', (rows.length + saved) > 0);
         }
@@ -23,6 +23,8 @@ $(document).ready(function() {
             var i = $newTasks.find('tr.afcdc-new-task').length;
             // A task gets its Status box once it exists; until then the cell says so.
             var withStatus = $newTasks.find('th[data-afcdc-status-col]').length > 0;
+            // The focal-person dropdown, when the page has one, is cloned from its template.
+            var focalTpl = document.getElementById('afcdc-focal-template');
             var $row = $('<tr class="afcdc-new-task"><td class="afcdc-new-task__num"></td>'
                 + '<td><input type="text" class="form-control form-control-sm" placeholder="Task name" maxlength="250"></td>'
                 + '<td><input type="text" class="form-control form-control-sm" placeholder="What done looks like (optional)"></td>'
@@ -30,6 +32,11 @@ $(document).ready(function() {
                 + '<td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td></tr>');
             $row.find('input').eq(0).attr('name', 'new_tasks[' + i + '][name]');
             $row.find('input').eq(1).attr('name', 'new_tasks[' + i + '][description]');
+            if (focalTpl && focalTpl.content && focalTpl.content.firstElementChild) {
+                var sel = focalTpl.content.firstElementChild.cloneNode(true);
+                sel.name = 'new_tasks[' + i + '][focal]';
+                $row.find('td').eq(1).append(sel);   // under the name, as on the saved rows
+            }
             $newTasks.find('.afcdc-new-tasks__empty').before($row);
             renumber();
             $row.find('input').first().trigger('focus');
@@ -46,8 +53,8 @@ $(document).ready(function() {
             // A row on its way out must not hold the save up for a blank name.
             $row.find('input[type="text"]').prop('readonly', true).removeAttr('required')
                 .closest('.form-group').removeClass('afcdc-field--missing');
-            // Nor does its status get posted: a status is for a task that stays.
-            $row.find('select.afcdc-task__status, select.afcdc-task__pct').prop('disabled', true);
+            // Nor does its status or focal person get posted: those are for a task that stays.
+            $row.find('select.afcdc-task__status, select.afcdc-task__pct, select.afcdc-task__focal').prop('disabled', true);
             $(this).prop('hidden', true);
             $row.find('[data-undo-remove-task]').prop('hidden', false);
         });
@@ -57,7 +64,7 @@ $(document).ready(function() {
             $row.removeClass('afcdc-task--removed');
             $row.find('input[name$="[remove]"]').val('0');
             $row.find('input[type="text"]').prop('readonly', false).eq(0).attr('required', 'required');
-            $row.find('select.afcdc-task__status, select.afcdc-task__pct').prop('disabled', false);
+            $row.find('select.afcdc-task__status, select.afcdc-task__pct, select.afcdc-task__focal').prop('disabled', false);
             $(this).prop('hidden', true);
             $row.find('[data-remove-existing-task]').prop('hidden', false);
         });
@@ -78,6 +85,11 @@ $(document).ready(function() {
                 else if (!on) { $pct.attr('data-afcdc-touched', '0'); }   // hidden: the server ignores it for any other status
                 else { var pw = $pct.attr('data-afcdc-was'); $pct.attr('data-afcdc-touched', (pw !== undefined && $pct.val() === pw) ? '0' : '1'); }
             }
+        });
+        // A focal person that differs from the one loaded is an unsaved change too.
+        $newTasks.on('change', 'select.afcdc-task__focal', function () {
+            var was = this.getAttribute('data-afcdc-was');
+            this.setAttribute('data-afcdc-touched', (was !== null && this.value === was) ? '0' : '1');
         });
         $newTasks.on('change', 'select.afcdc-task__pct', function () {
             var was = this.getAttribute('data-afcdc-was');

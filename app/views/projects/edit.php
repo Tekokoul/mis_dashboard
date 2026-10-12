@@ -64,6 +64,9 @@ $col_width = 12/$columns;
             // In progress also says how far along (25, 50 or 75%) once the database carries it.
             $pctOn = $mayRecord && delivery_pct_available($this->DB);
             $statuses = [0 => 'Not started', 2 => 'In progress', 1 => 'Completed'];
+            // Focal person: a dropdown per task once the database has focal people (null until then).
+            $focal = $data['focal_people'] ?? null;
+            $focalOn = $tasksHere && is_array($focal);
             ?>
             <?php if ($tasksHere) { ?>
             <div class="card card-modern" id="afcdc-new-tasks">
@@ -74,7 +77,7 @@ $col_width = 12/$columns;
                             <thead>
                             <tr>
                                 <th width="4%">#</th>
-                                <th width="38%">Name</th>
+                                <th width="38%">Name<?= $focalOn ? '<span class="afcdc-th-sub"> and focal person</span>' : ''; ?></th>
                                 <th>Description</th>
                                 <?php if ($mayRecord) { ?><th width="<?= $pctOn ? '25' : '16'; ?>%" data-afcdc-status-col>Status</th><?php } ?>
                                 <th width="5%"><a href="#" data-add-task aria-label="Add a task" title="Add a task"><i class="bx bx-plus-medical text-3 me-2"></i></a></th>
@@ -98,6 +101,8 @@ $col_width = 12/$columns;
                                     <?php // data-afcdc-was, because a hidden input's defaultValue IS its value: the browser gives it no memory of what it started as, so the unsaved-changes check has nothing to compare against without this. ?>
                                     <input type="hidden" name="tasks[<?= $tid; ?>][remove]" value="<?= $removed ? '1' : '0'; ?>" data-afcdc-was="<?= $removed ? '1' : '0'; ?>">
                                     <input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][name]" value="<?= display($t['name']); ?>" title="<?= display($t['name']); ?>" maxlength="250"<?= $removed ? ' readonly' : ' required'; ?>>
+                                    <?php // Under the name: the card is half the screen wide on a laptop, too narrow for a column of its own. ?>
+                                    <?php if ($focalOn) { echo focal_select_html($focal, 'tasks[' . $tid . '][focal]', $t['focal_person_id'] ?? null, $removed ? ' disabled' : ''); } ?>
                                 </td>
                                 <td><input type="text" class="form-control form-control-sm" name="tasks[<?= $tid; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" title="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"<?= $removed ? ' readonly' : ''; ?>></td>
                                 <?php if ($mayRecord) {
@@ -140,7 +145,7 @@ $col_width = 12/$columns;
                             <?php foreach ($newTasks as $i => $t) { ?>
                             <tr class="afcdc-new-task">
                                 <td class="afcdc-new-task__num"></td>
-                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][name]" value="<?= display($t['name']); ?>" placeholder="Task name" maxlength="250"></td>
+                                <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][name]" value="<?= display($t['name']); ?>" placeholder="Task name" maxlength="250"><?php if ($focalOn) { echo focal_select_html($focal, 'new_tasks[' . $i . '][focal]', $t['focal'] ?? null); } ?></td>
                                 <td><input type="text" class="form-control form-control-sm" name="new_tasks[<?= $i; ?>][description]" value="<?= display($t['description'] ?? ''); ?>" placeholder="What done looks like (optional)"></td>
                                 <?php if ($mayRecord) { ?><td class="afcdc-task__status-later">after saving</td><?php } ?>
                                 <td><a href="#" data-remove-task aria-label="Remove"><i class="bx bx-trash text-3 me-2"></i></a></td>
@@ -150,7 +155,9 @@ $col_width = 12/$columns;
                             </tbody>
                         </table>
                     </div>
-                    <p class="afcdc-new-tasks__lead mb-0"><?= $mayRecord ? 'A status set here is recorded for your reporting entity with today\'s date' . ($pctOn ? '; In progress also says how far along (25, 50 or 75%), and the overview counts the task by that share' : '') . '. The spend and comment behind it are entered on the Progress page. ' : ''; ?>A task that has been reported on is locked, so no record of somebody's work is thrown away by accident. Clear its entries on the Progress page first if it really has to go.</p>
+                    <?php // The dropdown a row added with + gets (pm_projects.js names it). ?>
+                    <?php if ($focalOn) { ?><template id="afcdc-focal-template"><?= focal_select_html($focal, '', null); ?></template><?php } ?>
+                    <p class="afcdc-new-tasks__lead mb-0"><?= $focalOn ? 'The <strong>Focal person</strong> is who answers for the task; administrators keep the list under Administrative &rsaquo; Focal people. ' : ''; ?><?= $mayRecord ? 'A status set here is recorded for your reporting entity with today\'s date' . ($pctOn ? '; In progress also says how far along (25, 50 or 75%), and the overview counts the task by that share' : '') . '. The spend and comment behind it are entered on the Progress page. ' : ''; ?>A task that has been reported on is locked, so no record of somebody's work is thrown away by accident. Clear its entries on the Progress page first if it really has to go.</p>
                 </div>
             </div>
             <?php } else { ?>

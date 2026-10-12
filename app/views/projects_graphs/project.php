@@ -89,7 +89,7 @@ foreach ($members as $member){
                             <a href="<?=$this->L("projects/edit/".(int)$data['project']['id']);?>" class="btn btn-xs btn-light border ms-1 afcdc-record-link"><i class="bx bx-pencil"></i> Edit</a>
                         <?php endif; ?>
                         </span>
-                        <br><span class="afcdc-deliverable__meta"><?= (int)$task['completed']; ?> of <?= (int)$task['assignments']; ?> completed</span>
+                        <br><span class="afcdc-deliverable__meta"><?= (int)$task['completed']; ?> of <?= (int)$task['assignments']; ?> completed<?php if (($task['focal_name'] ?? '') !== ''): ?> · Focal person: <?= display($task['focal_name']); ?><?php endif; ?></span>
                     </div>
                     <div class="col col-5"><div class="progress progress-lg progress-squared m-2">
                             <div class="progress-bar<?= delivery_status_bar($tStatus); ?>" role="progressbar" aria-valuenow="<?=(float)$task['progress'];?>" aria-valuemin="0" aria-valuemax="100" style="width: <?=(float)$task['progress'];?>%;">
